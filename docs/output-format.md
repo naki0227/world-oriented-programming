@@ -157,6 +157,7 @@ This format is intentionally small but useful for:
 - exposing report-level totals so whole runs can be compared without manual counting
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
+- exposing candidate-action selection as activity-log entries during the initial convergence step
 
 ## Static Analysis
 

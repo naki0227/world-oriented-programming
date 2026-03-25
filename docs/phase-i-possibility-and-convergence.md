@@ -165,6 +165,21 @@ Recommended first scope:
 
 This keeps the work continuous with Phase F and Phase G instead of opening an entirely separate subsystem.
 
+The first concrete syntax target is:
+
+```text
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 1
+    candidate_velocity(A, move) = (3, 0, 0) score 5
+```
+
+where the runtime:
+
+- tests each candidate against the hard law layer
+- keeps repaired candidates if they remain admissible
+- chooses the highest-scoring admissible continuation
+- logs which candidates were rejected and which one was selected
+
 ## Definition Of Success
 
 Phase I is successful when:

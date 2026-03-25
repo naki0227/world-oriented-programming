@@ -14,10 +14,19 @@ pub enum Value {
     Vec3(Vec3),
 }
 
+#[derive(Clone, Debug)]
+pub struct ActionCandidateDecl {
+    pub entity: String,
+    pub label: String,
+    pub velocity: Vec3,
+    pub score: f64,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Program {
     pub entities: Vec<EntityDecl>,
     pub properties: HashMap<(String, String), Value>,
+    pub action_candidates: Vec<ActionCandidateDecl>,
     pub constraints: Vec<Vec<String>>,
     pub observe_times: Vec<f64>,
 }
@@ -89,6 +98,10 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                     mode = Mode::Observe;
                     continue;
                 }
+                if trimmed == "action:" {
+                    mode = Mode::Action;
+                    continue;
+                }
                 if let Some(entity) = parse_entity_decl(trimmed) {
                     program.entities.push(entity);
                     continue;
@@ -107,6 +120,10 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                     mode = Mode::TopLevel;
                     if trimmed == "observe:" {
                         mode = Mode::Observe;
+                        continue;
+                    }
+                    if trimmed == "action:" {
+                        mode = Mode::Action;
                         continue;
                     }
                     if trimmed == "constraint:" {
@@ -149,6 +166,34 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                 }
                 program.observe_times.push(parse_observe(trimmed, line_no)?);
             }
+            Mode::Action => {
+                if !raw_line.starts_with(' ') && !raw_line.starts_with('\t') {
+                    mode = Mode::TopLevel;
+                    if let Some(entity) = parse_entity_decl(trimmed) {
+                        program.entities.push(entity);
+                        continue;
+                    }
+                    if let Some((property, entity, value)) = parse_property(trimmed, line_no)? {
+                        program.properties.insert((property, entity), value);
+                        continue;
+                    }
+                    if trimmed == "constraint:" {
+                        mode = Mode::Constraint;
+                        continue;
+                    }
+                    if trimmed == "observe:" {
+                        mode = Mode::Observe;
+                        continue;
+                    }
+                    return Err(ParseError::new(
+                        line_no,
+                        format!("could not parse statement `{trimmed}` after action block"),
+                    ));
+                }
+                program
+                    .action_candidates
+                    .push(parse_action_candidate(trimmed, line_no)?);
+            }
         }
     }
 
@@ -164,6 +209,7 @@ enum Mode {
     TopLevel,
     Constraint,
     Observe,
+    Action,
 }
 
 fn parse_entity_decl(line: &str) -> Option<EntityDecl> {
@@ -381,4 +427,50 @@ fn parse_observe(line: &str, line_no: usize) -> Result<f64, ParseError> {
     parts[2]
         .parse::<f64>()
         .map_err(|_| ParseError::new(line_no, format!("invalid observation time `{}`", parts[2])))
+}
+
+fn parse_action_candidate(line: &str, line_no: usize) -> Result<ActionCandidateDecl, ParseError> {
+    let Some(rest) = line.strip_prefix("candidate_velocity(") else {
+        return Err(ParseError::new(
+            line_no,
+            format!("invalid action statement `{line}`"),
+        ));
+    };
+    let close = rest
+        .find(')')
+        .ok_or_else(|| ParseError::new(line_no, "candidate_velocity is missing `)`"))?;
+    let inner = &rest[..close];
+    let tail = rest[close + 1..].trim();
+    let args = inner
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if args.len() != 2 {
+        return Err(ParseError::new(
+            line_no,
+            "candidate_velocity requires an entity and a label",
+        ));
+    }
+
+    let rhs = tail
+        .strip_prefix('=')
+        .ok_or_else(|| ParseError::new(line_no, "candidate_velocity must use `=`"))?
+        .trim();
+    let (velocity_text, score_text) = rhs
+        .rsplit_once(" score ")
+        .ok_or_else(|| ParseError::new(line_no, "candidate_velocity requires `score <number>`"))?;
+
+    let velocity = parse_vec3(velocity_text.trim(), line_no)?;
+    let score = score_text
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| ParseError::new(line_no, format!("invalid score `{}`", score_text.trim())))?;
+
+    Ok(ActionCandidateDecl {
+        entity: args[0].to_string(),
+        label: args[1].to_string(),
+        velocity,
+        score,
+    })
 }

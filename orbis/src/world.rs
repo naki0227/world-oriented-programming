@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::parser::Program;
+use crate::parser::{ActionCandidateDecl, Program};
 
 const EPSILON: f64 = 1e-9;
 
@@ -700,6 +700,7 @@ pub enum SimulationError {
     VelocityLimitExceeded { sphere: String, speed: f64, limit: f64 },
     EnteredForbiddenRegion { sphere: String, region: String, time: f64 },
     SphereNotFound(String),
+    InvalidActionCandidate(String),
 }
 
 impl fmt::Display for SimulationError {
@@ -728,6 +729,7 @@ impl fmt::Display for SimulationError {
                 "sphere `{sphere}` entered forbidden region `{region}` at t={time:.3}"
             ),
             Self::SphereNotFound(name) => write!(f, "unknown sphere `{name}`"),
+            Self::InvalidActionCandidate(message) => write!(f, "{message}"),
         }
     }
 }
@@ -893,15 +895,17 @@ impl World {
             constraints.push(Constraint::from_parts(constraint, &build_context)?);
         }
 
-        Self {
+        let mut world = Self {
             spheres,
             plane,
             region,
             constraints,
             constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
             activity_log: Vec::new(),
-        }
-        .validated()
+        };
+
+        world.resolve_initial_action_candidates(&program.action_candidates)?;
+        world.validated()
     }
 
     pub fn advance_to(&mut self, target_time: f64) -> Result<(), SimulationError> {
@@ -1026,6 +1030,73 @@ impl World {
             .iter()
             .map(|sphere| sphere.last_update_time)
             .fold(0.0, f64::max)
+    }
+
+    fn resolve_initial_action_candidates(
+        &mut self,
+        action_candidates: &[ActionCandidateDecl],
+    ) -> Result<(), SimulationError> {
+        if action_candidates.is_empty() {
+            return Ok(());
+        }
+
+        let mut entity_names = action_candidates
+            .iter()
+            .map(|candidate| candidate.entity.as_str())
+            .collect::<Vec<_>>();
+        entity_names.sort_unstable();
+        entity_names.dedup();
+        if entity_names.len() > 1 {
+            return Err(SimulationError::InvalidActionCandidate(
+                "phase I prototype currently supports candidate actions for only one entity at a time"
+                    .to_string(),
+            ));
+        }
+
+        let sphere_name = entity_names[0];
+        let sphere_index = ensure_sphere_exists(&self.spheres, sphere_name)?;
+        let mut candidates = action_candidates.to_vec();
+        candidates.sort_by(|left, right| {
+            right
+                .score
+                .total_cmp(&left.score)
+                .then_with(|| left.label.cmp(&right.label))
+        });
+
+        for candidate in candidates {
+            let mut probe = self.clone();
+            probe.activity_log.clear();
+            probe.spheres[sphere_index].velocity = candidate.velocity;
+
+            match probe.enforce_all_constraints() {
+                Ok(_) => {
+                    self.spheres = probe.spheres;
+                    self.activity_log.push(candidate_activity_entry(
+                        self.current_time(),
+                        sphere_name,
+                        &candidate.label,
+                        candidate.score,
+                        "selected",
+                    ));
+                    self.activity_log.extend(probe.activity_log);
+                    return Ok(());
+                }
+                Err(_) => {
+                    self.activity_log.push(candidate_activity_entry(
+                        self.current_time(),
+                        sphere_name,
+                        &candidate.label,
+                        candidate.score,
+                        "rejected_by_hard_law",
+                    ));
+                }
+            }
+        }
+
+        Err(SimulationError::InvalidActionCandidate(format!(
+            "all candidate actions for sphere `{}` were rejected by hard laws",
+            sphere_name
+        )))
     }
 
 }
@@ -1547,6 +1618,22 @@ fn choose_earlier(current: Option<Event>, candidate: Event) -> Option<Event> {
     }
 }
 
+fn candidate_activity_entry(
+    time: f64,
+    sphere_name: &str,
+    label: &str,
+    score: f64,
+    action: &str,
+) -> ActivityEntry {
+    ActivityEntry {
+        time,
+        kind: "candidate_velocity".to_string(),
+        targets: vec![sphere_name.to_string(), label.to_string()],
+        policy: format!("score={score:.3}"),
+        action: action.to_string(),
+    }
+}
+
 fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
     let signed_distance = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
     let approach_speed = plane.normal.dot(sphere.velocity);
@@ -1981,5 +2068,67 @@ observe:
         assert!(json.contains("\"action\": \"contradicted\""));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"time\": 1.000000"));
+    }
+
+    #[test]
+    fn candidate_velocity_selects_best_admissible_option() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert_eq!(sphere.velocity.x, 3.0);
+        assert!(report
+            .activities
+            .iter()
+            .any(|entry| entry.kind == "candidate_velocity" && entry.action == "selected"));
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "rejected_by_hard_law"
+                && entry.targets.iter().any(|target| target == "fast")
+        }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_select_repaired_option() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+constraint:
+    clamp speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert_eq!(sphere.velocity.x, 4.0);
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "selected"
+                && entry.targets.iter().any(|target| target == "fast")
+        }));
+        assert!(report
+            .activities
+            .iter()
+            .any(|entry| entry.kind == "velocity_limit" && entry.action == "repaired"));
     }
 }
