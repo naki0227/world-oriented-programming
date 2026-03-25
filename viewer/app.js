@@ -328,6 +328,8 @@ function normalizeReport(report) {
         report.observation_summary ||
         defaultObservationSummary(report.candidate_resolutions || []),
       constraints: report.constraints || [],
+      candidate_inventory: report.candidate_inventory || [],
+      action_directive_inventory: report.action_directive_inventory || [],
       candidate_resolutions: report.candidate_resolutions || [],
       activities: report.activities || [],
       snapshots: report.snapshots || [],
@@ -342,6 +344,8 @@ function normalizeReport(report) {
       report.observation_summary ||
       defaultObservationSummary(report.candidate_resolutions || []),
     constraints: report.constraints || [],
+    candidate_inventory: report.candidate_inventory || [],
+    action_directive_inventory: report.action_directive_inventory || [],
     candidate_resolutions: report.candidate_resolutions || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
@@ -1018,8 +1022,41 @@ function renderCandidateResolution() {
 
   const candidateResolutions = state.report.candidate_resolutions || [];
   if (candidateResolutions.length === 0) {
-    candidateResolutionList.innerHTML =
-      '<p class="muted">This report has no candidate-resolution metadata.</p>';
+    const candidateInventory = state.report.candidate_inventory || [];
+    const actionDirectiveInventory = state.report.action_directive_inventory || [];
+    if (candidateInventory.length === 0 && actionDirectiveInventory.length === 0) {
+      candidateResolutionList.innerHTML =
+        '<p class="muted">This report has no candidate-resolution metadata.</p>';
+      return;
+    }
+    candidateResolutionList.innerHTML = "";
+    const summaryCard = document.createElement("article");
+    summaryCard.className = "sphere-card";
+    summaryCard.innerHTML = `
+      <h3>Static Phase I Inventory</h3>
+      <p>candidate entities = ${candidateInventory.length}</p>
+      <p class="muted">action directives = ${actionDirectiveInventory.length}</p>
+      <p class="muted">execution = not run</p>
+    `;
+    candidateResolutionList.appendChild(summaryCard);
+    candidateInventory.forEach((inventory) => {
+      const directives = actionDirectiveInventory
+        .filter((directive) => directive.entity === inventory.entity)
+        .map((directive) => directive.kind);
+      const card = document.createElement("article");
+      card.className = "sphere-card";
+      card.innerHTML = `
+        <h3>${inventory.entity}</h3>
+        <p>candidates = ${inventory.total_candidates}</p>
+        <p class="muted">top score = ${inventory.top_score || "n/a"}</p>
+        <p class="muted">top labels = ${(inventory.top_labels || []).join(", ") || "none"}</p>
+        <p class="muted">top score tied = ${inventory.top_score_tied ? "yes" : "no"}</p>
+        <p class="muted">defer on ambiguous top = ${inventory.defer_on_ambiguous_top ? "yes" : "no"}</p>
+        <p class="muted">resolution hint = ${inventory.resolution_hint || "n/a"}</p>
+        <p class="muted">directives = ${directives.join(", ") || "none"}</p>
+      `;
+      candidateResolutionList.appendChild(card);
+    });
     return;
   }
 
@@ -1077,8 +1114,13 @@ function renderCandidateComparison() {
 
   const candidateResolutions = state.report.candidate_resolutions || [];
   if (candidateResolutions.length === 0) {
-    candidateComparisonList.innerHTML =
-      '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
+    if ((state.report.candidate_inventory || []).length > 0) {
+      candidateComparisonList.innerHTML =
+        '<p class="muted">Static analyze reports show candidate inventories and resolution hints, but not runtime comparison outcomes.</p>';
+    } else {
+      candidateComparisonList.innerHTML =
+        '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
+    }
     return;
   }
 

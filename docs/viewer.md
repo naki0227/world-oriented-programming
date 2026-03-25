@@ -25,6 +25,7 @@ and provides:
 - display of active world laws, their categories, supported policies, and per-run law activity
 - display of report-level law analytics for category and outcome totals
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
+- display of static Phase I candidate inventories and action directives when reports come from `sekai analyze`
 - display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
 - quick comparison between candidate deferred, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
@@ -78,6 +79,7 @@ cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_deferred.s
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_equivalent_tie.sk > viewer/samples/candidate_velocity_equivalent_tie.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_tied.sk > viewer/samples/candidate_velocity_tied.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_two_entity.sk > viewer/samples/candidate_velocity_two_entity.json
+cargo run -p sekai-cli -- analyze examples/candidate_velocity_deferred.sk > viewer/samples/candidate_velocity_deferred_analyze.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json

@@ -27,6 +27,8 @@ The static analysis path now also exposes that directive, so `sekai analyze` can
 
 It now also exposes a small static resolution hint, so tied-top cases can be distinguished from deferred-top cases before runtime.
 
+The viewer now also accepts a static `analyze` sample for deferred Phase I worlds, so the pre-runtime intent and the post-runtime convergence behavior can be inspected in the same interface.
+
 Each entity-level candidate resolution now also says whether the world remained symbolically underdetermined and whether that underdetermination was still visible at the observation layer.
 
 This pushes Phase I closer to a real convergence model instead of a set of isolated candidate-selection examples.
