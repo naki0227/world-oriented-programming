@@ -26,6 +26,7 @@ and provides:
 - display of report-level law analytics for category and outcome totals
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
 - quick comparison between candidate fallback and repaired-selection Phase I samples
+- support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
@@ -72,6 +73,7 @@ cargo run -p sekai-cli -- simulate-report examples/clamped_speed.sk > viewer/sam
 cargo run -p sekai-cli -- simulate-report examples/clamped_region.sk > viewer/samples/clamped_region.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity.sk > viewer/samples/candidate_velocity.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_clamped.sk > viewer/samples/candidate_velocity_clamped.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_two_entity.sk > viewer/samples/candidate_velocity_two_entity.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json

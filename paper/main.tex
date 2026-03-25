@@ -354,7 +354,7 @@ This gives the prototype its first end-to-end visual-logical cycle: arrangement,
 \subsection{Early Underdetermined-World Convergence}
 
 The project has also now begun to cross the boundary from fully specified worlds to underdetermined ones.
-In a small Phase I extension, a scene can declare multiple candidate velocities for one entity together with soft scores, while the existing law layer still acts as a hard admissibility filter.
+In a small Phase I extension, a scene can declare multiple candidate velocities for a small finite set of entities together with soft scores, while the existing law layer still acts as a hard admissibility filter.
 This produces a useful first convergence model rather than a full search framework.
 
 Two minimal behaviors are already executable.
@@ -376,7 +376,7 @@ It shows that declarative world description can drive execution, that admissibil
 The prototype remains intentionally narrow.
 Its object vocabulary is small.
 Region handling is simplified, simultaneous-event semantics are underspecified, and the visualization pipeline is still far from a mature editor.
-The new underdetermined-world slice is likewise intentionally narrow: it currently supports only single-entity candidate resolution with one simple scoring model.
+The new underdetermined-world slice is likewise intentionally narrow: it currently supports only a small finite set of candidate-bearing entities with one simple scoring model.
 
 These limitations point directly to the next research steps.
 One path is implementation-driven: richer geometry, multiple surfaces, better simultaneous-event handling, and a stronger diagrammatic interface.

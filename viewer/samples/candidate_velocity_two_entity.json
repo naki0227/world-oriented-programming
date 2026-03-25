@@ -1,0 +1,104 @@
+{
+  "source": "examples/candidate_velocity_two_entity.sk",
+  "status": "ok",
+  "error": null,
+  "analytics": {
+    "total_constraints": 2,
+    "invariant_constraints": 2,
+    "boundary_constraints": 0,
+    "interaction_constraints": 0,
+    "idle_constraints": 2,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["A"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["B"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    }
+  ],
+  "candidate_resolutions": [
+    {
+      "entity": "A",
+      "total_candidates": 2,
+      "rejected_candidates": 1,
+      "selected_candidate": "safe",
+      "selected_score": "score=2.000",
+      "repaired_after_selection": false
+    },
+    {
+      "entity": "B",
+      "total_candidates": 2,
+      "rejected_candidates": 1,
+      "selected_candidate": "coast",
+      "selected_score": "score=1.000",
+      "repaired_after_selection": false
+    }
+  ],
+  "activities": [
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["A", "fast"],
+      "policy": "score=5.000",
+      "action": "rejected_by_hard_law"
+    },
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["A", "safe"],
+      "policy": "score=2.000",
+      "action": "selected"
+    },
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["B", "sprint"],
+      "policy": "score=4.000",
+      "action": "rejected_by_hard_law"
+    },
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["B", "coast"],
+      "policy": "score=1.000",
+      "action": "selected"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 3.000000, "y": 0.000000, "z": 0.000000 }
+        },
+        {
+          "name": "B",
+          "position": { "x": 5.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 2.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}
