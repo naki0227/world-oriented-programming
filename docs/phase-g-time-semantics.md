@@ -360,6 +360,12 @@ Current prototype mapping:
 - forbidden-region entry -> boundary-entry
 - sphere-sphere collision -> interaction
 
+Implementation-near mapping to the current runtime event kinds:
+
+- `EventKind::PlaneCollision` -> boundary-contact
+- `EventKind::ForbiddenRegionEntry` -> boundary-entry
+- `EventKind::SphereCollision` -> interaction
+
 ### Priority Lattice
 
 Within the same event time, G2 currently adopts a semantic priority lattice:
@@ -374,6 +380,24 @@ Interpretation:
 
 This is a semantic proposal, not yet the final runtime law.
 It is the current intended formal direction.
+
+### Prototype-Compatible Ordering Key
+
+To connect the semantics to the present implementation, define the ordering key:
+
+`Key(ev) = (time(ev), priority(ev), law_key(ev), participant_key(ev), index(ev))`
+
+where:
+
+- `time(ev)` is the scheduled event time
+- `priority(ev)` is induced by the priority lattice
+- `law_key(ev)` is a fixed lexical name for the generating law kind
+- `participant_key(ev)` is the sorted lexical tuple of participant identifiers
+- `index(ev)` is an implementation-stable fallback index
+
+Candidate events are selected by lexicographic minimization over `Key(ev)`.
+
+This gives a concrete deterministic tie-breaker without collapsing the semantic distinction between time, priority, and implementation convenience.
 
 ### Deterministic Tie-Breaker
 
@@ -391,6 +415,18 @@ The current prototype-compatible proposal is:
 3. compare an implementation-stable fallback index if still needed
 
 This keeps event ordering deterministic without pretending that all simultaneous events are semantically identical.
+
+### Near-Simultaneity
+
+The runtime currently uses floating-point time, so semantic simultaneity must tolerate numerical approximation.
+
+For G2, two events are treated as simultaneous when:
+
+`|time(ev1) - time(ev2)| <= epsilon_t`
+
+for a fixed temporal tolerance `epsilon_t`.
+
+The semantics should speak in exact time, but the implementation may use `epsilon_t` to approximate equality in candidate selection.
 
 ### Causality Preservation Requirement
 
@@ -439,3 +475,125 @@ That selected event will later feed:
 
 - G3 synchronization scope
 - G4 event / repair / contradiction transition rules
+
+## Phase G4 Event / Enforcement Semantics
+
+G4 defines what happens after `Next(W_t)` selects an event.
+
+The current semantic objective is to separate:
+
+- event firing
+- admissibility enforcement
+- contradiction
+
+instead of treating them as one undifferentiated runtime step.
+
+### Transition Layers
+
+Let `ev = Next(W_t)`.
+
+The intended transition layers are:
+
+1. event transition
+2. enforcement transition
+3. contradiction transition, if enforcement fails
+
+We write these as distinct semantic relations.
+
+### Event Transition
+
+If `ev` is selected and its participants are synchronized to `time(ev)`, then:
+
+`(W_t, ev) ->event W_t^ev`
+
+Interpretation:
+
+- the world advances to the event time
+- the participants of `ev` are materialized there
+- the event law applies its immediate state transformation
+
+Examples in the current prototype:
+
+- plane collision reflects motion at a boundary
+- sphere-sphere collision exchanges velocity through elastic interaction
+- forbidden-region entry marks a boundary crossing that must be checked by enforcement
+
+### Enforcement Transition
+
+After event firing, the world must be checked for admissibility under the declared law set.
+
+Write:
+
+`W_t^ev ->enforce W_t'`
+
+when all required post-event enforcement succeeds.
+
+This relation may:
+
+- leave the state unchanged
+- repair the state according to a law policy
+
+Current prototype examples:
+
+- `clamp speed(A) <= vmax`
+- `clamp not inside(A, zone)`
+- `reflect not inside(A, zone)`
+
+### Contradiction Transition
+
+If enforcement cannot produce an admissible continuation, the world enters contradiction.
+
+Write:
+
+`W_t^ev ->contradiction W_t^X`
+
+where `W_t^X` denotes semantic failure at time `t`.
+
+The important point is that contradiction is downstream from event and enforcement semantics.
+It is not merely a parser error or a detached exception.
+
+### Composite Step Schema
+
+The intended G4 composite step is:
+
+1. select `ev = Next(W_t)`
+2. apply event transition to obtain `W_t^ev`
+3. apply enforcement to obtain either:
+   - an admissible world `W_t'`, or
+   - contradiction at time `t`
+
+In compact form:
+
+`W_t ->event W_t^ev ->enforce W_t'`
+
+or
+
+`W_t ->event W_t^ev ->contradiction W_t^X`
+
+### Relationship To Runtime Activity Labels
+
+The current runtime already exposes the labels:
+
+- `fired`
+- `repaired`
+- `contradicted`
+
+These labels now admit a semantic reading:
+
+- `fired` corresponds to the event transition being taken
+- `repaired` corresponds to successful enforcement after that event
+- `contradicted` corresponds to failed enforcement at that event frontier
+
+This means the runtime trace is already a partial observable of the intended transition system.
+
+### Why G4 Depends On G2
+
+G4 presupposes G2 because the transition system needs a unique next event.
+
+Without `Next(W_t)`, one cannot define:
+
+- which event fires first
+- which participant set synchronizes first
+- which enforcement step is semantically downstream
+
+So G2 gives the selection rule and G4 gives the transition rule that consumes it.
