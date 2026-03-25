@@ -745,6 +745,24 @@ The intended semantics section should explicitly separate:
 These layers are already partially specified in earlier G phases.
 G5 gives them a single presentation and a shared notation.
 
+### Shared Notation Block
+
+The consolidated semantics should reuse a compact set of symbols:
+
+- `W_t`: world interpreted at semantic frontier `t`
+- `Ev(W_t)`: candidate-event set available from `W_t`
+- `Next(W_t)`: selected next event under the G2 ordering rule
+- `part(ev)`: direct participants of event `ev`
+- `deps(ev)`: dependency closure required to interpret `ev`
+- `Sync(ev)`: synchronization carrier, defined as `part(ev) ∪ deps(ev)`
+- `Obs(W, t_obs)`: observation operator at requested time `t_obs`
+- `W_t^ev`: post-event world after firing `ev`
+- `W_t'`: admissible continuation after enforcement
+- `W_t^X`: contradiction world at frontier `t`
+
+This notation is intentionally small.
+The semantics should be readable without forcing the reader to constantly switch vocabularies between G1, G2, G3, and G4.
+
 ### Operational-Step Schema
 
 The intended one-step operational schema is:
@@ -769,6 +787,27 @@ or
 
 This schema is the operational bridge between runtime traces and the intended formal semantics.
 
+### Named Transition Rules
+
+The next paper draft should be able to name the core semantic rules directly.
+
+The intended rule family is:
+
+- `Select`:
+  choose `ev = Next(W_t)` from `Ev(W_t)`
+- `Sync`:
+  materialize `Sync(ev)` at `time(ev)`
+- `Fire`:
+  apply the immediate event-law transition
+- `Enforce`:
+  apply admissibility-preserving repair when one exists
+- `Contradict`:
+  terminate at the same frontier when enforcement cannot recover admissibility
+- `Observe`:
+  construct a stable snapshot at `t_obs` only after earlier event frontiers are resolved
+
+This does not yet require inference-rule notation, but it fixes the semantic vocabulary that later formal rules should use.
+
 ### Snapshot Semantics
 
 G5 should also state the semantic meaning of observation.
@@ -782,6 +821,10 @@ For a requested observation time `t_obs`, `Obs(W, t_obs)` is valid only if:
 This yields the intended claim:
 
 snapshot determinism depends on deterministic event selection and coherent local synchronization.
+
+Equivalently, G5 should support the statement:
+
+if two executions start from the same `W_t` and use the same G2 ordering and G3 synchronization rules, then `Obs(W, t_obs)` is uniquely determined whenever no contradiction is reached before `t_obs`.
 
 ### Failure Semantics
 
@@ -804,6 +847,17 @@ This explains why the prototype can legitimately report:
 - law activity marked as `contradicted`
 
 without treating contradiction as an out-of-band exception.
+
+### Prototype Determinism Assumption
+
+The current semantics draft depends on a prototype-level determinism assumption:
+
+- event times are compared using the current runtime numeric model
+- ties are resolved by the G2 ordering key
+- enforcement policies are deterministic for the supported law set
+
+Later work may refine the numeric model or expose more explicit proofs.
+For now, G5 only needs to make the assumption visible and consistent across the semantics section.
 
 ### G5 Deliverable
 
