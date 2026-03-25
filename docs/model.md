@@ -163,11 +163,19 @@ With multiple spheres, the runtime searches for the next relevant local event:
 
 Only the entities participating in the event change interaction state there, which is the current practical form of local synchronization.
 
+<<<<<<< feature/phase-g-local-synchronization
 Phase G2 refines this operational intuition into:
 
 - earliest-event selection
 - simultaneous-event resolution
 - semantic priority plus deterministic tie-breaking
+=======
+Phase G3 refines this operational intuition into:
+
+- synchronization scope `Sync(ev)`
+- dependency closure `deps(ev)`
+- minimal consistency conditions for local event interpretation
+>>>>>>> local
 
 ## First Implementation Scope
 

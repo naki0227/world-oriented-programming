@@ -301,6 +301,7 @@ These definitions are the basis for:
 - G4 transition semantics
 - G5 semantic consolidation
 
+<<<<<<< feature/phase-g-local-synchronization
 ## Phase G2 Event Ordering
 
 G2 defines how candidate events are selected when several are simultaneously or nearly simultaneously eligible.
@@ -597,3 +598,130 @@ Without `Next(W_t)`, one cannot define:
 - which enforcement step is semantically downstream
 
 So G2 gives the selection rule and G4 gives the transition rule that consumes it.
+=======
+## Phase G3 Local Synchronization
+
+G3 defines which part of the world must be synchronized when an event or admissibility boundary becomes semantically relevant.
+
+The core question is:
+
+when a world event must be interpreted, which entities and static structures must be brought to a common semantic frontier?
+
+## Synchronization Scope
+
+For a semantically relevant event `ev`, define its synchronization scope:
+
+`Sync(ev) = part(ev) ∪ deps(ev)`
+
+where:
+
+- `part(ev)` is the participant set of the event
+- `deps(ev)` is the smallest dependency closure required for coherent interpretation of `ev`
+
+The purpose of G3 is to define `deps(ev)` without collapsing back into global lockstep execution.
+
+## Dependency Closure
+
+`deps(ev)` contains world elements whose state is necessary to determine:
+
+- whether `ev` is semantically valid
+- how `ev` changes the world
+- whether admissibility is preserved after `ev`
+
+These dependencies may include:
+
+- static geometry
+- constraint context
+- region bounds
+- later, visibility or path context
+
+So `deps(ev)` is not restricted to moving entities.
+
+## Prototype-Level Synchronization Cases
+
+In the current prototype, the intended scopes are:
+
+- plane collision:
+  moving sphere plus plane context
+- forbidden-region entry:
+  moving sphere plus region context
+- sphere-sphere collision:
+  the two colliding spheres
+
+This means the current runtime already behaves as if synchronization were local, even though the scope is not yet fully formalized.
+
+## Minimal Consistency Set
+
+`Sync(ev)` should be minimal.
+
+Define the minimal consistency condition:
+
+`Sync(ev)` is acceptable only if excluding any element of `Sync(ev)` would make the interpretation of `ev` semantically ambiguous or semantically incorrect.
+
+Equivalently:
+
+entities outside `Sync(ev)` may remain stale only when their exclusion cannot change:
+
+- event validity
+- event effect
+- admissibility outcome
+
+## Synchronization Frontier
+
+If an event is interpreted at semantic time `t_ev`, every synchronized entity must be materialized to that frontier:
+
+`forall e in part(ev), tau(e) = t_ev`
+
+and every required dependency in `deps(ev)` must be interpreted at the same semantic frontier.
+
+Entities outside `Sync(ev)` are not required to satisfy this condition.
+
+## Observation Versus Synchronization
+
+Observation and synchronization are related but distinct.
+
+- observation constructs a coherent snapshot frontier
+- synchronization constructs a coherent event frontier
+
+They coincide only when the observation request itself forces the same semantic carrier as the selected event.
+
+This distinction is important because `sekai` should support:
+
+- coherent observation
+- non-lockstep world execution
+
+without forcing the whole world to advance uniformly.
+
+## Admissibility-Driven Synchronization
+
+Some synchronization is required not because two entities interact directly, but because admissibility must be evaluated locally.
+
+Examples:
+
+- entering a forbidden region requires region context to determine contradiction, clamp, or reflection behavior
+- a local repair step may require the same synchronized carrier even if no further interaction event is introduced
+
+This motivates the semantic rule:
+
+local synchronization may be induced by admissibility dependence, not only by collision or contact.
+
+## Locality Criterion
+
+G3 adopts the following locality criterion:
+
+do not synchronize an entity or dependency unless excluding it would change the semantic interpretation of the currently relevant event.
+
+This gives a principled alternative to:
+
+- permanent global synchronization
+- ad hoc implementation-only heuristics
+
+## Why G3 Matters
+
+G3 gives formal meaning to the claim:
+
+global asynchrony with local synchronization.
+
+Without G3, that claim remains philosophical.
+With G3, it becomes a bounded semantic operation over a minimal consistency set.
+>>>>>>> local
