@@ -300,3 +300,647 @@ These definitions are the basis for:
 - G3 local synchronization scope
 - G4 transition semantics
 - G5 semantic consolidation
+
+## Phase G2 Event Ordering
+
+G2 defines how candidate events are selected when several are simultaneously or nearly simultaneously eligible.
+
+### Ordering Goal
+
+For each reachable configuration `W_t`, define a deterministic selection operator:
+
+`Next(W_t) -> ev or none`
+
+such that:
+
+- if a semantically relevant event exists, `Next(W_t)` returns a unique event
+- if no event exists before the next observation frontier, `Next(W_t) = none`
+
+### Earliest-Time Principle
+
+Primary ordering is temporal.
+
+For candidate events `ev1, ev2 ∈ Ev(W_t)`:
+
+`ev1 <_time ev2` iff `time(ev1) < time(ev2)`
+
+The first selection rule is:
+
+choose only events with minimal event time.
+
+Formally, define:
+
+`MinEv(W_t) = { ev ∈ Ev(W_t) | ∀ev' ∈ Ev(W_t), time(ev) <= time(ev') }`
+
+If `MinEv(W_t)` has one element, selection is immediate.
+
+### Simultaneous Events
+
+If `|MinEv(W_t)| > 1`, the semantics must resolve simultaneity.
+
+The current semantic direction is:
+
+1. preserve semantic causality first
+2. apply a deterministic priority rule second
+3. apply a deterministic tie-breaker last
+
+This avoids treating simultaneity as arbitrary scheduler accident.
+
+### Event Categories For Ordering
+
+For G2, each candidate event belongs to one of the following semantic classes:
+
+- boundary-contact event
+- boundary-entry event
+- interaction event
+
+Current prototype mapping:
+
+- sphere-plane collision -> boundary-contact
+- forbidden-region entry -> boundary-entry
+- sphere-sphere collision -> interaction
+
+Implementation-near mapping to the current runtime event kinds:
+
+- `EventKind::PlaneCollision` -> boundary-contact
+- `EventKind::ForbiddenRegionEntry` -> boundary-entry
+- `EventKind::SphereCollision` -> interaction
+
+### Priority Lattice
+
+Within the same event time, G2 currently adopts a semantic priority lattice:
+
+`boundary-entry > boundary-contact > interaction`
+
+Interpretation:
+
+- boundary-entry events are resolved first because they directly threaten admissibility
+- boundary-contact events are resolved next because they alter immediate motion at a boundary
+- interaction events are resolved after boundary conditions have been normalized
+
+This is a semantic proposal, not yet the final runtime law.
+It is the current intended formal direction.
+
+### Prototype-Compatible Ordering Key
+
+To connect the semantics to the present implementation, define the ordering key:
+
+`Key(ev) = (time(ev), priority(ev), law_key(ev), participant_key(ev), index(ev))`
+
+where:
+
+- `time(ev)` is the scheduled event time
+- `priority(ev)` is induced by the priority lattice
+- `law_key(ev)` is a fixed lexical name for the generating law kind
+- `participant_key(ev)` is the sorted lexical tuple of participant identifiers
+- `index(ev)` is an implementation-stable fallback index
+
+Candidate events are selected by lexicographic minimization over `Key(ev)`.
+
+This gives a concrete deterministic tie-breaker without collapsing the semantic distinction between time, priority, and implementation convenience.
+
+### Deterministic Tie-Breaker
+
+If two candidate events have:
+
+- the same event time, and
+- the same semantic priority
+
+then selection falls back to a deterministic tie-breaker.
+
+The current prototype-compatible proposal is:
+
+1. compare the generating law kind in a fixed lexical order
+2. compare participant identifiers in sorted lexical order
+3. compare an implementation-stable fallback index if still needed
+
+This keeps event ordering deterministic without pretending that all simultaneous events are semantically identical.
+
+### Near-Simultaneity
+
+The runtime currently uses floating-point time, so semantic simultaneity must tolerate numerical approximation.
+
+For G2, two events are treated as simultaneous when:
+
+`|time(ev1) - time(ev2)| <= epsilon_t`
+
+for a fixed temporal tolerance `epsilon_t`.
+
+The semantics should speak in exact time, but the implementation may use `epsilon_t` to approximate equality in candidate selection.
+
+### Causality Preservation Requirement
+
+The purpose of the ordering rule is not merely determinism.
+It is to preserve semantic causality.
+
+The intended requirement is:
+
+if `ev1` changes the admissibility or participant state on which `ev2` depends, then `ev1` must not be ordered after `ev2`.
+
+Later work can express this through a causality graph:
+
+`ev1 -> ev2`
+
+meaning that `ev2` is semantically downstream from `ev1`.
+
+### Selection Schema
+
+The full intended event-selection schema is therefore:
+
+1. construct `Ev(W_t)`
+2. restrict to `MinEv(W_t)`
+3. apply semantic priority within `MinEv(W_t)`
+4. apply deterministic tie-breaker if needed
+5. produce `Next(W_t)`
+
+This is the bridge between G1 time semantics and G4 transition semantics.
+
+### Relationship To Observation
+
+Observation must respect event ordering.
+
+For `Obs(W, t_obs)`:
+
+- if an event `ev` exists with `time(ev) < t_obs`, it must be resolved before snapshot construction
+- if several events exist at the same earliest time, the G2 ordering rule determines which transition is taken first
+
+So observation determinism depends directly on event determinism.
+
+### G2 Scope Boundary
+
+G2 does not yet define the full repair or contradiction transition.
+It only defines which event is selected next and why.
+
+That selected event will later feed:
+
+- G3 synchronization scope
+- G4 event / repair / contradiction transition rules
+
+## Phase G4 Event / Enforcement Semantics
+
+G4 defines what happens after `Next(W_t)` selects an event.
+
+The current semantic objective is to separate:
+
+- event firing
+- admissibility enforcement
+- contradiction
+
+instead of treating them as one undifferentiated runtime step.
+
+### Transition Layers
+
+Let `ev = Next(W_t)`.
+
+The intended transition layers are:
+
+1. event transition
+2. enforcement transition
+3. contradiction transition, if enforcement fails
+
+We write these as distinct semantic relations.
+
+### Event Transition
+
+If `ev` is selected and its participants are synchronized to `time(ev)`, then:
+
+`(W_t, ev) ->event W_t^ev`
+
+Interpretation:
+
+- the world advances to the event time
+- the participants of `ev` are materialized there
+- the event law applies its immediate state transformation
+
+Examples in the current prototype:
+
+- plane collision reflects motion at a boundary
+- sphere-sphere collision exchanges velocity through elastic interaction
+- forbidden-region entry marks a boundary crossing that must be checked by enforcement
+
+### Enforcement Transition
+
+After event firing, the world must be checked for admissibility under the declared law set.
+
+Write:
+
+`W_t^ev ->enforce W_t'`
+
+when all required post-event enforcement succeeds.
+
+This relation may:
+
+- leave the state unchanged
+- repair the state according to a law policy
+
+Current prototype examples:
+
+- `clamp speed(A) <= vmax`
+- `clamp not inside(A, zone)`
+- `reflect not inside(A, zone)`
+
+### Contradiction Transition
+
+If enforcement cannot produce an admissible continuation, the world enters contradiction.
+
+Write:
+
+`W_t^ev ->contradiction W_t^X`
+
+where `W_t^X` denotes semantic failure at time `t`.
+
+The important point is that contradiction is downstream from event and enforcement semantics.
+It is not merely a parser error or a detached exception.
+
+### Composite Step Schema
+
+The intended G4 composite step is:
+
+1. select `ev = Next(W_t)`
+2. apply event transition to obtain `W_t^ev`
+3. apply enforcement to obtain either:
+   - an admissible world `W_t'`, or
+   - contradiction at time `t`
+
+In compact form:
+
+`W_t ->event W_t^ev ->enforce W_t'`
+
+or
+
+`W_t ->event W_t^ev ->contradiction W_t^X`
+
+### Relationship To Runtime Activity Labels
+
+The current runtime already exposes the labels:
+
+- `fired`
+- `repaired`
+- `contradicted`
+
+These labels now admit a semantic reading:
+
+- `fired` corresponds to the event transition being taken
+- `repaired` corresponds to successful enforcement after that event
+- `contradicted` corresponds to failed enforcement at that event frontier
+
+This means the runtime trace is already a partial observable of the intended transition system.
+
+### Why G4 Depends On G2
+
+G4 presupposes G2 because the transition system needs a unique next event.
+
+Without `Next(W_t)`, one cannot define:
+
+- which event fires first
+- which participant set synchronizes first
+- which enforcement step is semantically downstream
+
+So G2 gives the selection rule and G4 gives the transition rule that consumes it.
+
+## Phase G3 Local Synchronization
+
+G3 defines which part of the world must be synchronized when an event or admissibility boundary becomes semantically relevant.
+
+The core question is:
+
+when a world event must be interpreted, which entities and static structures must be brought to a common semantic frontier?
+
+## Synchronization Scope
+
+For a semantically relevant event `ev`, define its synchronization scope:
+
+`Sync(ev) = part(ev) ∪ deps(ev)`
+
+where:
+
+- `part(ev)` is the participant set of the event
+- `deps(ev)` is the smallest dependency closure required for coherent interpretation of `ev`
+
+The purpose of G3 is to define `deps(ev)` without collapsing back into global lockstep execution.
+
+## Dependency Closure
+
+`deps(ev)` contains world elements whose state is necessary to determine:
+
+- whether `ev` is semantically valid
+- how `ev` changes the world
+- whether admissibility is preserved after `ev`
+
+These dependencies may include:
+
+- static geometry
+- constraint context
+- region bounds
+- later, visibility or path context
+
+So `deps(ev)` is not restricted to moving entities.
+
+## Prototype-Level Synchronization Cases
+
+In the current prototype, the intended scopes are:
+
+- plane collision:
+  moving sphere plus plane context
+- forbidden-region entry:
+  moving sphere plus region context
+- sphere-sphere collision:
+  the two colliding spheres
+
+This means the current runtime already behaves as if synchronization were local, even though the scope is not yet fully formalized.
+
+## Minimal Consistency Set
+
+`Sync(ev)` should be minimal.
+
+Define the minimal consistency condition:
+
+`Sync(ev)` is acceptable only if excluding any element of `Sync(ev)` would make the interpretation of `ev` semantically ambiguous or semantically incorrect.
+
+Equivalently:
+
+entities outside `Sync(ev)` may remain stale only when their exclusion cannot change:
+
+- event validity
+- event effect
+- admissibility outcome
+
+## Synchronization Frontier
+
+If an event is interpreted at semantic time `t_ev`, every synchronized entity must be materialized to that frontier:
+
+`forall e in part(ev), tau(e) = t_ev`
+
+and every required dependency in `deps(ev)` must be interpreted at the same semantic frontier.
+
+Entities outside `Sync(ev)` are not required to satisfy this condition.
+
+## Observation Versus Synchronization
+
+Observation and synchronization are related but distinct.
+
+- observation constructs a coherent snapshot frontier
+- synchronization constructs a coherent event frontier
+
+They coincide only when the observation request itself forces the same semantic carrier as the selected event.
+
+This distinction is important because `sekai` should support:
+
+- coherent observation
+- non-lockstep world execution
+
+without forcing the whole world to advance uniformly.
+
+## Admissibility-Driven Synchronization
+
+Some synchronization is required not because two entities interact directly, but because admissibility must be evaluated locally.
+
+Examples:
+
+- entering a forbidden region requires region context to determine contradiction, clamp, or reflection behavior
+- a local repair step may require the same synchronized carrier even if no further interaction event is introduced
+
+This motivates the semantic rule:
+
+local synchronization may be induced by admissibility dependence, not only by collision or contact.
+
+## Locality Criterion
+
+G3 adopts the following locality criterion:
+
+do not synchronize an entity or dependency unless excluding it would change the semantic interpretation of the currently relevant event.
+
+This gives a principled alternative to:
+
+- permanent global synchronization
+- ad hoc implementation-only heuristics
+
+## Why G3 Matters
+
+G3 gives formal meaning to the claim:
+
+global asynchrony with local synchronization.
+
+Without G3, that claim remains philosophical.
+With G3, it becomes a bounded semantic operation over a minimal consistency set.
+
+## Phase G5 Semantic Consolidation
+
+G5 consolidates the outputs of G1 through G4 into a semantics section that can anchor the next paper draft.
+
+The goal is not to introduce new runtime mechanisms.
+It is to restate the existing semantic pieces as a coherent execution model.
+
+### Semantic Layers To Consolidate
+
+The intended semantics section should explicitly separate:
+
+- time semantics
+- event-ordering semantics
+- local-synchronization semantics
+- event / enforcement / contradiction semantics
+- observation semantics
+- failure semantics
+
+These layers are already partially specified in earlier G phases.
+G5 gives them a single presentation and a shared notation.
+
+### Shared Notation Block
+
+The consolidated semantics should reuse a compact set of symbols:
+
+- `W_t`: world interpreted at semantic frontier `t`
+- `Ev(W_t)`: candidate-event set available from `W_t`
+- `Next(W_t)`: selected next event under the G2 ordering rule
+- `part(ev)`: direct participants of event `ev`
+- `deps(ev)`: dependency closure required to interpret `ev`
+- `Sync(ev)`: synchronization carrier, defined as `part(ev) ∪ deps(ev)`
+- `Obs(W, t_obs)`: observation operator at requested time `t_obs`
+- `W_t^ev`: post-event world after firing `ev`
+- `W_t'`: admissible continuation after enforcement
+- `W_t^X`: contradiction world at frontier `t`
+
+This notation is intentionally small.
+The semantics should be readable without forcing the reader to constantly switch vocabularies between G1, G2, G3, and G4.
+
+### Operational-Step Schema
+
+The intended one-step operational schema is:
+
+1. construct the candidate event set `Ev(W_t)`
+2. select `ev = Next(W_t)`
+3. construct the synchronization carrier `Sync(ev)`
+4. materialize that carrier at `time(ev)`
+5. apply the event transition
+6. apply enforcement
+7. produce either:
+   - an admissible continuation, or
+   - contradiction at the same frontier
+
+In compact form:
+
+`W_t ->select ev ->sync W_t^sync ->event W_t^ev ->enforce W_t'`
+
+or
+
+`W_t ->select ev ->sync W_t^sync ->event W_t^ev ->contradiction W_t^X`
+
+This schema is the operational bridge between runtime traces and the intended formal semantics.
+
+### Named Transition Rules
+
+The next paper draft should be able to name the core semantic rules directly.
+
+The intended rule family is:
+
+- `Select`:
+  choose `ev = Next(W_t)` from `Ev(W_t)`
+- `Sync`:
+  materialize `Sync(ev)` at `time(ev)`
+- `Fire`:
+  apply the immediate event-law transition
+- `Enforce`:
+  apply admissibility-preserving repair when one exists
+- `Contradict`:
+  terminate at the same frontier when enforcement cannot recover admissibility
+- `Observe`:
+  construct a stable snapshot at `t_obs` only after earlier event frontiers are resolved
+
+This does not yet require inference-rule notation, but it fixes the semantic vocabulary that later formal rules should use.
+
+### Compact Operational Rules Draft
+
+The next paper revision should be able to present the core semantics in a compact rule-like form.
+
+The current draft is:
+
+`Select`
+
+if `Ev(W_t) != empty` and `ev = Next(W_t)`, then:
+
+`W_t =>select (W_t, ev)`
+
+Interpretation:
+
+- the world at frontier `t` admits at least one candidate event
+- G2 determines which one is semantically next
+
+`Sync`
+
+if `W_t =>select (W_t, ev)` and `Sync(ev)` is defined, then:
+
+`(W_t, ev) =>sync W_t^sync`
+
+where `W_t^sync` materializes every member of `Sync(ev)` at `time(ev)`.
+
+`Fire`
+
+if `W_t^sync` is available, then:
+
+`W_t^sync =>fire W_t^ev`
+
+where `W_t^ev` is obtained by applying the immediate event law of `ev`.
+
+`Enforce`
+
+if post-event admissibility can be restored under the declared policy set, then:
+
+`W_t^ev =>enforce W_t'`
+
+where `W_t'` is admissible at the same semantic frontier.
+
+`Contradict`
+
+if no admissible continuation exists after event firing, then:
+
+`W_t^ev =>contradict W_t^X`
+
+where `W_t^X` denotes contradiction at `time(ev)`.
+
+`Observe`
+
+if every event frontier strictly earlier than `t_obs` has been resolved and the required observation carrier is coherent, then:
+
+`(W, t_obs) =>observe Obs(W, t_obs)`
+
+This compact draft is intentionally lightweight.
+It is close enough to operational semantics to guide the paper, but not yet frozen into a theorem-proof style notation.
+
+### Rule Composition
+
+The intended composite execution rule is now readable as:
+
+`W_t =>select (W_t, ev) =>sync W_t^sync =>fire W_t^ev =>enforce W_t'`
+
+or, in the failing case:
+
+`W_t =>select (W_t, ev) =>sync W_t^sync =>fire W_t^ev =>contradict W_t^X`
+
+This is the first point in the project where the semantic flow can be written as a compact staged execution system rather than a descriptive narrative.
+
+### Snapshot Semantics
+
+G5 should also state the semantic meaning of observation.
+
+For a requested observation time `t_obs`, `Obs(W, t_obs)` is valid only if:
+
+- every event with time strictly earlier than `t_obs` has been resolved under G2 and G4
+- every entity required by the observation frontier has been materialized consistently
+- no unresolved contradiction exists at or before `t_obs`
+
+This yields the intended claim:
+
+snapshot determinism depends on deterministic event selection and coherent local synchronization.
+
+Equivalently, G5 should support the statement:
+
+if two executions start from the same `W_t` and use the same G2 ordering and G3 synchronization rules, then `Obs(W, t_obs)` is uniquely determined whenever no contradiction is reached before `t_obs`.
+
+This gives a direct paper-level claim:
+
+deterministic snapshots are a consequence of deterministic selection plus coherent synchronization, not of mandatory global lockstep execution.
+
+### Failure Semantics
+
+Failure must be given a semantic, not merely implementation-level, interpretation.
+
+The intended failure statement is:
+
+if enforcement after `Next(W_t)` cannot produce an admissible continuation, then the world reaches contradiction at the selected frontier.
+
+This is written:
+
+`W_t ->select ev ->event W_t^ev ->contradiction W_t^X`
+
+where `time(W_t^X) = time(ev)`.
+
+This explains why the prototype can legitimately report:
+
+- failure time
+- partial stable snapshots before failure
+- law activity marked as `contradicted`
+
+without treating contradiction as an out-of-band exception.
+
+### Prototype Determinism Assumption
+
+The current semantics draft depends on a prototype-level determinism assumption:
+
+- event times are compared using the current runtime numeric model
+- ties are resolved by the G2 ordering key
+- enforcement policies are deterministic for the supported law set
+
+Later work may refine the numeric model or expose more explicit proofs.
+For now, G5 only needs to make the assumption visible and consistent across the semantics section.
+
+### G5 Deliverable
+
+The concrete output of G5 should be a semantics section with:
+
+- a shared notation block
+- one-step operational rules
+- snapshot admissibility rules
+- failure rules
+- a short note on determinism assumptions for the prototype
+
+At that point, `sekai` has a reusable semantics core for both implementation discussion and the next paper revision.

@@ -205,6 +205,7 @@ Outputs:
 - operational semantics draft
 - snapshot semantics draft
 - failure semantics draft
+- shared notation spanning G1-G4
 
 Definition of done:
 
