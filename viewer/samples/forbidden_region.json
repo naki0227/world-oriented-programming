@@ -2,6 +2,16 @@
   "source": "examples/forbidden_region.sk",
   "status": "error",
   "error": "sphere `A` entered forbidden region `zone` at t=2.000",
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 0,
+    "boundary_constraints": 1,
+    "interaction_constraints": 0,
+    "idle_constraints": 0,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 1
+  },
   "constraints": [
     {
       "kind": "not_inside",

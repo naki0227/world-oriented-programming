@@ -23,6 +23,7 @@ and provides:
 - per-snapshot inspection of object positions and velocities
 - contradiction display for failed worlds, including the last stable snapshot when available
 - display of active world laws, their categories, supported policies, and per-run law activity
+- display of report-level law analytics for category and outcome totals
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings

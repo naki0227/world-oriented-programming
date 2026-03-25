@@ -46,6 +46,7 @@ const snapshotCount = document.getElementById("snapshot-count");
 const projectionLabel = document.getElementById("projection-label");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
+const analyticsList = document.getElementById("analytics-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
@@ -309,6 +310,7 @@ function normalizeReport(report) {
       source: report.source || "unknown",
       status: report.status,
       error: report.error || null,
+      analytics: report.analytics || defaultAnalytics(report.constraints || []),
       constraints: report.constraints || [],
       activities: report.activities || [],
       snapshots: report.snapshots || [],
@@ -318,10 +320,34 @@ function normalizeReport(report) {
     source: report.source || "unknown",
     status: "ok",
     error: null,
+    analytics: report.analytics || defaultAnalytics(report.constraints || []),
     constraints: report.constraints || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
   };
+}
+
+function defaultAnalytics(constraints) {
+  const analytics = {
+    total_constraints: 0,
+    invariant_constraints: 0,
+    boundary_constraints: 0,
+    interaction_constraints: 0,
+    idle_constraints: 0,
+    fired_constraints: 0,
+    repaired_constraints: 0,
+    contradicted_constraints: 0,
+  };
+
+  constraints.forEach((constraint) => {
+    analytics.total_constraints += 1;
+    const categoryKey = `${constraint.category || "unknown"}_constraints`;
+    if (categoryKey in analytics) analytics[categoryKey] += 1;
+    const outcomeKey = `${constraint.outcome || "idle"}_constraints`;
+    if (outcomeKey in analytics) analytics[outcomeKey] += 1;
+  });
+
+  return analytics;
 }
 
 function buildColorMap(report) {
@@ -785,6 +811,7 @@ function renderSidebar() {
     timeLabel.textContent = "t = 0.000";
     snapshotList.innerHTML = '<p class="muted">Load a report to inspect world state.</p>';
     constraintList.innerHTML = '<p class="muted">Load a report to inspect active constraints.</p>';
+    analyticsList.innerHTML = '<p class="muted">Load a report to inspect law totals and outcome distribution.</p>';
     activityList.innerHTML = '<p class="muted">Load a report to inspect fired or repaired laws.</p>';
     comparisonList.innerHTML = '<p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>';
     return;
@@ -819,6 +846,7 @@ function renderSidebar() {
       snapshotList.appendChild(note);
     }
     renderConstraintList();
+    renderAnalyticsList();
     renderActivityList();
     renderComparisonList();
     return;
@@ -841,6 +869,7 @@ function renderSidebar() {
   });
 
   renderConstraintList();
+  renderAnalyticsList();
   renderActivityList();
   renderComparisonList();
 }
@@ -934,6 +963,23 @@ function renderActivityList() {
     card.appendChild(targets);
     activityList.appendChild(card);
   });
+}
+
+function renderAnalyticsList() {
+  if (!state.report) {
+    analyticsList.innerHTML = '<p class="muted">Load a report to inspect law totals and outcome distribution.</p>';
+    return;
+  }
+
+  const analytics = state.report.analytics || defaultAnalytics(state.report.constraints || []);
+  analyticsList.innerHTML = `
+    <article class="sphere-card">
+      <h3>Constraint Totals</h3>
+      <p>total = ${analytics.total_constraints ?? 0}</p>
+      <p class="muted">invariant = ${analytics.invariant_constraints ?? 0}, boundary = ${analytics.boundary_constraints ?? 0}, interaction = ${analytics.interaction_constraints ?? 0}</p>
+      <p class="muted">idle = ${analytics.idle_constraints ?? 0}, fired = ${analytics.fired_constraints ?? 0}, repaired = ${analytics.repaired_constraints ?? 0}, contradicted = ${analytics.contradicted_constraints ?? 0}</p>
+    </article>
+  `;
 }
 
 function renderComparisonList() {

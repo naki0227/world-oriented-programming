@@ -2,6 +2,16 @@
   "source": "examples/reflected_region.sk",
   "status": "ok",
   "error": null,
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 0,
+    "boundary_constraints": 1,
+    "interaction_constraints": 0,
+    "idle_constraints": 0,
+    "fired_constraints": 0,
+    "repaired_constraints": 1,
+    "contradicted_constraints": 0
+  },
   "constraints": [
     {
       "kind": "not_inside",

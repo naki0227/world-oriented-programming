@@ -133,9 +133,22 @@ pub struct Snapshot {
 
 #[derive(Clone, Debug)]
 pub struct SimulationReport {
+    pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LawAnalytics {
+    pub total_constraints: usize,
+    pub invariant_constraints: usize,
+    pub boundary_constraints: usize,
+    pub interaction_constraints: usize,
+    pub idle_constraints: usize,
+    pub fired_constraints: usize,
+    pub repaired_constraints: usize,
+    pub contradicted_constraints: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -172,6 +185,40 @@ impl SimulationReport {
         let mut json = String::new();
         json.push_str("{\n");
         json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(source)));
+        json.push_str("  \"analytics\": {\n");
+        json.push_str(&format!(
+            "    \"total_constraints\": {},\n",
+            self.analytics.total_constraints
+        ));
+        json.push_str(&format!(
+            "    \"invariant_constraints\": {},\n",
+            self.analytics.invariant_constraints
+        ));
+        json.push_str(&format!(
+            "    \"boundary_constraints\": {},\n",
+            self.analytics.boundary_constraints
+        ));
+        json.push_str(&format!(
+            "    \"interaction_constraints\": {},\n",
+            self.analytics.interaction_constraints
+        ));
+        json.push_str(&format!(
+            "    \"idle_constraints\": {},\n",
+            self.analytics.idle_constraints
+        ));
+        json.push_str(&format!(
+            "    \"fired_constraints\": {},\n",
+            self.analytics.fired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"repaired_constraints\": {},\n",
+            self.analytics.repaired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"contradicted_constraints\": {}\n",
+            self.analytics.contradicted_constraints
+        ));
+        json.push_str("  },\n");
         json.push_str("  \"constraints\": [\n");
         for (index, constraint) in self.constraints.iter().enumerate() {
             json.push_str("    {\n");
@@ -355,6 +402,40 @@ impl SimulationEnvelope {
                     )),
                     None => json.push_str("  \"error\": null,\n"),
                 }
+                json.push_str("  \"analytics\": {\n");
+                json.push_str(&format!(
+                    "    \"total_constraints\": {},\n",
+                    report.analytics.total_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"invariant_constraints\": {},\n",
+                    report.analytics.invariant_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"boundary_constraints\": {},\n",
+                    report.analytics.boundary_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"interaction_constraints\": {},\n",
+                    report.analytics.interaction_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"idle_constraints\": {},\n",
+                    report.analytics.idle_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"fired_constraints\": {},\n",
+                    report.analytics.fired_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"repaired_constraints\": {},\n",
+                    report.analytics.repaired_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"contradicted_constraints\": {}\n",
+                    report.analytics.contradicted_constraints
+                ));
+                json.push_str("  },\n");
                 json.push_str("  \"constraints\": [\n");
                 for (index, constraint) in report.constraints.iter().enumerate() {
                     json.push_str("    {\n");
@@ -481,6 +562,16 @@ impl SimulationEnvelope {
                     "  \"error\": \"{}\",\n",
                     escape_json(self.error.as_deref().unwrap_or("unknown error"))
                 ));
+                json.push_str("  \"analytics\": {\n");
+                json.push_str("    \"total_constraints\": 0,\n");
+                json.push_str("    \"invariant_constraints\": 0,\n");
+                json.push_str("    \"boundary_constraints\": 0,\n");
+                json.push_str("    \"interaction_constraints\": 0,\n");
+                json.push_str("    \"idle_constraints\": 0,\n");
+                json.push_str("    \"fired_constraints\": 0,\n");
+                json.push_str("    \"repaired_constraints\": 0,\n");
+                json.push_str("    \"contradicted_constraints\": 0\n");
+                json.push_str("  },\n");
                 json.push_str("  \"constraints\": [],\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
@@ -559,8 +650,10 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         snapshots.push(Snapshot { time, spheres });
     }
 
+    let constraints = world.constraint_summaries();
     Ok(SimulationReport {
-        constraints: world.constraint_summaries(),
+        analytics: LawAnalytics::from_constraints(&constraints),
+        constraints,
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -577,11 +670,13 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
 
     for time in observation_times {
         if let Err(error) = world.advance_to(time) {
+            let constraints = world.constraint_summaries();
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
                 SimulationReport {
-                    constraints: world.constraint_summaries(),
+                    analytics: LawAnalytics::from_constraints(&constraints),
+                    constraints,
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -600,10 +695,12 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         snapshots.push(Snapshot { time, spheres });
     }
 
+    let constraints = world.constraint_summaries();
     SimulationEnvelope::success(
         source,
         SimulationReport {
-            constraints: world.constraint_summaries(),
+            analytics: LawAnalytics::from_constraints(&constraints),
+            constraints,
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1233,6 +1330,40 @@ impl ConstraintTrace {
     }
 }
 
+impl LawAnalytics {
+    fn from_constraints(constraints: &[ConstraintSummary]) -> Self {
+        let mut analytics = Self {
+            total_constraints: constraints.len(),
+            invariant_constraints: 0,
+            boundary_constraints: 0,
+            interaction_constraints: 0,
+            idle_constraints: 0,
+            fired_constraints: 0,
+            repaired_constraints: 0,
+            contradicted_constraints: 0,
+        };
+
+        for constraint in constraints {
+            match constraint.category.as_str() {
+                "invariant" => analytics.invariant_constraints += 1,
+                "boundary" => analytics.boundary_constraints += 1,
+                "interaction" => analytics.interaction_constraints += 1,
+                _ => {}
+            }
+
+            match constraint.outcome.as_str() {
+                "idle" => analytics.idle_constraints += 1,
+                "fired" => analytics.fired_constraints += 1,
+                "repaired" => analytics.repaired_constraints += 1,
+                "contradicted" => analytics.contradicted_constraints += 1,
+                _ => {}
+            }
+        }
+
+        analytics
+    }
+}
+
 impl RepairPolicy {
     fn as_str(self) -> &'static str {
         match self {
@@ -1652,6 +1783,8 @@ observe:
         let report = simulate_program(&program).expect("simulation should succeed");
         let json = report.to_json("example.sk");
         assert!(json.contains("\"source\": \"example.sk\""));
+        assert!(json.contains("\"analytics\""));
+        assert!(json.contains("\"total_constraints\": 1"));
         assert!(json.contains("\"constraints\""));
         assert!(json.contains("\"velocity_limit\""));
         assert!(json.contains("\"category\": \"invariant\""));
@@ -1670,6 +1803,7 @@ observe:
         let json = envelope.to_json();
         assert!(json.contains("\"status\": \"error\""));
         assert!(json.contains("\"error\": \"world contradiction\""));
+        assert!(json.contains("\"analytics\": {"));
         assert!(json.contains("\"constraints\": []"));
         assert!(json.contains("\"activities\": []"));
         assert!(json.contains("\"snapshots\": []"));
@@ -1698,6 +1832,8 @@ observe:
         assert!(json.contains("\"status\": \"error\""));
         assert!(json.contains("\"constraints\""));
         assert!(json.contains("\"not_inside\""));
+        assert!(json.contains("\"analytics\""));
+        assert!(json.contains("\"boundary_constraints\": 1"));
         assert!(json.contains("\"outcome\": \"contradicted\""));
         assert!(json.contains("\"contradicted_count\": 1"));
         assert!(json.contains("\"action\": \"contradicted\""));

@@ -2,6 +2,16 @@
   "source": "examples/clamped_speed.sk",
   "status": "ok",
   "error": null,
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 1,
+    "boundary_constraints": 0,
+    "interaction_constraints": 0,
+    "idle_constraints": 0,
+    "fired_constraints": 0,
+    "repaired_constraints": 1,
+    "contradicted_constraints": 0
+  },
   "constraints": [
     {
       "kind": "velocity_limit",
@@ -9,8 +19,10 @@
       "targets": ["A"],
       "policy": "clamp",
       "supported_policies": ["reject", "clamp"],
+      "outcome": "repaired",
       "fired_count": 0,
-      "repaired_count": 1
+      "repaired_count": 1,
+      "contradicted_count": 0
     }
   ],
   "activities": [

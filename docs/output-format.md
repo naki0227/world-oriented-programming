@@ -29,6 +29,16 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
 ```json
 {
   "source": "examples/two_body_collision.sk",
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 0,
+    "boundary_constraints": 0,
+    "interaction_constraints": 1,
+    "idle_constraints": 0,
+    "fired_constraints": 1,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
   "constraints": [
     {
       "kind": "elastic_collision",
@@ -73,6 +83,16 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
   "source": "examples/forbidden_region.sk",
   "status": "error",
   "error": "sphere `A` entered forbidden region `zone` at t=2.000",
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 0,
+    "boundary_constraints": 1,
+    "interaction_constraints": 0,
+    "idle_constraints": 0,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 1
+  },
   "constraints": [
     {
       "kind": "not_inside",
@@ -128,5 +148,6 @@ This format is intentionally small but useful for:
 - exposing whether each law is invariant, boundary-oriented, or interaction-oriented
 - exposing which repair policies are supported by each law
 - exposing each law's run-level outcome (`idle`, `fired`, `repaired`, or `contradicted`)
+- exposing report-level totals so whole runs can be compared without manual counting
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
