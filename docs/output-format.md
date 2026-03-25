@@ -235,7 +235,10 @@ For example, a Phase I analyze result may additionally include:
     "total_candidates": 2,
     "labels": ["fast", "safe"],
     "top_score": "5.000",
-    "top_labels": ["fast"]
+    "top_labels": ["fast"],
+    "top_score_tied": false,
+    "defer_on_ambiguous_top": false,
+    "resolution_hint": "single_top_candidate"
   }
 ],
 "action_directive_inventory": [

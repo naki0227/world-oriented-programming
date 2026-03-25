@@ -25,6 +25,8 @@ The next extension on top of this pass adds an explicit deferred case, where an 
 
 The static analysis path now also exposes that directive, so `sekai analyze` can show that a scene intends to defer ambiguous top-score resolution before any simulation runs.
 
+It now also exposes a small static resolution hint, so tied-top cases can be distinguished from deferred-top cases before runtime.
+
 Each entity-level candidate resolution now also says whether the world remained symbolically underdetermined and whether that underdetermination was still visible at the observation layer.
 
 This pushes Phase I closer to a real convergence model instead of a set of isolated candidate-selection examples.

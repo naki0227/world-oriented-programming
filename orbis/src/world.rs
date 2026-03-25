@@ -158,6 +158,9 @@ pub struct CandidateInventorySummary {
     pub labels: Vec<String>,
     pub top_score: String,
     pub top_labels: Vec<String>,
+    pub top_score_tied: bool,
+    pub defer_on_ambiguous_top: bool,
+    pub resolution_hint: String,
 }
 
 #[derive(Clone, Debug)]
@@ -717,7 +720,19 @@ impl LawInventory {
                     json.push_str(", ");
                 }
             }
-            json.push_str("]\n");
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"top_score_tied\": {},\n",
+                candidate_inventory.top_score_tied
+            ));
+            json.push_str(&format!(
+                "      \"defer_on_ambiguous_top\": {},\n",
+                candidate_inventory.defer_on_ambiguous_top
+            ));
+            json.push_str(&format!(
+                "      \"resolution_hint\": \"{}\"\n",
+                escape_json(&candidate_inventory.resolution_hint)
+            ));
             json.push_str("    }");
             if index + 1 != self.candidate_inventory.len() {
                 json.push(',');
@@ -2391,6 +2406,12 @@ fn world_signature(world: &World) -> Vec<String> {
 }
 
 fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
+    let deferred_entities = program
+        .action_directives
+        .iter()
+        .filter(|directive| directive.kind == "defer_on_ambiguous_top")
+        .map(|directive| directive.entity.clone())
+        .collect::<std::collections::BTreeSet<_>>();
     let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
     for candidate in &program.action_candidates {
         grouped
@@ -2419,6 +2440,15 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 .map(|candidate| candidate.label.clone())
                 .collect::<Vec<_>>();
             top_labels.sort();
+            let top_score_tied = top_labels.len() > 1;
+            let defer_on_ambiguous_top = deferred_entities.contains(&entity);
+            let resolution_hint = if top_score_tied && defer_on_ambiguous_top {
+                "deferred_on_ambiguous_top"
+            } else if top_score_tied {
+                "deterministic_tie_break"
+            } else {
+                "single_top_candidate"
+            };
 
             CandidateInventorySummary {
                 entity,
@@ -2426,6 +2456,9 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 labels,
                 top_score: format!("{top_score:.3}"),
                 top_labels,
+                top_score_tied,
+                defer_on_ambiguous_top,
+                resolution_hint: resolution_hint.to_string(),
             }
         })
         .collect()
@@ -2869,6 +2902,9 @@ constraint:
         assert!(json.contains("\"labels\": [\"fast\", \"safe\"]"));
         assert!(json.contains("\"top_score\": \"5.000\""));
         assert!(json.contains("\"top_labels\": [\"fast\"]"));
+        assert!(json.contains("\"top_score_tied\": false"));
+        assert!(json.contains("\"defer_on_ambiguous_top\": false"));
+        assert!(json.contains("\"resolution_hint\": \"single_top_candidate\""));
     }
 
     #[test]
@@ -2892,6 +2928,9 @@ constraint:
         assert!(json.contains("\"action_directive_inventory\""));
         assert!(json.contains("\"entity\": \"A\""));
         assert!(json.contains("\"kind\": \"defer_on_ambiguous_top\""));
+        assert!(json.contains("\"top_score_tied\": true"));
+        assert!(json.contains("\"defer_on_ambiguous_top\": true"));
+        assert!(json.contains("\"resolution_hint\": \"deferred_on_ambiguous_top\""));
     }
 
     #[test]
