@@ -114,6 +114,7 @@ pub struct World {
     pub region: Option<Region>,
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
+    pub activity_log: Vec<ActivityEntry>,
 }
 
 #[derive(Clone, Debug)]
@@ -132,6 +133,7 @@ pub struct Snapshot {
 #[derive(Clone, Debug)]
 pub struct SimulationReport {
     pub constraints: Vec<ConstraintSummary>,
+    pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
 }
 
@@ -148,6 +150,15 @@ pub struct ConstraintSummary {
 pub struct ConstraintTrace {
     pub fired_count: usize,
     pub repaired_count: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ActivityEntry {
+    pub time: f64,
+    pub kind: String,
+    pub targets: Vec<String>,
+    pub policy: String,
+    pub action: String,
 }
 
 impl SimulationReport {
@@ -184,6 +195,37 @@ impl SimulationReport {
             ));
             json.push_str("    }");
             if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"activities\": [\n");
+        for (index, activity) in self.activities.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"time\": {:.6},\n", activity.time));
+            json.push_str(&format!(
+                "      \"kind\": \"{}\",\n",
+                escape_json(&activity.kind)
+            ));
+            json.push_str("      \"targets\": [");
+            for (target_index, target) in activity.targets.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(target)));
+                if target_index + 1 != activity.targets.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"policy\": \"{}\",\n",
+                escape_json(&activity.policy)
+            ));
+            json.push_str(&format!(
+                "      \"action\": \"{}\"\n",
+                escape_json(&activity.action)
+            ));
+            json.push_str("    }");
+            if index + 1 != self.activities.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -300,6 +342,37 @@ impl SimulationEnvelope {
                     json.push('\n');
                 }
                 json.push_str("  ],\n");
+                json.push_str("  \"activities\": [\n");
+                for (index, activity) in report.activities.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!("      \"time\": {:.6},\n", activity.time));
+                    json.push_str(&format!(
+                        "      \"kind\": \"{}\",\n",
+                        escape_json(&activity.kind)
+                    ));
+                    json.push_str("      \"targets\": [");
+                    for (target_index, target) in activity.targets.iter().enumerate() {
+                        json.push_str(&format!("\"{}\"", escape_json(target)));
+                        if target_index + 1 != activity.targets.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"policy\": \"{}\",\n",
+                        escape_json(&activity.policy)
+                    ));
+                    json.push_str(&format!(
+                        "      \"action\": \"{}\"\n",
+                        escape_json(&activity.action)
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.activities.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
                 json.push_str("  \"snapshots\": [\n");
                 for (snapshot_index, snapshot) in report.snapshots.iter().enumerate() {
                     json.push_str("    {\n");
@@ -340,6 +413,7 @@ impl SimulationEnvelope {
                     escape_json(self.error.as_deref().unwrap_or("unknown error"))
                 ));
                 json.push_str("  \"constraints\": [],\n");
+                json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
         }
@@ -418,6 +492,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
 
     Ok(SimulationReport {
         constraints: world.constraint_summaries(),
+        activities: world.activity_log.clone(),
         snapshots,
     })
 }
@@ -500,6 +575,7 @@ impl World {
             region,
             constraints,
             constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
+            activity_log: Vec::new(),
         }
         .validated()
     }
@@ -544,6 +620,7 @@ impl World {
             let repaired = constraint.enforce(self)?;
             if repaired {
                 self.constraint_traces[index].repaired_count += 1;
+                self.activity_log.push(constraint.activity_entry(self, "repaired"));
             }
         }
         Ok(())
@@ -576,6 +653,9 @@ impl World {
 
     fn handle_event(&mut self, event: Event) -> Result<(), SimulationError> {
         self.constraint_traces[event.constraint_index].fired_count += 1;
+        self.activity_log.push(
+            self.constraints[event.constraint_index].activity_entry(self, "fired"),
+        );
         event.kind.apply(self)?;
         self.enforce_all_constraints()?;
         Ok(())
@@ -606,6 +686,13 @@ impl World {
             .enumerate()
             .map(|(index, constraint)| constraint.summary(self, &self.constraint_traces[index]))
             .collect()
+    }
+
+    fn current_time(&self) -> f64 {
+        self.spheres
+            .iter()
+            .map(|sphere| sphere.last_update_time)
+            .fold(0.0, f64::max)
     }
 
 }
@@ -687,6 +774,17 @@ struct ConstraintBuildContext<'a> {
 }
 
 impl Constraint {
+    fn activity_entry(&self, world: &World, action: &str) -> ActivityEntry {
+        let summary = self.summary(world, &ConstraintTrace::default());
+        ActivityEntry {
+            time: world.current_time(),
+            kind: summary.kind,
+            targets: summary.targets,
+            policy: summary.policy,
+            action: action.to_string(),
+        }
+    }
+
     fn summary(&self, world: &World, trace: &ConstraintTrace) -> ConstraintSummary {
         match self {
             Self::ReflectOnCollision { sphere_index } => ConstraintSummary {
@@ -1232,6 +1330,7 @@ observe:
         assert!(json.contains("\"velocity_limit\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
+        assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
         assert!(json.contains("\"name\": \"A\""));
     }

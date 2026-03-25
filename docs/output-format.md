@@ -38,6 +38,15 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
       "repaired_count": 0
     }
   ],
+  "activities": [
+    {
+      "time": 1.0,
+      "kind": "elastic_collision",
+      "targets": ["A", "B"],
+      "policy": "implicit",
+      "action": "fired"
+    }
+  ],
   "snapshots": [
     {
       "time": 0.0,
@@ -81,3 +90,4 @@ This format is intentionally small but useful for:
 - external analysis scripts
 - exposing which world laws and repair policies were active during execution
 - distinguishing declared laws from laws that actually fired or repaired state
+- tracing when fired or repaired laws occurred during execution

@@ -46,6 +46,7 @@ const snapshotCount = document.getElementById("snapshot-count");
 const projectionLabel = document.getElementById("projection-label");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
+const activityList = document.getElementById("activity-list");
 const yawSlider = document.getElementById("yaw-slider");
 const pitchSlider = document.getElementById("pitch-slider");
 const zoomSlider = document.getElementById("zoom-slider");
@@ -298,6 +299,7 @@ function normalizeReport(report) {
     status: "ok",
     error: null,
     constraints: report.constraints || [],
+    activities: report.activities || [],
     snapshots: report.snapshots || [],
   };
 }
@@ -708,6 +710,7 @@ function renderSidebar() {
     timeLabel.textContent = "t = 0.000";
     snapshotList.innerHTML = '<p class="muted">Load a report to inspect world state.</p>';
     constraintList.innerHTML = '<p class="muted">Load a report to inspect active constraints.</p>';
+    activityList.innerHTML = '<p class="muted">Load a report to inspect fired or repaired laws.</p>';
     return;
   }
 
@@ -721,6 +724,7 @@ function renderSidebar() {
       </article>
     `;
     renderConstraintList();
+    renderActivityList();
     return;
   }
 
@@ -741,6 +745,7 @@ function renderSidebar() {
   });
 
   renderConstraintList();
+  renderActivityList();
 }
 
 function renderConstraintList() {
@@ -779,6 +784,40 @@ function renderConstraintList() {
     card.appendChild(policy);
     card.appendChild(activity);
     constraintList.appendChild(card);
+  });
+}
+
+function renderActivityList() {
+  if (!state.report) {
+    activityList.innerHTML = '<p class="muted">Load a report to inspect fired or repaired laws.</p>';
+    return;
+  }
+
+  const activities = state.report.activities || [];
+  if (activities.length === 0) {
+    activityList.innerHTML = '<p class="muted">No law activity was recorded for this report.</p>';
+    return;
+  }
+
+  activityList.innerHTML = "";
+  activities.forEach((activity) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = `${activity.action || "activity"} @ t=${Number(activity.time || 0).toFixed(3)}`;
+
+    const kind = document.createElement("p");
+    kind.textContent = `${activity.kind || "constraint"} (${activity.policy || "implicit"})`;
+
+    const targets = document.createElement("p");
+    targets.className = "muted";
+    targets.textContent = Array.isArray(activity.targets) ? activity.targets.join(", ") : "";
+
+    card.appendChild(title);
+    card.appendChild(kind);
+    card.appendChild(targets);
+    activityList.appendChild(card);
   });
 }
 
