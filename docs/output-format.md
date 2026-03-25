@@ -151,6 +151,7 @@ Phase I reports may additionally include:
 - `top_score` and `top_labels` for the highest-score frontier before deterministic tie-breaking
 - `skipped_candidates` when early selection prevents later candidates from being evaluated
 - `tie_broken` when multiple top-score candidates existed and deterministic ordering selected one
+- `equivalent_top_labels` and `observationally_equivalent_tie` when tied candidates collapse to the same observed result
 - `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
 
 ## Rationale

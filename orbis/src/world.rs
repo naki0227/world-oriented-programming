@@ -168,6 +168,8 @@ pub struct CandidateResolution {
     pub top_score: String,
     pub top_labels: Vec<String>,
     pub tie_broken: bool,
+    pub equivalent_top_labels: Vec<String>,
+    pub observationally_equivalent_tie: bool,
     pub repaired_after_selection: bool,
 }
 
@@ -355,6 +357,22 @@ impl SimulationReport {
             json.push_str(&format!(
                 "      \"tie_broken\": {},\n",
                 candidate_resolution.tie_broken
+            ));
+            json.push_str("      \"equivalent_top_labels\": [");
+            for (label_index, label) in candidate_resolution
+                .equivalent_top_labels
+                .iter()
+                .enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_resolution.equivalent_top_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"observationally_equivalent_tie\": {},\n",
+                candidate_resolution.observationally_equivalent_tie
             ));
             json.push_str(&format!(
                 "      \"repaired_after_selection\": {}\n",
@@ -771,6 +789,22 @@ impl SimulationEnvelope {
                     json.push_str(&format!(
                         "      \"tie_broken\": {},\n",
                         candidate_resolution.tie_broken
+                    ));
+                    json.push_str("      \"equivalent_top_labels\": [");
+                    for (label_index, label) in candidate_resolution
+                        .equivalent_top_labels
+                        .iter()
+                        .enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(label)));
+                        if label_index + 1 != candidate_resolution.equivalent_top_labels.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"observationally_equivalent_tie\": {},\n",
+                        candidate_resolution.observationally_equivalent_tie
                     ));
                     json.push_str(&format!(
                         "      \"repaired_after_selection\": {}\n",
@@ -1258,12 +1292,18 @@ impl World {
                 .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
                 .map(|candidate| candidate.label.clone())
                 .collect::<Vec<_>>();
+            let top_candidate_specs = candidates
+                .iter()
+                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+                .cloned()
+                .collect::<Vec<_>>();
 
             let mut selected = false;
             let mut rejected_candidates = 0usize;
             let mut selected_candidate = None;
             let mut selected_score = None;
             let mut repaired_after_selection = false;
+            let mut selected_signature = None;
             for candidate in candidates {
                 let mut probe = self.clone();
                 probe.activity_log.clear();
@@ -1271,6 +1311,11 @@ impl World {
 
                 match probe.enforce_all_constraints() {
                     Ok(_) => {
+                        let probe_signature = world_signature(&probe);
+                        let probe_repaired = probe
+                            .activity_log
+                            .iter()
+                            .any(|activity| activity.action == "repaired");
                         self.spheres = probe.spheres;
                         self.activity_log.push(candidate_activity_entry(
                             self.current_time(),
@@ -1281,10 +1326,8 @@ impl World {
                         ));
                         selected_candidate = Some(candidate.label.clone());
                         selected_score = Some(format!("score={:.3}", candidate.score));
-                        repaired_after_selection = probe
-                            .activity_log
-                            .iter()
-                            .any(|activity| activity.action == "repaired");
+                        selected_signature = Some(probe_signature);
+                        repaired_after_selection = probe_repaired;
                         self.activity_log.extend(probe.activity_log);
                         selected = true;
                         break;
@@ -1309,6 +1352,21 @@ impl World {
                 )));
             }
 
+            let mut equivalent_top_labels = Vec::new();
+            if let Some(selected_signature) = &selected_signature {
+                for candidate in &top_candidate_specs {
+                    let mut probe = self.clone();
+                    probe.activity_log.clear();
+                    probe.spheres[sphere_index].velocity = candidate.velocity;
+                    if probe.enforce_all_constraints().is_ok()
+                        && &world_signature(&probe) == selected_signature
+                    {
+                        equivalent_top_labels.push(candidate.label.clone());
+                    }
+                }
+                equivalent_top_labels.sort();
+            }
+
             self.candidate_resolutions.push(CandidateResolution {
                 entity: sphere_name,
                 total_candidates,
@@ -1319,6 +1377,8 @@ impl World {
                 top_score: format!("{top_score:.3}"),
                 tie_broken: top_labels.len() > 1,
                 top_labels,
+                observationally_equivalent_tie: equivalent_top_labels.len() > 1,
+                equivalent_top_labels,
                 repaired_after_selection,
             });
         }
@@ -1859,6 +1919,27 @@ fn candidate_activity_entry(
         policy: format!("score={score:.3}"),
         action: action.to_string(),
     }
+}
+
+fn world_signature(world: &World) -> Vec<String> {
+    let mut entries = world
+        .spheres
+        .iter()
+        .map(|sphere| {
+            format!(
+                "{}|{:.6}|{:.6}|{:.6}|{:.6}|{:.6}|{:.6}",
+                sphere.name,
+                sphere.position.x,
+                sphere.position.y,
+                sphere.position.z,
+                sphere.velocity.x,
+                sphere.velocity.y,
+                sphere.velocity.z
+            )
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries
 }
 
 fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
@@ -2411,6 +2492,8 @@ observe:
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
         assert!(!candidate_resolution.tie_broken);
+        assert!(candidate_resolution.equivalent_top_labels.is_empty());
+        assert!(!candidate_resolution.observationally_equivalent_tie);
     }
 
     #[test]
@@ -2455,6 +2538,11 @@ observe:
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
         assert!(!candidate_resolution.tie_broken);
+        assert_eq!(
+            candidate_resolution.equivalent_top_labels,
+            vec!["fast".to_string()]
+        );
+        assert!(!candidate_resolution.observationally_equivalent_tie);
         assert!(candidate_resolution.repaired_after_selection);
     }
 
@@ -2539,5 +2627,41 @@ observe:
         );
         assert_eq!(candidate_resolution.skipped_candidates, 1);
         assert!(candidate_resolution.tie_broken);
+        assert_eq!(
+            candidate_resolution.equivalent_top_labels,
+            vec!["alpha".to_string()]
+        );
+        assert!(!candidate_resolution.observationally_equivalent_tie);
+    }
+
+    #[test]
+    fn candidate_velocity_can_report_observationally_equivalent_ties() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (3, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert!(candidate_resolution.tie_broken);
+        assert!(candidate_resolution.observationally_equivalent_tie);
+        assert_eq!(
+            candidate_resolution.equivalent_top_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
     }
 }
