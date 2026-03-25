@@ -146,6 +146,10 @@ time frontier and observation structure, event ordering, local synchronization s
 The present paper does not yet attempt a theorem-level development.
 It does, however, now have enough structure to present a genuine semantics trajectory rather than only an execution metaphor.
 
+At the current level of formalization, a world at frontier $t$ can already be read as a tuple containing dynamic entities, static geometry, declared laws, an object-local progress function, a current state assignment, and the frontier itself.
+Events and laws can likewise be treated as explicit semantic objects rather than implementation accidents, while admissibility can be stated as a predicate over the world at a given frontier.
+This is still a lightweight formalization, but it is enough to move the discussion from conceptual vocabulary toward a reusable operational core.
+
 \begin{figure}[t]
   \centering
   \small
@@ -163,7 +167,7 @@ It does, however, now have enough structure to present a genuine semantics traje
     $\Rightarrow$ &
     \fbox{\parbox[c][2.8em][c]{0.16\columnwidth}{\centering admissible\\ $W_t'$}} &
     \multicolumn{1}{c}{or} &
-    \fbox{\parbox[c][2.8em][c]{0.14\columnwidth}{\centering contradiction\\ $W_t^{X}$}} &
+    \fbox{\parbox[c][2.8em][c]{0.14\columnwidth}{\centering failure\\ $W_t^{X}$}} &
     \\
   \end{tabular}
 

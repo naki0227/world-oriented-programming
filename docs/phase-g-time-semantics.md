@@ -763,6 +763,52 @@ The consolidated semantics should reuse a compact set of symbols:
 This notation is intentionally small.
 The semantics should be readable without forcing the reader to constantly switch vocabularies between G1, G2, G3, and G4.
 
+### Minimal Semantic Objects
+
+The current G5 draft can already name the minimal objects of the semantics.
+
+Write a world at frontier `t` as:
+
+`W_t = (E, G, L, tau, sigma, t)`
+
+where:
+
+- `E` is the set of dynamic entities
+- `G` is the static geometric context
+- `L` is the declared law set
+- `tau : E -> T` gives object-local progress
+- `sigma` is the current state assignment for dynamic entities
+- `t` is the current semantic frontier
+
+An event is treated as a semantic object:
+
+`ev = (k, p, t_ev)`
+
+where:
+
+- `k` is the event kind
+- `p` is the participant set
+- `t_ev` is the frontier at which the event becomes semantically relevant
+
+A law is treated as:
+
+`ell = (k_ell, pol_ell, pred_ell, act_ell)`
+
+where:
+
+- `k_ell` is the law kind
+- `pol_ell` is its selected policy
+- `pred_ell` is its admissibility predicate
+- `act_ell` is its event or enforcement action
+
+Observation is treated as an operator:
+
+`Obs : W x T -> S union {X}`
+
+returning either a stable snapshot `S` or contradiction `X`.
+
+This block is still lightweight, but it moves the semantics from prose concepts toward explicit semantic objects.
+
 ### Operational-Step Schema
 
 The intended one-step operational schema is:
@@ -865,6 +911,23 @@ if every event frontier strictly earlier than `t_obs` has been resolved and the 
 
 This compact draft is intentionally lightweight.
 It is close enough to operational semantics to guide the paper, but not yet frozen into a theorem-proof style notation.
+
+### Admissibility Predicate
+
+The current semantics can also name admissibility explicitly.
+
+Write:
+
+`Adm(W_t)`
+
+to mean that the world at frontier `t` satisfies every declared law in `L` under the current state assignment and geometric context.
+
+Then the enforcement transition can be restated as:
+
+- if `not Adm(W_t^ev)` and some policy in `L` repairs the violation, then `W_t^ev =>enforce W_t'`
+- if `not Adm(W_t^ev)` and no admissible continuation exists, then `W_t^ev =>contradict W_t^X`
+
+This makes contradiction a semantic consequence of failed admissibility, not an external execution accident.
 
 ### Rule Composition
 
