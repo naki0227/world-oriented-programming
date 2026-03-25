@@ -62,3 +62,16 @@ For each new thread of work:
 4. commit when a meaningful milestone is reached
 
 This keeps the repository usable as both an engineering history and a research record.
+
+## Branch Retention
+
+Merged branches do not need to be deleted immediately.
+For this repository, branch history is also research history.
+
+Recommended rule:
+
+- keep phase-level branches such as `feature/phase-f-*` or `feature/phase-g-*`
+- delete only throwaway or abandoned branches that no longer add research value
+- treat merged phase branches as archived milestones unless active work resumes on them
+
+This keeps GitHub readable while preserving the path by which the research evolved.
