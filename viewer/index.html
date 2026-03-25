@@ -40,6 +40,9 @@
             <select id="sample-select">
               <option value="">Choose sample</option>
               <option value="./samples/bounce.json">bounce</option>
+              <option value="./samples/clamped_speed.json">clamped_speed</option>
+              <option value="./samples/clamped_region.json">clamped_region</option>
+              <option value="./samples/reflected_region.json">reflected_region</option>
               <option value="./samples/two_body_collision.json">two_body_collision</option>
               <option value="./samples/forbidden_region.json">forbidden_region</option>
             </select>
@@ -94,6 +97,27 @@
             <h2>World Laws</h2>
             <div id="constraint-list" class="snapshot-list">
               <p class="muted">Load a report to inspect active constraints.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Law Analytics</h2>
+            <div id="analytics-list" class="snapshot-list">
+              <p class="muted">Load a report to inspect law totals and outcome distribution.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>World Activity</h2>
+            <div id="activity-list" class="snapshot-list">
+              <p class="muted">Load a report to inspect fired or repaired laws.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Policy Comparison</h2>
+            <div id="comparison-list" class="snapshot-list">
+              <p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>
             </div>
           </div>
 

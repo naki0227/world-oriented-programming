@@ -360,7 +360,7 @@ fn parse_constraint_alias(line: &str, line_no: usize) -> Result<Option<Vec<Strin
 }
 
 fn parse_policy_prefix(line: &str) -> (Option<&str>, &str) {
-    for policy in ["clamp", "reject"] {
+    for policy in ["clamp", "reject", "reflect"] {
         if let Some(rest) = line.strip_prefix(policy)
             && let Some(body) = rest.strip_prefix(' ')
         {

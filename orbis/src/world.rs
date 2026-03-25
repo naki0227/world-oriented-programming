@@ -105,6 +105,7 @@ pub enum Constraint {
 pub enum RepairPolicy {
     Reject,
     Clamp,
+    Reflect,
 }
 
 #[derive(Clone, Debug)]
@@ -114,6 +115,7 @@ pub struct World {
     pub region: Option<Region>,
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
+    pub activity_log: Vec<ActivityEntry>,
 }
 
 #[derive(Clone, Debug)]
@@ -131,23 +133,57 @@ pub struct Snapshot {
 
 #[derive(Clone, Debug)]
 pub struct SimulationReport {
+    pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LawInventory {
+    pub analytics: LawAnalytics,
+    pub constraints: Vec<ConstraintSummary>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LawAnalytics {
+    pub total_constraints: usize,
+    pub invariant_constraints: usize,
+    pub boundary_constraints: usize,
+    pub interaction_constraints: usize,
+    pub idle_constraints: usize,
+    pub fired_constraints: usize,
+    pub repaired_constraints: usize,
+    pub contradicted_constraints: usize,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConstraintSummary {
     pub kind: String,
+    pub category: String,
     pub targets: Vec<String>,
     pub policy: String,
+    pub supported_policies: Vec<String>,
+    pub outcome: String,
     pub fired_count: usize,
     pub repaired_count: usize,
+    pub contradicted_count: usize,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct ConstraintTrace {
     pub fired_count: usize,
     pub repaired_count: usize,
+    pub contradicted_count: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ActivityEntry {
+    pub time: f64,
+    pub kind: String,
+    pub targets: Vec<String>,
+    pub policy: String,
+    pub action: String,
 }
 
 impl SimulationReport {
@@ -155,12 +191,50 @@ impl SimulationReport {
         let mut json = String::new();
         json.push_str("{\n");
         json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(source)));
+        json.push_str("  \"analytics\": {\n");
+        json.push_str(&format!(
+            "    \"total_constraints\": {},\n",
+            self.analytics.total_constraints
+        ));
+        json.push_str(&format!(
+            "    \"invariant_constraints\": {},\n",
+            self.analytics.invariant_constraints
+        ));
+        json.push_str(&format!(
+            "    \"boundary_constraints\": {},\n",
+            self.analytics.boundary_constraints
+        ));
+        json.push_str(&format!(
+            "    \"interaction_constraints\": {},\n",
+            self.analytics.interaction_constraints
+        ));
+        json.push_str(&format!(
+            "    \"idle_constraints\": {},\n",
+            self.analytics.idle_constraints
+        ));
+        json.push_str(&format!(
+            "    \"fired_constraints\": {},\n",
+            self.analytics.fired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"repaired_constraints\": {},\n",
+            self.analytics.repaired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"contradicted_constraints\": {}\n",
+            self.analytics.contradicted_constraints
+        ));
+        json.push_str("  },\n");
         json.push_str("  \"constraints\": [\n");
         for (index, constraint) in self.constraints.iter().enumerate() {
             json.push_str("    {\n");
             json.push_str(&format!(
                 "      \"kind\": \"{}\",\n",
                 escape_json(&constraint.kind)
+            ));
+            json.push_str(&format!(
+                "      \"category\": \"{}\",\n",
+                escape_json(&constraint.category)
             ));
             json.push_str("      \"targets\": [");
             for (target_index, target) in constraint.targets.iter().enumerate() {
@@ -174,16 +248,65 @@ impl SimulationReport {
                 "      \"policy\": \"{}\",\n",
                 escape_json(&constraint.policy)
             ));
+            json.push_str("      \"supported_policies\": [");
+            for (policy_index, supported_policy) in
+                constraint.supported_policies.iter().enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
+                if policy_index + 1 != constraint.supported_policies.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"outcome\": \"{}\",\n",
+                escape_json(&constraint.outcome)
+            ));
             json.push_str(&format!(
                 "      \"fired_count\": {},\n",
                 constraint.fired_count
             ));
             json.push_str(&format!(
-                "      \"repaired_count\": {}\n",
+                "      \"repaired_count\": {},\n",
                 constraint.repaired_count
+            ));
+            json.push_str(&format!(
+                "      \"contradicted_count\": {}\n",
+                constraint.contradicted_count
             ));
             json.push_str("    }");
             if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"activities\": [\n");
+        for (index, activity) in self.activities.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"time\": {:.6},\n", activity.time));
+            json.push_str(&format!(
+                "      \"kind\": \"{}\",\n",
+                escape_json(&activity.kind)
+            ));
+            json.push_str("      \"targets\": [");
+            for (target_index, target) in activity.targets.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(target)));
+                if target_index + 1 != activity.targets.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"policy\": \"{}\",\n",
+                escape_json(&activity.policy)
+            ));
+            json.push_str(&format!(
+                "      \"action\": \"{}\"\n",
+                escape_json(&activity.action)
+            ));
+            json.push_str("    }");
+            if index + 1 != self.activities.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -231,6 +354,105 @@ impl SimulationReport {
     }
 }
 
+impl LawInventory {
+    pub fn to_json(&self, source: &str) -> String {
+        let mut json = String::new();
+        json.push_str("{\n");
+        json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(source)));
+        json.push_str("  \"analytics\": {\n");
+        json.push_str(&format!(
+            "    \"total_constraints\": {},\n",
+            self.analytics.total_constraints
+        ));
+        json.push_str(&format!(
+            "    \"invariant_constraints\": {},\n",
+            self.analytics.invariant_constraints
+        ));
+        json.push_str(&format!(
+            "    \"boundary_constraints\": {},\n",
+            self.analytics.boundary_constraints
+        ));
+        json.push_str(&format!(
+            "    \"interaction_constraints\": {},\n",
+            self.analytics.interaction_constraints
+        ));
+        json.push_str(&format!(
+            "    \"idle_constraints\": {},\n",
+            self.analytics.idle_constraints
+        ));
+        json.push_str(&format!(
+            "    \"fired_constraints\": {},\n",
+            self.analytics.fired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"repaired_constraints\": {},\n",
+            self.analytics.repaired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"contradicted_constraints\": {}\n",
+            self.analytics.contradicted_constraints
+        ));
+        json.push_str("  },\n");
+        json.push_str("  \"constraints\": [\n");
+        for (index, constraint) in self.constraints.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"kind\": \"{}\",\n",
+                escape_json(&constraint.kind)
+            ));
+            json.push_str(&format!(
+                "      \"category\": \"{}\",\n",
+                escape_json(&constraint.category)
+            ));
+            json.push_str("      \"targets\": [");
+            for (target_index, target) in constraint.targets.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(target)));
+                if target_index + 1 != constraint.targets.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"policy\": \"{}\",\n",
+                escape_json(&constraint.policy)
+            ));
+            json.push_str("      \"supported_policies\": [");
+            for (policy_index, supported_policy) in constraint.supported_policies.iter().enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
+                if policy_index + 1 != constraint.supported_policies.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"outcome\": \"{}\",\n",
+                escape_json(&constraint.outcome)
+            ));
+            json.push_str(&format!(
+                "      \"fired_count\": {},\n",
+                constraint.fired_count
+            ));
+            json.push_str(&format!(
+                "      \"repaired_count\": {},\n",
+                constraint.repaired_count
+            ));
+            json.push_str(&format!(
+                "      \"contradicted_count\": {}\n",
+                constraint.contradicted_count
+            ));
+            json.push_str("    }");
+            if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ]\n");
+        json.push('}');
+        json
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SimulationEnvelope {
     pub source: String,
@@ -258,6 +480,19 @@ impl SimulationEnvelope {
         }
     }
 
+    pub fn failure_with_report(
+        source: &str,
+        error: impl Into<String>,
+        report: SimulationReport,
+    ) -> Self {
+        Self {
+            source: source.to_string(),
+            status: "error".to_string(),
+            report: Some(report),
+            error: Some(error.into()),
+        }
+    }
+
     pub fn to_json(&self) -> String {
         let mut json = String::new();
         json.push_str("{\n");
@@ -265,13 +500,57 @@ impl SimulationEnvelope {
         json.push_str(&format!("  \"status\": \"{}\",\n", escape_json(&self.status)));
         match &self.report {
             Some(report) => {
-                json.push_str("  \"error\": null,\n");
+                match &self.error {
+                    Some(error) => json.push_str(&format!(
+                        "  \"error\": \"{}\",\n",
+                        escape_json(error)
+                    )),
+                    None => json.push_str("  \"error\": null,\n"),
+                }
+                json.push_str("  \"analytics\": {\n");
+                json.push_str(&format!(
+                    "    \"total_constraints\": {},\n",
+                    report.analytics.total_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"invariant_constraints\": {},\n",
+                    report.analytics.invariant_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"boundary_constraints\": {},\n",
+                    report.analytics.boundary_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"interaction_constraints\": {},\n",
+                    report.analytics.interaction_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"idle_constraints\": {},\n",
+                    report.analytics.idle_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"fired_constraints\": {},\n",
+                    report.analytics.fired_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"repaired_constraints\": {},\n",
+                    report.analytics.repaired_constraints
+                ));
+                json.push_str(&format!(
+                    "    \"contradicted_constraints\": {}\n",
+                    report.analytics.contradicted_constraints
+                ));
+                json.push_str("  },\n");
                 json.push_str("  \"constraints\": [\n");
                 for (index, constraint) in report.constraints.iter().enumerate() {
                     json.push_str("    {\n");
                     json.push_str(&format!(
                         "      \"kind\": \"{}\",\n",
                         escape_json(&constraint.kind)
+                    ));
+                    json.push_str(&format!(
+                        "      \"category\": \"{}\",\n",
+                        escape_json(&constraint.category)
                     ));
                     json.push_str("      \"targets\": [");
                     for (target_index, target) in constraint.targets.iter().enumerate() {
@@ -285,16 +564,65 @@ impl SimulationEnvelope {
                         "      \"policy\": \"{}\",\n",
                         escape_json(&constraint.policy)
                     ));
+                    json.push_str("      \"supported_policies\": [");
+                    for (policy_index, supported_policy) in
+                        constraint.supported_policies.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
+                        if policy_index + 1 != constraint.supported_policies.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"outcome\": \"{}\",\n",
+                        escape_json(&constraint.outcome)
+                    ));
                     json.push_str(&format!(
                         "      \"fired_count\": {},\n",
                         constraint.fired_count
                     ));
                     json.push_str(&format!(
-                        "      \"repaired_count\": {}\n",
+                        "      \"repaired_count\": {},\n",
                         constraint.repaired_count
+                    ));
+                    json.push_str(&format!(
+                        "      \"contradicted_count\": {}\n",
+                        constraint.contradicted_count
                     ));
                     json.push_str("    }");
                     if index + 1 != report.constraints.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
+                json.push_str("  \"activities\": [\n");
+                for (index, activity) in report.activities.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!("      \"time\": {:.6},\n", activity.time));
+                    json.push_str(&format!(
+                        "      \"kind\": \"{}\",\n",
+                        escape_json(&activity.kind)
+                    ));
+                    json.push_str("      \"targets\": [");
+                    for (target_index, target) in activity.targets.iter().enumerate() {
+                        json.push_str(&format!("\"{}\"", escape_json(target)));
+                        if target_index + 1 != activity.targets.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"policy\": \"{}\",\n",
+                        escape_json(&activity.policy)
+                    ));
+                    json.push_str(&format!(
+                        "      \"action\": \"{}\"\n",
+                        escape_json(&activity.action)
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.activities.len() {
                         json.push(',');
                     }
                     json.push('\n');
@@ -339,7 +667,18 @@ impl SimulationEnvelope {
                     "  \"error\": \"{}\",\n",
                     escape_json(self.error.as_deref().unwrap_or("unknown error"))
                 ));
+                json.push_str("  \"analytics\": {\n");
+                json.push_str("    \"total_constraints\": 0,\n");
+                json.push_str("    \"invariant_constraints\": 0,\n");
+                json.push_str("    \"boundary_constraints\": 0,\n");
+                json.push_str("    \"interaction_constraints\": 0,\n");
+                json.push_str("    \"idle_constraints\": 0,\n");
+                json.push_str("    \"fired_constraints\": 0,\n");
+                json.push_str("    \"repaired_constraints\": 0,\n");
+                json.push_str("    \"contradicted_constraints\": 0\n");
+                json.push_str("  },\n");
                 json.push_str("  \"constraints\": [],\n");
+                json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
         }
@@ -416,10 +755,70 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         snapshots.push(Snapshot { time, spheres });
     }
 
+    let constraints = world.constraint_summaries();
     Ok(SimulationReport {
-        constraints: world.constraint_summaries(),
+        analytics: LawAnalytics::from_constraints(&constraints),
+        constraints,
+        activities: world.activity_log.clone(),
         snapshots,
     })
+}
+
+pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationError> {
+    let world = World::from_program(program)?;
+    let constraints = world.constraint_summaries();
+    Ok(LawInventory {
+        analytics: LawAnalytics::from_constraints(&constraints),
+        constraints,
+    })
+}
+
+pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationEnvelope {
+    let mut world = match World::from_program(program) {
+        Ok(world) => world,
+        Err(error) => return SimulationEnvelope::failure(source, error.to_string()),
+    };
+    let mut snapshots = Vec::new();
+    let mut observation_times = program.observe_times.clone();
+    observation_times.sort_by(|a, b| a.total_cmp(b));
+
+    for time in observation_times {
+        if let Err(error) = world.advance_to(time) {
+            let constraints = world.constraint_summaries();
+            return SimulationEnvelope::failure_with_report(
+                source,
+                error.to_string(),
+                SimulationReport {
+                    analytics: LawAnalytics::from_constraints(&constraints),
+                    constraints,
+                    activities: world.activity_log.clone(),
+                    snapshots,
+                },
+            );
+        }
+        let mut spheres = world
+            .spheres
+            .iter()
+            .map(|sphere| SphereSnapshot {
+                name: sphere.name.clone(),
+                position: sphere.position,
+                velocity: sphere.velocity,
+            })
+            .collect::<Vec<_>>();
+        spheres.sort_by(|a, b| a.name.cmp(&b.name));
+        snapshots.push(Snapshot { time, spheres });
+    }
+
+    let constraints = world.constraint_summaries();
+    SimulationEnvelope::success(
+        source,
+        SimulationReport {
+            analytics: LawAnalytics::from_constraints(&constraints),
+            constraints,
+            activities: world.activity_log.clone(),
+            snapshots,
+        },
+    )
 }
 
 impl World {
@@ -500,6 +899,7 @@ impl World {
             region,
             constraints,
             constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
+            activity_log: Vec::new(),
         }
         .validated()
     }
@@ -541,9 +941,19 @@ impl World {
     fn enforce_all_constraints(&mut self) -> Result<(), SimulationError> {
         let constraints = self.constraints.clone();
         for (index, constraint) in constraints.iter().enumerate() {
-            let repaired = constraint.enforce(self)?;
-            if repaired {
-                self.constraint_traces[index].repaired_count += 1;
+            match constraint.enforce(self) {
+                Ok(repaired) => {
+                    if repaired {
+                        self.constraint_traces[index].repaired_count += 1;
+                        self.activity_log.push(constraint.activity_entry(self, "repaired"));
+                    }
+                }
+                Err(error) => {
+                    self.constraint_traces[index].contradicted_count += 1;
+                    self.activity_log
+                        .push(constraint.activity_entry(self, "contradicted"));
+                    return Err(error);
+                }
             }
         }
         Ok(())
@@ -576,6 +986,9 @@ impl World {
 
     fn handle_event(&mut self, event: Event) -> Result<(), SimulationError> {
         self.constraint_traces[event.constraint_index].fired_count += 1;
+        self.activity_log.push(
+            self.constraints[event.constraint_index].activity_entry(self, "fired"),
+        );
         event.kind.apply(self)?;
         self.enforce_all_constraints()?;
         Ok(())
@@ -606,6 +1019,13 @@ impl World {
             .enumerate()
             .map(|(index, constraint)| constraint.summary(self, &self.constraint_traces[index]))
             .collect()
+    }
+
+    fn current_time(&self) -> f64 {
+        self.spheres
+            .iter()
+            .map(|sphere| sphere.last_update_time)
+            .fold(0.0, f64::max)
     }
 
 }
@@ -686,18 +1106,44 @@ struct ConstraintBuildContext<'a> {
     region_name: Option<&'a str>,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum ConstraintCategory {
+    Invariant,
+    Boundary,
+    Interaction,
+}
+
 impl Constraint {
+    fn activity_entry(&self, world: &World, action: &str) -> ActivityEntry {
+        let summary = self.summary(world, &ConstraintTrace::default());
+        ActivityEntry {
+            time: world.current_time(),
+            kind: summary.kind,
+            targets: summary.targets,
+            policy: summary.policy,
+            action: action.to_string(),
+        }
+    }
+
     fn summary(&self, world: &World, trace: &ConstraintTrace) -> ConstraintSummary {
         match self {
             Self::ReflectOnCollision { sphere_index } => ConstraintSummary {
                 kind: "reflect_on_collision".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*sphere_index].name.clone(),
                     world.plane.name.clone(),
                 ],
                 policy: "implicit".to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
             Self::VelocityLimit {
                 sphere_index,
@@ -705,16 +1151,25 @@ impl Constraint {
                 ..
             } => ConstraintSummary {
                 kind: "velocity_limit".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![world.spheres[*sphere_index].name.clone()],
                 policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
             Self::NotInside {
                 sphere_index,
                 policy,
             } => ConstraintSummary {
                 kind: "not_inside".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*sphere_index].name.clone(),
                     world
@@ -724,22 +1179,55 @@ impl Constraint {
                         .unwrap_or_else(|| "region".to_string()),
                 ],
                 policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
             Self::ElasticCollision {
                 left_index,
                 right_index,
             } => ConstraintSummary {
                 kind: "elastic_collision".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*left_index].name.clone(),
                     world.spheres[*right_index].name.clone(),
                 ],
                 policy: "implicit".to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
+        }
+    }
+
+    fn category(&self) -> ConstraintCategory {
+        match self {
+            Self::VelocityLimit { .. } => ConstraintCategory::Invariant,
+            Self::ReflectOnCollision { .. } | Self::NotInside { .. } => ConstraintCategory::Boundary,
+            Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
+        }
+    }
+
+    fn supported_policies(&self) -> Vec<RepairPolicy> {
+        match self {
+            Self::VelocityLimit { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
+            Self::NotInside { .. } => {
+                vec![RepairPolicy::Reject, RepairPolicy::Clamp, RepairPolicy::Reflect]
+            }
+            Self::ReflectOnCollision { .. } | Self::ElasticCollision { .. } => Vec::new(),
         }
     }
 
@@ -776,10 +1264,16 @@ impl Constraint {
                         "invalid velocity limit value: {limit}"
                     ))
                 })?;
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "velocity_limit",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
                 Ok(Self::VelocityLimit {
                     sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
                     max_speed,
-                    policy: parse_repair_policy(policy)?,
+                    policy,
                 })
             }
             [name, sphere_ref, region_ref] if name == "not_inside" => {
@@ -809,9 +1303,19 @@ impl Constraint {
                         "unknown region in not_inside: {region_ref}"
                     )));
                 }
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "not_inside",
+                    policy,
+                    &[
+                        RepairPolicy::Reject,
+                        RepairPolicy::Clamp,
+                        RepairPolicy::Reflect,
+                    ],
+                )?;
                 Ok(Self::NotInside {
                     sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
-                    policy: parse_repair_policy(policy)?,
+                    policy,
                 })
             }
             [name, left, right] if name == "elastic_collision" => Ok(Self::ElasticCollision {
@@ -849,6 +1353,11 @@ impl Constraint {
                             sphere.velocity = direction * *max_speed;
                             return Ok(true);
                         }
+                        RepairPolicy::Reflect => {
+                            return Err(SimulationError::InvalidConstraint(
+                                "velocity_limit does not support reflect policy".to_string(),
+                            ));
+                        }
                     }
                 }
                 Ok(false)
@@ -875,6 +1384,10 @@ impl Constraint {
                         }
                         RepairPolicy::Clamp => {
                             clamp_sphere_outside_box(sphere, region_min, region_max);
+                            return Ok(true);
+                        }
+                        RepairPolicy::Reflect => {
+                            reflect_sphere_outside_box(sphere, region_min, region_max);
                             return Ok(true);
                         }
                     }
@@ -907,11 +1420,70 @@ impl Constraint {
     }
 }
 
+impl ConstraintCategory {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Invariant => "invariant",
+            Self::Boundary => "boundary",
+            Self::Interaction => "interaction",
+        }
+    }
+}
+
+impl ConstraintTrace {
+    fn outcome(&self) -> &'static str {
+        if self.contradicted_count > 0 {
+            "contradicted"
+        } else if self.repaired_count > 0 {
+            "repaired"
+        } else if self.fired_count > 0 {
+            "fired"
+        } else {
+            "idle"
+        }
+    }
+}
+
+impl LawAnalytics {
+    fn from_constraints(constraints: &[ConstraintSummary]) -> Self {
+        let mut analytics = Self {
+            total_constraints: constraints.len(),
+            invariant_constraints: 0,
+            boundary_constraints: 0,
+            interaction_constraints: 0,
+            idle_constraints: 0,
+            fired_constraints: 0,
+            repaired_constraints: 0,
+            contradicted_constraints: 0,
+        };
+
+        for constraint in constraints {
+            match constraint.category.as_str() {
+                "invariant" => analytics.invariant_constraints += 1,
+                "boundary" => analytics.boundary_constraints += 1,
+                "interaction" => analytics.interaction_constraints += 1,
+                _ => {}
+            }
+
+            match constraint.outcome.as_str() {
+                "idle" => analytics.idle_constraints += 1,
+                "fired" => analytics.fired_constraints += 1,
+                "repaired" => analytics.repaired_constraints += 1,
+                "contradicted" => analytics.contradicted_constraints += 1,
+                _ => {}
+            }
+        }
+
+        analytics
+    }
+}
+
 impl RepairPolicy {
     fn as_str(self) -> &'static str {
         match self {
             Self::Reject => "reject",
             Self::Clamp => "clamp",
+            Self::Reflect => "reflect",
         }
     }
 }
@@ -927,10 +1499,34 @@ fn parse_repair_policy(policy: &str) -> Result<RepairPolicy, SimulationError> {
     match policy {
         "reject" => Ok(RepairPolicy::Reject),
         "clamp" => Ok(RepairPolicy::Clamp),
+        "reflect" => Ok(RepairPolicy::Reflect),
         _ => Err(SimulationError::InvalidConstraint(format!(
             "unknown repair policy: {policy}"
         ))),
     }
+}
+
+fn ensure_policy_supported(
+    constraint_name: &str,
+    selected_policy: RepairPolicy,
+    supported_policies: &[RepairPolicy],
+) -> Result<(), SimulationError> {
+    if supported_policies.contains(&selected_policy) {
+        return Ok(());
+    }
+
+    let supported = supported_policies
+        .iter()
+        .map(|policy| policy.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Err(SimulationError::InvalidConstraint(format!(
+        "{} does not support {}; supported policies: {}",
+        constraint_name,
+        selected_policy.as_str(),
+        supported
+    )))
 }
 
 fn escape_json(value: &str) -> String {
@@ -1075,9 +1671,44 @@ fn clamp_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
     }
 }
 
+fn reflect_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
+    let distances = [
+        (sphere.position.x - min.x, 0usize, min.x - EPSILON, -1.0),
+        (max.x - sphere.position.x, 0usize, max.x + EPSILON, 1.0),
+        (sphere.position.y - min.y, 1usize, min.y - EPSILON, -1.0),
+        (max.y - sphere.position.y, 1usize, max.y + EPSILON, 1.0),
+        (sphere.position.z - min.z, 2usize, min.z - EPSILON, -1.0),
+        (max.z - sphere.position.z, 2usize, max.z + EPSILON, 1.0),
+    ];
+
+    let (_, axis, target, direction) = distances
+        .into_iter()
+        .min_by(|left, right| left.0.total_cmp(&right.0))
+        .expect("box face distances are non-empty");
+
+    match axis {
+        0 => {
+            sphere.position.x = target;
+            sphere.velocity.x = sphere.velocity.x.abs() * direction;
+        }
+        1 => {
+            sphere.position.y = target;
+            sphere.velocity.y = sphere.velocity.y.abs() * direction;
+        }
+        2 => {
+            sphere.position.z = target;
+            sphere.velocity.z = sphere.velocity.z.abs() * direction;
+        }
+        _ => unreachable!("axis index is bounded above"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{SimulationEnvelope, parse_program, simulate_program};
+    use crate::{
+        SimulationEnvelope, analyze_program, parse_program, simulate_program,
+        simulate_program_envelope,
+    };
 
     #[test]
     fn bounce_reflects_on_floor() {
@@ -1168,6 +1799,24 @@ observe:
     }
 
     #[test]
+    fn velocity_limit_rejects_unsupported_reflect_policy_at_build_time() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 10, 0)
+velocity(A) = (6, 8, 0)
+radius(A) = 1
+constraint:
+    reflect speed(A) <= 5
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        assert!(error
+            .to_string()
+            .contains("velocity_limit does not support reflect"));
+    }
+
+    #[test]
     fn forbidden_region_stops_world() {
         let source = r#"
 sphere A
@@ -1212,6 +1861,29 @@ observe:
     }
 
     #[test]
+    fn forbidden_region_can_reflect_from_boundary() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    reflect not inside(A, zone)
+observe:
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert!(sphere.position.x < 2.0 || sphere.position.x > 4.0);
+        assert_eq!(sphere.velocity.x, -1.0);
+    }
+
+    #[test]
     fn report_serializes_to_json() {
         let source = r#"
 sphere A
@@ -1228,12 +1900,43 @@ observe:
         let report = simulate_program(&program).expect("simulation should succeed");
         let json = report.to_json("example.sk");
         assert!(json.contains("\"source\": \"example.sk\""));
+        assert!(json.contains("\"analytics\""));
+        assert!(json.contains("\"total_constraints\": 1"));
         assert!(json.contains("\"constraints\""));
         assert!(json.contains("\"velocity_limit\""));
+        assert!(json.contains("\"category\": \"invariant\""));
+        assert!(json.contains("\"supported_policies\": [\"reject\", \"clamp\"]"));
+        assert!(json.contains("\"outcome\": \"idle\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
+        assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
         assert!(json.contains("\"name\": \"A\""));
+    }
+
+    #[test]
+    fn analyze_program_summarizes_declared_laws_without_simulating() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    reflect not inside(A, zone)
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let inventory = analyze_program(&program).expect("analysis should succeed");
+        let json = inventory.to_json("analyze.sk");
+        assert!(json.contains("\"source\": \"analyze.sk\""));
+        assert!(json.contains("\"analytics\""));
+        assert!(json.contains("\"total_constraints\": 1"));
+        assert!(json.contains("\"policy\": \"reflect\""));
+        assert!(json.contains("\"outcome\": \"idle\""));
+        assert!(!json.contains("\"snapshots\""));
     }
 
     #[test]
@@ -1242,6 +1945,41 @@ observe:
         let json = envelope.to_json();
         assert!(json.contains("\"status\": \"error\""));
         assert!(json.contains("\"error\": \"world contradiction\""));
+        assert!(json.contains("\"analytics\": {"));
+        assert!(json.contains("\"constraints\": []"));
+        assert!(json.contains("\"activities\": []"));
         assert!(json.contains("\"snapshots\": []"));
+    }
+
+    #[test]
+    fn failure_envelope_can_keep_partial_report() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    not inside(A, zone)
+observe:
+    snapshot at 1
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let envelope = simulate_program_envelope(&program, "forbidden_region.sk");
+        let json = envelope.to_json();
+        assert!(json.contains("\"status\": \"error\""));
+        assert!(json.contains("\"constraints\""));
+        assert!(json.contains("\"not_inside\""));
+        assert!(json.contains("\"analytics\""));
+        assert!(json.contains("\"boundary_constraints\": 1"));
+        assert!(json.contains("\"outcome\": \"contradicted\""));
+        assert!(json.contains("\"contradicted_count\": 1"));
+        assert!(json.contains("\"action\": \"contradicted\""));
+        assert!(json.contains("\"activities\""));
+        assert!(json.contains("\"time\": 1.000000"));
     }
 }

@@ -1,7 +1,7 @@
 {
-  "source": "examples/forbidden_region.sk",
-  "status": "error",
-  "error": "sphere `A` entered forbidden region `zone` at t=2.000",
+  "source": "examples/reflected_region.sk",
+  "status": "ok",
+  "error": null,
   "analytics": {
     "total_constraints": 1,
     "invariant_constraints": 0,
@@ -9,20 +9,20 @@
     "interaction_constraints": 0,
     "idle_constraints": 0,
     "fired_constraints": 0,
-    "repaired_constraints": 0,
-    "contradicted_constraints": 1
+    "repaired_constraints": 1,
+    "contradicted_constraints": 0
   },
   "constraints": [
     {
       "kind": "not_inside",
       "category": "boundary",
       "targets": ["A", "zone"],
-      "policy": "reject",
+      "policy": "reflect",
       "supported_policies": ["reject", "clamp", "reflect"],
-      "outcome": "contradicted",
+      "outcome": "repaired",
       "fired_count": 1,
-      "repaired_count": 0,
-      "contradicted_count": 1
+      "repaired_count": 1,
+      "contradicted_count": 0
     }
   ],
   "activities": [
@@ -30,15 +30,15 @@
       "time": 2.000000,
       "kind": "not_inside",
       "targets": ["A", "zone"],
-      "policy": "reject",
+      "policy": "reflect",
       "action": "fired"
     },
     {
       "time": 2.000000,
       "kind": "not_inside",
       "targets": ["A", "zone"],
-      "policy": "reject",
-      "action": "contradicted"
+      "policy": "reflect",
+      "action": "repaired"
     }
   ],
   "snapshots": [
@@ -49,6 +49,16 @@
           "name": "A",
           "position": { "x": 1.000000, "y": 0.000000, "z": 0.000000 },
           "velocity": { "x": 1.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 3.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 1.000000, "y": 0.000000, "z": 0.000000 },
+          "velocity": { "x": -1.000000, "y": 0.000000, "z": 0.000000 }
         }
       ]
     }

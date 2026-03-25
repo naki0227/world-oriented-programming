@@ -2,6 +2,49 @@
   "source": "examples/bounce.sk",
   "status": "ok",
   "error": null,
+  "analytics": {
+    "total_constraints": 2,
+    "invariant_constraints": 1,
+    "boundary_constraints": 1,
+    "interaction_constraints": 0,
+    "idle_constraints": 1,
+    "fired_constraints": 1,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+    {
+      "kind": "reflect_on_collision",
+      "category": "boundary",
+      "targets": ["A", "floor"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "outcome": "fired",
+      "fired_count": 1,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["A"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    }
+  ],
+  "activities": [
+    {
+      "time": 3.000000,
+      "kind": "reflect_on_collision",
+      "targets": ["A", "floor"],
+      "policy": "implicit",
+      "action": "fired"
+    }
+  ],
   "snapshots": [
     {
       "time": 0.000000,

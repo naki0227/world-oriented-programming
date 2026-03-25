@@ -52,6 +52,13 @@ The runtime maintains:
 - `global_time`
 - object-local `last_update_time`
 
+Phase G refines this into:
+
+- a world frontier `t`
+- object-local progress `tau(e)`
+- an observation operator `Obs(W, t_obs)`
+- a stable snapshot predicate `Stable(W, t_obs)`
+
 ### Advancement Rule
 
 Entities are advanced lazily.
@@ -62,6 +69,12 @@ An entity is only brought forward when:
 - a constraint requires evaluation at a later time
 
 This supports the intended feeling that the world evolves on its own, while computation happens only when needed.
+
+The semantic reading is:
+
+- time advances monotonically
+- entities need not be materialized uniformly
+- coherent observation requires a semantically justified frontier rather than a naive global read
 
 ## Observation Semantics
 

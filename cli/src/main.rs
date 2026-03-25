@@ -1,6 +1,6 @@
 use std::{env, fs, process};
 
-use orbis::{SimulationEnvelope, parse_program, simulate_program};
+use orbis::{analyze_program, parse_program, simulate_program, simulate_program_envelope};
 
 fn main() {
     if let Err(error) = run() {
@@ -36,10 +36,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let report = simulate_program(&program)?;
             println!("{}", report.to_json(&args[1]));
         }
-        "simulate-report" => match simulate_program(&program) {
-            Ok(report) => println!("{}", SimulationEnvelope::success(&args[1], report).to_json()),
-            Err(error) => println!("{}", SimulationEnvelope::failure(&args[1], error.to_string()).to_json()),
-        },
+        "simulate-report" => {
+            let envelope = simulate_program_envelope(&program, &args[1]);
+            println!("{}", envelope.to_json());
+        }
+        "analyze" => {
+            let inventory = analyze_program(&program)?;
+            println!("{}", inventory.to_json(&args[1]));
+        }
         _ => print_usage(),
     }
 
@@ -47,5 +51,5 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn print_usage() {
-    eprintln!("usage: sekai <simulate|simulate-json|simulate-report> <file.sk>");
+    eprintln!("usage: sekai <simulate|simulate-json|simulate-report|analyze> <file.sk>");
 }

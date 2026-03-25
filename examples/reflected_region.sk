@@ -1,0 +1,17 @@
+sphere A
+plane floor
+region zone
+
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+
+constraint:
+    reflect not inside(A, zone)
+
+observe:
+    snapshot at 1
+    snapshot at 3

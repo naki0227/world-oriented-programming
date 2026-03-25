@@ -46,6 +46,9 @@ const snapshotCount = document.getElementById("snapshot-count");
 const projectionLabel = document.getElementById("projection-label");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
+const analyticsList = document.getElementById("analytics-list");
+const activityList = document.getElementById("activity-list");
+const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
 const pitchSlider = document.getElementById("pitch-slider");
 const zoomSlider = document.getElementById("zoom-slider");
@@ -72,6 +75,12 @@ const draftHint = document.getElementById("draft-hint");
 const constraintCandidates = document.getElementById("constraint-candidates");
 const draftStatus = document.getElementById("draft-status");
 
+const POLICY_COMPARISON_SAMPLES = [
+  { label: "reject", path: "./samples/forbidden_region.json" },
+  { label: "clamp", path: "./samples/clamped_region.json" },
+  { label: "reflect", path: "./samples/reflected_region.json" },
+];
+
 fileInput.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -82,10 +91,14 @@ fileInput.addEventListener("change", async (event) => {
 sampleSelect.addEventListener("change", async (event) => {
   const path = event.target.value;
   if (!path) return;
+  await loadSample(path);
+});
+
+async function loadSample(path) {
   const response = await fetch(path);
   const report = await response.json();
   loadReport(report, path);
-});
+}
 
 viewModeSelect.addEventListener("change", (event) => {
   state.viewMode = event.target.value;
@@ -292,14 +305,49 @@ function stopPlayback() {
 }
 
 function normalizeReport(report) {
-  if (report.status) return report;
+  if (report.status) {
+    return {
+      source: report.source || "unknown",
+      status: report.status,
+      error: report.error || null,
+      analytics: report.analytics || defaultAnalytics(report.constraints || []),
+      constraints: report.constraints || [],
+      activities: report.activities || [],
+      snapshots: report.snapshots || [],
+    };
+  }
   return {
     source: report.source || "unknown",
     status: "ok",
     error: null,
+    analytics: report.analytics || defaultAnalytics(report.constraints || []),
     constraints: report.constraints || [],
+    activities: report.activities || [],
     snapshots: report.snapshots || [],
   };
+}
+
+function defaultAnalytics(constraints) {
+  const analytics = {
+    total_constraints: 0,
+    invariant_constraints: 0,
+    boundary_constraints: 0,
+    interaction_constraints: 0,
+    idle_constraints: 0,
+    fired_constraints: 0,
+    repaired_constraints: 0,
+    contradicted_constraints: 0,
+  };
+
+  constraints.forEach((constraint) => {
+    analytics.total_constraints += 1;
+    const categoryKey = `${constraint.category || "unknown"}_constraints`;
+    if (categoryKey in analytics) analytics[categoryKey] += 1;
+    const outcomeKey = `${constraint.outcome || "idle"}_constraints`;
+    if (outcomeKey in analytics) analytics[outcomeKey] += 1;
+  });
+
+  return analytics;
 }
 
 function buildColorMap(report) {
@@ -309,6 +357,22 @@ function buildColorMap(report) {
   const map = new Map();
   names.forEach((name, index) => map.set(name, COLORS[index % COLORS.length]));
   return map;
+}
+
+function hasStableSnapshots(report = state.report) {
+  return Boolean(report && Array.isArray(report.snapshots) && report.snapshots.length > 0);
+}
+
+function activeSnapshot() {
+  if (!hasStableSnapshots()) return null;
+  const maxIndex = state.report.snapshots.length - 1;
+  const index = Math.min(state.snapshotIndex, maxIndex);
+  return state.report.snapshots[index];
+}
+
+function lastStableSnapshot() {
+  if (!hasStableSnapshots()) return null;
+  return state.report.snapshots[state.report.snapshots.length - 1];
 }
 
 function schedulePlayback() {
@@ -350,6 +414,45 @@ function renderCanvas() {
   }
 
   if (state.report.status !== "ok") {
+    const snapshot = activeSnapshot();
+    if (snapshot) {
+      const bounds = compute3DBounds(state.report.snapshots, state.editor.spheres, state.editor.floorEnabled ? state.editor.floorOffset : null);
+      const plot = { left: 78, top: 150, right: canvas.width - 78, bottom: canvas.height - 92 };
+      if (state.viewMode === "3d") {
+        draw3DScene(snapshot, bounds, plot);
+      } else {
+        draw2DScene(snapshot, bounds, plot, state.viewMode);
+      }
+      if (state.editor.spheres.length > 0) {
+        drawDraftOverlay(bounds, plot);
+      }
+
+      context.fillStyle = "#8a2f2f";
+      context.font = '28px Georgia, "Times New Roman", serif';
+      context.fillText("World Contradiction", 48, 92);
+      context.fillStyle = "#5e4747";
+      context.font = '20px Georgia, "Times New Roman", serif';
+      context.fillText(`Last stable snapshot at t = ${snapshot.time.toFixed(3)}`, 48, 126);
+      context.font = '18px Georgia, "Times New Roman", serif';
+      context.fillText(axisLabel(state.viewMode), 48, canvas.height - 38);
+
+      context.fillStyle = "rgba(255, 247, 242, 0.90)";
+      context.fillRect(40, 20, canvas.width - 80, 132);
+      context.strokeStyle = "#d7b7ab";
+      context.lineWidth = 1.5;
+      context.strokeRect(40, 20, canvas.width - 80, 132);
+
+      context.fillStyle = "#8a2f2f";
+      context.font = '28px Georgia, "Times New Roman", serif';
+      context.fillText("World Contradiction", 56, 60);
+      context.fillStyle = "#5e4747";
+      context.font = '20px Georgia, "Times New Roman", serif';
+      context.fillText(state.report.error || "Unknown error", 56, 94);
+      context.font = '18px Georgia, "Times New Roman", serif';
+      context.fillText(`Showing last stable state before failure at t = ${snapshot.time.toFixed(3)}.`, 56, 124);
+      return;
+    }
+
     context.fillStyle = "#8a2f2f";
     context.font = '28px Georgia, "Times New Roman", serif';
     context.fillText("World Contradiction", 48, 92);
@@ -361,7 +464,7 @@ function renderCanvas() {
     return;
   }
 
-  const snapshot = state.report.snapshots[state.snapshotIndex];
+  const snapshot = activeSnapshot();
   const bounds = compute3DBounds(state.report.snapshots, state.editor.spheres, state.editor.floorEnabled ? state.editor.floorOffset : null);
   const plot = { left: 78, top: 88, right: canvas.width - 78, bottom: canvas.height - 92 };
 
@@ -708,11 +811,15 @@ function renderSidebar() {
     timeLabel.textContent = "t = 0.000";
     snapshotList.innerHTML = '<p class="muted">Load a report to inspect world state.</p>';
     constraintList.innerHTML = '<p class="muted">Load a report to inspect active constraints.</p>';
+    analyticsList.innerHTML = '<p class="muted">Load a report to inspect law totals and outcome distribution.</p>';
+    activityList.innerHTML = '<p class="muted">Load a report to inspect fired or repaired laws.</p>';
+    comparisonList.innerHTML = '<p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>';
     return;
   }
 
   if (state.report.status !== "ok") {
-    timeLabel.textContent = "t = error";
+    const stableSnapshot = activeSnapshot() || lastStableSnapshot();
+    timeLabel.textContent = stableSnapshot ? `t = ${stableSnapshot.time.toFixed(3)} (last stable)` : "t = error";
     snapshotList.innerHTML = `
       <article class="sphere-card">
         <h3>Execution Status</h3>
@@ -720,11 +827,32 @@ function renderSidebar() {
         <p>error = ${state.report.error || "unknown error"}</p>
       </article>
     `;
+    if (stableSnapshot) {
+      stableSnapshot.spheres.forEach((sphere) => {
+        const color = state.colorMap.get(sphere.name) || COLORS[0];
+        const card = document.createElement("article");
+        card.className = "sphere-card";
+        card.innerHTML = `
+          <h3><span class="swatch" style="background:${color}"></span>${sphere.name} (last stable)</h3>
+          <p>position = (${sphere.position.x.toFixed(3)}, ${sphere.position.y.toFixed(3)}, ${sphere.position.z.toFixed(3)})</p>
+          <p>velocity = (${sphere.velocity.x.toFixed(3)}, ${sphere.velocity.y.toFixed(3)}, ${sphere.velocity.z.toFixed(3)})</p>
+        `;
+        snapshotList.appendChild(card);
+      });
+    } else {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "No stable snapshot was produced before contradiction.";
+      snapshotList.appendChild(note);
+    }
     renderConstraintList();
+    renderAnalyticsList();
+    renderActivityList();
+    renderComparisonList();
     return;
   }
 
-  const snapshot = state.report.snapshots[state.snapshotIndex];
+  const snapshot = activeSnapshot();
   timeLabel.textContent = `t = ${snapshot.time.toFixed(3)}`;
 
   snapshotList.innerHTML = "";
@@ -741,6 +869,9 @@ function renderSidebar() {
   });
 
   renderConstraintList();
+  renderAnalyticsList();
+  renderActivityList();
+  renderComparisonList();
 }
 
 function renderConstraintList() {
@@ -766,9 +897,24 @@ function renderConstraintList() {
     const targets = document.createElement("p");
     targets.textContent = Array.isArray(constraint.targets) ? constraint.targets.join(", ") : "";
 
+    const category = document.createElement("p");
+    category.className = "muted";
+    category.textContent = `category: ${constraint.category || "unknown"}`;
+
     const policy = document.createElement("p");
     policy.className = "muted";
     policy.textContent = `policy: ${constraint.policy || "implicit"}`;
+
+    const outcome = document.createElement("p");
+    outcome.className = "muted";
+    outcome.textContent = `outcome: ${constraint.outcome || "idle"}`;
+
+    const supported = document.createElement("p");
+    supported.className = "muted";
+    const supportedPolicies = Array.isArray(constraint.supported_policies)
+      ? constraint.supported_policies.join(", ")
+      : "";
+    supported.textContent = `supports: ${supportedPolicies || "implicit-only"}`;
 
     const activity = document.createElement("p");
     activity.className = "muted";
@@ -776,9 +922,121 @@ function renderConstraintList() {
 
     card.appendChild(title);
     card.appendChild(targets);
+    card.appendChild(category);
     card.appendChild(policy);
+    card.appendChild(outcome);
+    card.appendChild(supported);
     card.appendChild(activity);
     constraintList.appendChild(card);
+  });
+}
+
+function renderActivityList() {
+  if (!state.report) {
+    activityList.innerHTML = '<p class="muted">Load a report to inspect fired or repaired laws.</p>';
+    return;
+  }
+
+  const activities = state.report.activities || [];
+  if (activities.length === 0) {
+    activityList.innerHTML = '<p class="muted">No law activity was recorded for this report.</p>';
+    return;
+  }
+
+  activityList.innerHTML = "";
+  activities.forEach((activity) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = `${activity.action || "activity"} @ t=${Number(activity.time || 0).toFixed(3)}`;
+
+    const kind = document.createElement("p");
+    kind.textContent = `${activity.kind || "constraint"} (${activity.policy || "implicit"})`;
+
+    const targets = document.createElement("p");
+    targets.className = "muted";
+    targets.textContent = Array.isArray(activity.targets) ? activity.targets.join(", ") : "";
+
+    card.appendChild(title);
+    card.appendChild(kind);
+    card.appendChild(targets);
+    activityList.appendChild(card);
+  });
+}
+
+function renderAnalyticsList() {
+  if (!state.report) {
+    analyticsList.innerHTML = '<p class="muted">Load a report to inspect law totals and outcome distribution.</p>';
+    return;
+  }
+
+  const analytics = state.report.analytics || defaultAnalytics(state.report.constraints || []);
+  analyticsList.innerHTML = `
+    <article class="sphere-card">
+      <h3>Constraint Totals</h3>
+      <p>total = ${analytics.total_constraints ?? 0}</p>
+      <p class="muted">invariant = ${analytics.invariant_constraints ?? 0}, boundary = ${analytics.boundary_constraints ?? 0}, interaction = ${analytics.interaction_constraints ?? 0}</p>
+      <p class="muted">idle = ${analytics.idle_constraints ?? 0}, fired = ${analytics.fired_constraints ?? 0}, repaired = ${analytics.repaired_constraints ?? 0}, contradicted = ${analytics.contradicted_constraints ?? 0}</p>
+    </article>
+  `;
+}
+
+function renderComparisonList() {
+  if (!state.report) {
+    comparisonList.innerHTML = '<p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>';
+    return;
+  }
+
+  const regionLaw = (state.report.constraints || []).find((constraint) => constraint.kind === "not_inside");
+  if (!regionLaw) {
+    comparisonList.innerHTML = '<p class="muted">Comparison is available for forbidden-region laws.</p>';
+    return;
+  }
+
+  comparisonList.innerHTML = "";
+
+  const summary = document.createElement("article");
+  summary.className = "sphere-card";
+  const outcome =
+    regionLaw.outcome || (state.report.status === "error" ? "contradicted" : "idle");
+  summary.innerHTML = `
+    <h3>Current Outcome</h3>
+    <p>policy = ${regionLaw.policy || "implicit"}</p>
+    <p class="muted">category = ${regionLaw.category || "boundary"}</p>
+    <p class="muted">outcome = ${outcome}</p>
+  `;
+  comparisonList.appendChild(summary);
+
+  POLICY_COMPARISON_SAMPLES.forEach((sample) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = sample.label;
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      sample.label === "reject"
+        ? "Stops the world when the forbidden boundary is crossed."
+        : sample.label === "clamp"
+          ? "Projects the sphere back to the nearest admissible boundary."
+          : "Reflects the sphere off the forbidden boundary.";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sample.path === sampleSelect.value ? "Loaded" : `Load ${sample.label}`;
+    button.disabled = sample.path === sampleSelect.value;
+    button.addEventListener("click", async () => {
+      sampleSelect.value = sample.path;
+      await loadSample(sample.path);
+    });
+
+    card.appendChild(title);
+    card.appendChild(note);
+    card.appendChild(button);
+    comparisonList.appendChild(card);
   });
 }
 
