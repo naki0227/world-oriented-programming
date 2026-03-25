@@ -1,0 +1,20 @@
+# 2026-03-25 - Phase I Partial Convergence
+
+Phase I now includes a mixed underdetermined-world slice where one entity remains deferred while another converges after repair in the same run.
+
+This matters because it turns Phase I from a collection of isolated single-entity examples into a world-level claim:
+convergence status can differ across entities while observation remains globally meaningful.
+
+The new sample is `examples/candidate_velocity_partial_deferred.sk`.
+In that scene:
+
+- entity `A` has a tied top score and explicitly defers selection
+- entity `B` chooses a higher-scoring candidate that is repaired by the hard-law layer
+
+The resulting report therefore shows:
+
+- one deferred entity
+- one repaired entity
+- an unresolved world-level observation summary
+
+This is the first executable partial-convergence case in the project.

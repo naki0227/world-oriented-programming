@@ -222,6 +222,9 @@ This is the first executable stand-in for `Obs?(W^?, t_obs) = U`.
 The current prototype can also defer an ambiguous top-score tie explicitly instead of choosing a representative branch immediately.
 This creates the first small executable case where the world remains unresolved at observation time by design.
 
+The next useful case is a mixed world where one entity stays deferred while another still converges.
+That makes partial convergence visible instead of forcing the whole world into a fully determinate or fully unresolved reading.
+
 ## Definition Of Success
 
 Phase I is successful when:

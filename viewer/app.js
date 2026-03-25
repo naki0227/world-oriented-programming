@@ -88,6 +88,7 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
   { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
+  { label: "partial deferred", path: "./samples/candidate_velocity_partial_deferred.json" },
   { label: "tie", path: "./samples/candidate_velocity_tied.json" },
   { label: "equivalent tie", path: "./samples/candidate_velocity_equivalent_tie.json" },
 ];
@@ -1131,6 +1132,7 @@ function renderCandidateComparison() {
   summary.className = "sphere-card";
   summary.innerHTML = `
     <h3>Current Pattern</h3>
+    <p>entities = ${candidateResolutions.length}</p>
     <p>mode = ${candidateResolution.convergence_mode || "direct"}</p>
     <p class="muted">observation mode = ${candidateResolution.observation_mode || "determinate"}</p>
     <p class="muted">observation labels = ${(candidateResolution.observation_labels || []).join(", ") || "none"}</p>
@@ -1162,6 +1164,8 @@ function renderCandidateComparison() {
           ? "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer."
           : sample.label === "deferred"
             ? "A top-score ambiguity is deferred explicitly, so the entity remains unresolved at the observation layer."
+          : sample.label === "partial deferred"
+            ? "One entity remains unresolved by design while another still converges, exposing a mixed observation state in the same world."
           : sample.label === "tie"
             ? "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped."
             : "Two candidates share the top score and also collapse to the same observed result, exposing a small observational-equivalence case.";

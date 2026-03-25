@@ -3320,4 +3320,55 @@ observe:
             entry.kind == "candidate_velocity" && entry.action == "deferred_due_to_tie"
         }));
     }
+
+    #[test]
+    fn candidate_velocity_can_mix_deferred_and_repaired_entities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    candidate_velocity(B, sprint) = (6, 0, 0) score 6
+    candidate_velocity(B, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+    clamp speed(B) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        let b = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "B")
+            .expect("B should have candidate resolution");
+        assert_eq!(a.convergence_mode, "deferred");
+        assert_eq!(a.observation_mode, "ambiguous");
+        assert_eq!(a.selected_candidate, None);
+        assert_eq!(b.convergence_mode, "repaired");
+        assert_eq!(b.observation_mode, "determinate");
+        assert_eq!(b.selected_candidate.as_deref(), Some("sprint"));
+        assert!(b.repaired_after_selection);
+        assert_eq!(report.convergence_analytics.candidate_entities, 2);
+        assert_eq!(report.convergence_analytics.deferred_entities, 1);
+        assert_eq!(report.convergence_analytics.repaired_entities, 1);
+        assert_eq!(report.observation_summary.status, "unresolved");
+        assert_eq!(report.observation_summary.ambiguous_entities, 1);
+        assert_eq!(report.observation_summary.representative_entities, 0);
+    }
 }
