@@ -300,6 +300,19 @@ impl SimulationEnvelope {
         }
     }
 
+    pub fn failure_with_report(
+        source: &str,
+        error: impl Into<String>,
+        report: SimulationReport,
+    ) -> Self {
+        Self {
+            source: source.to_string(),
+            status: "error".to_string(),
+            report: Some(report),
+            error: Some(error.into()),
+        }
+    }
+
     pub fn to_json(&self) -> String {
         let mut json = String::new();
         json.push_str("{\n");
@@ -307,7 +320,13 @@ impl SimulationEnvelope {
         json.push_str(&format!("  \"status\": \"{}\",\n", escape_json(&self.status)));
         match &self.report {
             Some(report) => {
-                json.push_str("  \"error\": null,\n");
+                match &self.error {
+                    Some(error) => json.push_str(&format!(
+                        "  \"error\": \"{}\",\n",
+                        escape_json(error)
+                    )),
+                    None => json.push_str("  \"error\": null,\n"),
+                }
                 json.push_str("  \"constraints\": [\n");
                 for (index, constraint) in report.constraints.iter().enumerate() {
                     json.push_str("    {\n");
@@ -495,6 +514,50 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         activities: world.activity_log.clone(),
         snapshots,
     })
+}
+
+pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationEnvelope {
+    let mut world = match World::from_program(program) {
+        Ok(world) => world,
+        Err(error) => return SimulationEnvelope::failure(source, error.to_string()),
+    };
+    let mut snapshots = Vec::new();
+    let mut observation_times = program.observe_times.clone();
+    observation_times.sort_by(|a, b| a.total_cmp(b));
+
+    for time in observation_times {
+        if let Err(error) = world.advance_to(time) {
+            return SimulationEnvelope::failure_with_report(
+                source,
+                error.to_string(),
+                SimulationReport {
+                    constraints: world.constraint_summaries(),
+                    activities: world.activity_log.clone(),
+                    snapshots,
+                },
+            );
+        }
+        let mut spheres = world
+            .spheres
+            .iter()
+            .map(|sphere| SphereSnapshot {
+                name: sphere.name.clone(),
+                position: sphere.position,
+                velocity: sphere.velocity,
+            })
+            .collect::<Vec<_>>();
+        spheres.sort_by(|a, b| a.name.cmp(&b.name));
+        snapshots.push(Snapshot { time, spheres });
+    }
+
+    SimulationEnvelope::success(
+        source,
+        SimulationReport {
+            constraints: world.constraint_summaries(),
+            activities: world.activity_log.clone(),
+            snapshots,
+        },
+    )
 }
 
 impl World {
@@ -1175,7 +1238,7 @@ fn clamp_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{SimulationEnvelope, parse_program, simulate_program};
+    use crate::{SimulationEnvelope, parse_program, simulate_program, simulate_program_envelope};
 
     #[test]
     fn bounce_reflects_on_floor() {
@@ -1341,6 +1404,35 @@ observe:
         let json = envelope.to_json();
         assert!(json.contains("\"status\": \"error\""));
         assert!(json.contains("\"error\": \"world contradiction\""));
+        assert!(json.contains("\"constraints\": []"));
+        assert!(json.contains("\"activities\": []"));
         assert!(json.contains("\"snapshots\": []"));
+    }
+
+    #[test]
+    fn failure_envelope_can_keep_partial_report() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    not inside(A, zone)
+observe:
+    snapshot at 1
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let envelope = simulate_program_envelope(&program, "forbidden_region.sk");
+        let json = envelope.to_json();
+        assert!(json.contains("\"status\": \"error\""));
+        assert!(json.contains("\"constraints\""));
+        assert!(json.contains("\"not_inside\""));
+        assert!(json.contains("\"activities\""));
+        assert!(json.contains("\"time\": 1.000000"));
     }
 }

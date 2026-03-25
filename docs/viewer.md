@@ -21,7 +21,7 @@ and provides:
 - play/pause snapshot playback
 - switching between `3d`, `xy`, and `xz`
 - per-snapshot inspection of object positions and velocities
-- contradiction display for failed worlds
+- contradiction display for failed worlds, including the last stable snapshot when available
 - display of active world laws and per-run law activity
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
@@ -85,7 +85,7 @@ That makes it useful for:
 6. Optionally enable a forbidden region and edit its bounds
 7. Review suggested constraints and adopt the ones you want
 8. Click `Run Draft` to execute the generated scene through `sekai`
-9. Review the returned world state or contradiction report
+9. Review the returned world state or contradiction report, including the last stable snapshot and law activity if the run fails
 10. Copy the generated `.sk` draft from the sidebar if you want to save it as an example
 
 ## Round-Trip Notes

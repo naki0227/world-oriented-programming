@@ -69,8 +69,30 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
   "source": "examples/forbidden_region.sk",
   "status": "error",
   "error": "sphere `A` entered forbidden region `zone` at t=2.000",
-  "constraints": [],
-  "snapshots": []
+  "constraints": [
+    {
+      "kind": "not_inside",
+      "targets": ["A", "zone"],
+      "policy": "reject",
+      "fired_count": 1,
+      "repaired_count": 0
+    }
+  ],
+  "activities": [
+    {
+      "time": 2.0,
+      "kind": "not_inside",
+      "targets": ["A", "zone"],
+      "policy": "reject",
+      "action": "fired"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 1.0,
+      "spheres": []
+    }
+  ]
 }
 ```
 
@@ -79,6 +101,12 @@ Successful reports use:
 - `"status": "ok"`
 - `"error": null`
 - non-empty `snapshots`
+
+Failure reports may still include:
+
+- active `constraints`
+- recorded `activities`
+- partial `snapshots` produced before contradiction
 
 ## Rationale
 

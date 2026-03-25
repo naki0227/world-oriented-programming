@@ -1,6 +1,6 @@
 use std::{env, fs, process};
 
-use orbis::{SimulationEnvelope, parse_program, simulate_program};
+use orbis::{parse_program, simulate_program, simulate_program_envelope};
 
 fn main() {
     if let Err(error) = run() {
@@ -36,10 +36,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let report = simulate_program(&program)?;
             println!("{}", report.to_json(&args[1]));
         }
-        "simulate-report" => match simulate_program(&program) {
-            Ok(report) => println!("{}", SimulationEnvelope::success(&args[1], report).to_json()),
-            Err(error) => println!("{}", SimulationEnvelope::failure(&args[1], error.to_string()).to_json()),
-        },
+        "simulate-report" => {
+            let envelope = simulate_program_envelope(&program, &args[1]);
+            println!("{}", envelope.to_json());
+        }
         _ => print_usage(),
     }
 

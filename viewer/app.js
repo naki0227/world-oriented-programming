@@ -293,7 +293,16 @@ function stopPlayback() {
 }
 
 function normalizeReport(report) {
-  if (report.status) return report;
+  if (report.status) {
+    return {
+      source: report.source || "unknown",
+      status: report.status,
+      error: report.error || null,
+      constraints: report.constraints || [],
+      activities: report.activities || [],
+      snapshots: report.snapshots || [],
+    };
+  }
   return {
     source: report.source || "unknown",
     status: "ok",
@@ -311,6 +320,22 @@ function buildColorMap(report) {
   const map = new Map();
   names.forEach((name, index) => map.set(name, COLORS[index % COLORS.length]));
   return map;
+}
+
+function hasStableSnapshots(report = state.report) {
+  return Boolean(report && Array.isArray(report.snapshots) && report.snapshots.length > 0);
+}
+
+function activeSnapshot() {
+  if (!hasStableSnapshots()) return null;
+  const maxIndex = state.report.snapshots.length - 1;
+  const index = Math.min(state.snapshotIndex, maxIndex);
+  return state.report.snapshots[index];
+}
+
+function lastStableSnapshot() {
+  if (!hasStableSnapshots()) return null;
+  return state.report.snapshots[state.report.snapshots.length - 1];
 }
 
 function schedulePlayback() {
@@ -352,6 +377,45 @@ function renderCanvas() {
   }
 
   if (state.report.status !== "ok") {
+    const snapshot = activeSnapshot();
+    if (snapshot) {
+      const bounds = compute3DBounds(state.report.snapshots, state.editor.spheres, state.editor.floorEnabled ? state.editor.floorOffset : null);
+      const plot = { left: 78, top: 150, right: canvas.width - 78, bottom: canvas.height - 92 };
+      if (state.viewMode === "3d") {
+        draw3DScene(snapshot, bounds, plot);
+      } else {
+        draw2DScene(snapshot, bounds, plot, state.viewMode);
+      }
+      if (state.editor.spheres.length > 0) {
+        drawDraftOverlay(bounds, plot);
+      }
+
+      context.fillStyle = "#8a2f2f";
+      context.font = '28px Georgia, "Times New Roman", serif';
+      context.fillText("World Contradiction", 48, 92);
+      context.fillStyle = "#5e4747";
+      context.font = '20px Georgia, "Times New Roman", serif';
+      context.fillText(`Last stable snapshot at t = ${snapshot.time.toFixed(3)}`, 48, 126);
+      context.font = '18px Georgia, "Times New Roman", serif';
+      context.fillText(axisLabel(state.viewMode), 48, canvas.height - 38);
+
+      context.fillStyle = "rgba(255, 247, 242, 0.90)";
+      context.fillRect(40, 20, canvas.width - 80, 132);
+      context.strokeStyle = "#d7b7ab";
+      context.lineWidth = 1.5;
+      context.strokeRect(40, 20, canvas.width - 80, 132);
+
+      context.fillStyle = "#8a2f2f";
+      context.font = '28px Georgia, "Times New Roman", serif';
+      context.fillText("World Contradiction", 56, 60);
+      context.fillStyle = "#5e4747";
+      context.font = '20px Georgia, "Times New Roman", serif';
+      context.fillText(state.report.error || "Unknown error", 56, 94);
+      context.font = '18px Georgia, "Times New Roman", serif';
+      context.fillText(`Showing last stable state before failure at t = ${snapshot.time.toFixed(3)}.`, 56, 124);
+      return;
+    }
+
     context.fillStyle = "#8a2f2f";
     context.font = '28px Georgia, "Times New Roman", serif';
     context.fillText("World Contradiction", 48, 92);
@@ -363,7 +427,7 @@ function renderCanvas() {
     return;
   }
 
-  const snapshot = state.report.snapshots[state.snapshotIndex];
+  const snapshot = activeSnapshot();
   const bounds = compute3DBounds(state.report.snapshots, state.editor.spheres, state.editor.floorEnabled ? state.editor.floorOffset : null);
   const plot = { left: 78, top: 88, right: canvas.width - 78, bottom: canvas.height - 92 };
 
@@ -715,7 +779,8 @@ function renderSidebar() {
   }
 
   if (state.report.status !== "ok") {
-    timeLabel.textContent = "t = error";
+    const stableSnapshot = activeSnapshot() || lastStableSnapshot();
+    timeLabel.textContent = stableSnapshot ? `t = ${stableSnapshot.time.toFixed(3)} (last stable)` : "t = error";
     snapshotList.innerHTML = `
       <article class="sphere-card">
         <h3>Execution Status</h3>
@@ -723,12 +788,30 @@ function renderSidebar() {
         <p>error = ${state.report.error || "unknown error"}</p>
       </article>
     `;
+    if (stableSnapshot) {
+      stableSnapshot.spheres.forEach((sphere) => {
+        const color = state.colorMap.get(sphere.name) || COLORS[0];
+        const card = document.createElement("article");
+        card.className = "sphere-card";
+        card.innerHTML = `
+          <h3><span class="swatch" style="background:${color}"></span>${sphere.name} (last stable)</h3>
+          <p>position = (${sphere.position.x.toFixed(3)}, ${sphere.position.y.toFixed(3)}, ${sphere.position.z.toFixed(3)})</p>
+          <p>velocity = (${sphere.velocity.x.toFixed(3)}, ${sphere.velocity.y.toFixed(3)}, ${sphere.velocity.z.toFixed(3)})</p>
+        `;
+        snapshotList.appendChild(card);
+      });
+    } else {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "No stable snapshot was produced before contradiction.";
+      snapshotList.appendChild(note);
+    }
     renderConstraintList();
     renderActivityList();
     return;
   }
 
-  const snapshot = state.report.snapshots[state.snapshotIndex];
+  const snapshot = activeSnapshot();
   timeLabel.textContent = `t = ${snapshot.time.toFixed(3)}`;
 
   snapshotList.innerHTML = "";
