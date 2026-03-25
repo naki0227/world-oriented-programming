@@ -218,6 +218,12 @@ This semantics direction lets the paper make a stronger claim than before:
 deterministic snapshots need not come from mandatory global lockstep execution.
 They can instead arise from deterministic event selection plus coherent local synchronization and admissibility handling.
 
+The right next step is therefore not to over-claim finished theory, but to name the proof obligations that now matter most.
+At least three are already visible:
+snapshot determinism, causality preservation, and repair termination.
+The present prototype does not yet prove them.
+It does, however, make them explicit enough to become targets of the next semantics paper rather than vague future aspirations.
+
 That claim is still only partially formalized.
 Even so, it marks an important shift in the project.
 \emph{sekai} is no longer described only as an implementation experiment.

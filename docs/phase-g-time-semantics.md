@@ -1069,6 +1069,25 @@ The current semantics draft depends on a prototype-level determinism assumption:
 Later work may refine the numeric model or expose more explicit proofs.
 For now, G5 only needs to make the assumption visible and consistent across the semantics section.
 
+### Proof Obligations
+
+The next theory-oriented step should make the main proof obligations explicit.
+
+At the current stage, the most important ones are:
+
+- `snapshot determinism`:
+  under fixed ordering and synchronization rules, `Obs(W, t_obs)` should be unique whenever no contradiction is reached before `t_obs`
+- `causality preservation`:
+  the selected event order should not invert semantic dependence between events
+- `repair termination`:
+  supported enforcement policies should not introduce nonterminating local repair loops
+
+These obligations are not yet discharged.
+However, naming them already improves the semantics story because it separates:
+
+- what the prototype demonstrates now, from
+- what the later formal theory should prove
+
 ### G5 Deliverable
 
 The concrete output of G5 should be a semantics section with:
