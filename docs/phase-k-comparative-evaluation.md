@@ -52,6 +52,7 @@ python3 scripts/spec_metrics.py
 The first recorded output is summarized in:
 
 - `docs/phase-k-baseline-metrics.md`
+- `docs/phase-k-narrative-comparisons.md`
 
 ## Current Hypotheses
 
