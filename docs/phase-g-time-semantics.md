@@ -808,6 +808,76 @@ The intended rule family is:
 
 This does not yet require inference-rule notation, but it fixes the semantic vocabulary that later formal rules should use.
 
+### Compact Operational Rules Draft
+
+The next paper revision should be able to present the core semantics in a compact rule-like form.
+
+The current draft is:
+
+`Select`
+
+if `Ev(W_t) != empty` and `ev = Next(W_t)`, then:
+
+`W_t =>select (W_t, ev)`
+
+Interpretation:
+
+- the world at frontier `t` admits at least one candidate event
+- G2 determines which one is semantically next
+
+`Sync`
+
+if `W_t =>select (W_t, ev)` and `Sync(ev)` is defined, then:
+
+`(W_t, ev) =>sync W_t^sync`
+
+where `W_t^sync` materializes every member of `Sync(ev)` at `time(ev)`.
+
+`Fire`
+
+if `W_t^sync` is available, then:
+
+`W_t^sync =>fire W_t^ev`
+
+where `W_t^ev` is obtained by applying the immediate event law of `ev`.
+
+`Enforce`
+
+if post-event admissibility can be restored under the declared policy set, then:
+
+`W_t^ev =>enforce W_t'`
+
+where `W_t'` is admissible at the same semantic frontier.
+
+`Contradict`
+
+if no admissible continuation exists after event firing, then:
+
+`W_t^ev =>contradict W_t^X`
+
+where `W_t^X` denotes contradiction at `time(ev)`.
+
+`Observe`
+
+if every event frontier strictly earlier than `t_obs` has been resolved and the required observation carrier is coherent, then:
+
+`(W, t_obs) =>observe Obs(W, t_obs)`
+
+This compact draft is intentionally lightweight.
+It is close enough to operational semantics to guide the paper, but not yet frozen into a theorem-proof style notation.
+
+### Rule Composition
+
+The intended composite execution rule is now readable as:
+
+`W_t =>select (W_t, ev) =>sync W_t^sync =>fire W_t^ev =>enforce W_t'`
+
+or, in the failing case:
+
+`W_t =>select (W_t, ev) =>sync W_t^sync =>fire W_t^ev =>contradict W_t^X`
+
+This is the first point in the project where the semantic flow can be written as a compact staged execution system rather than a descriptive narrative.
+
 ### Snapshot Semantics
 
 G5 should also state the semantic meaning of observation.
@@ -825,6 +895,10 @@ snapshot determinism depends on deterministic event selection and coherent local
 Equivalently, G5 should support the statement:
 
 if two executions start from the same `W_t` and use the same G2 ordering and G3 synchronization rules, then `Obs(W, t_obs)` is uniquely determined whenever no contradiction is reached before `t_obs`.
+
+This gives a direct paper-level claim:
+
+deterministic snapshots are a consequence of deterministic selection plus coherent synchronization, not of mandatory global lockstep execution.
 
 ### Failure Semantics
 
