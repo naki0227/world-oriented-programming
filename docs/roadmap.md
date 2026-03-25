@@ -204,7 +204,7 @@ Topics:
 
 Status:
 
-- not started
+- planned with an explicit geometry worklist; awaiting implementation branch
 
 ## Phase G. Time And Event Semantics
 
@@ -397,6 +397,10 @@ Outputs:
 Definition of done:
 
 - the project has evidence for why this model is better than an imperative alternative for its target tasks
+
+Status:
+
+- in progress with an initial paired corpus, metric script, and imperative baselines
 
 ## Near-Term Milestone
 
