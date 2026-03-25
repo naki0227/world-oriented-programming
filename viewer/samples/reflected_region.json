@@ -9,8 +9,10 @@
       "targets": ["A", "zone"],
       "policy": "reflect",
       "supported_policies": ["reject", "clamp", "reflect"],
+      "outcome": "repaired",
       "fired_count": 1,
-      "repaired_count": 1
+      "repaired_count": 1,
+      "contradicted_count": 0
     }
   ],
   "activities": [

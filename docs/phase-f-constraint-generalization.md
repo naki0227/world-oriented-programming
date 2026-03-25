@@ -42,6 +42,7 @@ Phase F now covers more than raw law execution:
 - reports expose law activity and partial failure context
 - reports classify each law as `invariant`, `boundary`, or `interaction`
 - reports expose which policies each law supports
+- reports expose each law's run-level outcome
 
 ## Next Steps
 

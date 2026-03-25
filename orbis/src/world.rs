@@ -145,14 +145,17 @@ pub struct ConstraintSummary {
     pub targets: Vec<String>,
     pub policy: String,
     pub supported_policies: Vec<String>,
+    pub outcome: String,
     pub fired_count: usize,
     pub repaired_count: usize,
+    pub contradicted_count: usize,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct ConstraintTrace {
     pub fired_count: usize,
     pub repaired_count: usize,
+    pub contradicted_count: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -203,12 +206,20 @@ impl SimulationReport {
             }
             json.push_str("],\n");
             json.push_str(&format!(
+                "      \"outcome\": \"{}\",\n",
+                escape_json(&constraint.outcome)
+            ));
+            json.push_str(&format!(
                 "      \"fired_count\": {},\n",
                 constraint.fired_count
             ));
             json.push_str(&format!(
-                "      \"repaired_count\": {}\n",
+                "      \"repaired_count\": {},\n",
                 constraint.repaired_count
+            ));
+            json.push_str(&format!(
+                "      \"contradicted_count\": {}\n",
+                constraint.contradicted_count
             ));
             json.push_str("    }");
             if index + 1 != self.constraints.len() {
@@ -378,12 +389,20 @@ impl SimulationEnvelope {
                     }
                     json.push_str("],\n");
                     json.push_str(&format!(
+                        "      \"outcome\": \"{}\",\n",
+                        escape_json(&constraint.outcome)
+                    ));
+                    json.push_str(&format!(
                         "      \"fired_count\": {},\n",
                         constraint.fired_count
                     ));
                     json.push_str(&format!(
-                        "      \"repaired_count\": {}\n",
+                        "      \"repaired_count\": {},\n",
                         constraint.repaired_count
+                    ));
+                    json.push_str(&format!(
+                        "      \"contradicted_count\": {}\n",
+                        constraint.contradicted_count
                     ));
                     json.push_str("    }");
                     if index + 1 != report.constraints.len() {
@@ -711,10 +730,19 @@ impl World {
     fn enforce_all_constraints(&mut self) -> Result<(), SimulationError> {
         let constraints = self.constraints.clone();
         for (index, constraint) in constraints.iter().enumerate() {
-            let repaired = constraint.enforce(self)?;
-            if repaired {
-                self.constraint_traces[index].repaired_count += 1;
-                self.activity_log.push(constraint.activity_entry(self, "repaired"));
+            match constraint.enforce(self) {
+                Ok(repaired) => {
+                    if repaired {
+                        self.constraint_traces[index].repaired_count += 1;
+                        self.activity_log.push(constraint.activity_entry(self, "repaired"));
+                    }
+                }
+                Err(error) => {
+                    self.constraint_traces[index].contradicted_count += 1;
+                    self.activity_log
+                        .push(constraint.activity_entry(self, "contradicted"));
+                    return Err(error);
+                }
             }
         }
         Ok(())
@@ -901,8 +929,10 @@ impl Constraint {
                     .into_iter()
                     .map(|policy| policy.as_str().to_string())
                     .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
             Self::VelocityLimit {
                 sphere_index,
@@ -918,8 +948,10 @@ impl Constraint {
                     .into_iter()
                     .map(|policy| policy.as_str().to_string())
                     .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
             Self::NotInside {
                 sphere_index,
@@ -941,8 +973,10 @@ impl Constraint {
                     .into_iter()
                     .map(|policy| policy.as_str().to_string())
                     .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
             Self::ElasticCollision {
                 left_index,
@@ -960,8 +994,10 @@ impl Constraint {
                     .into_iter()
                     .map(|policy| policy.as_str().to_string())
                     .collect(),
+                outcome: trace.outcome().to_string(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
             },
         }
     }
@@ -1179,6 +1215,20 @@ impl ConstraintCategory {
             Self::Invariant => "invariant",
             Self::Boundary => "boundary",
             Self::Interaction => "interaction",
+        }
+    }
+}
+
+impl ConstraintTrace {
+    fn outcome(&self) -> &'static str {
+        if self.contradicted_count > 0 {
+            "contradicted"
+        } else if self.repaired_count > 0 {
+            "repaired"
+        } else if self.fired_count > 0 {
+            "fired"
+        } else {
+            "idle"
         }
     }
 }
@@ -1606,6 +1656,7 @@ observe:
         assert!(json.contains("\"velocity_limit\""));
         assert!(json.contains("\"category\": \"invariant\""));
         assert!(json.contains("\"supported_policies\": [\"reject\", \"clamp\"]"));
+        assert!(json.contains("\"outcome\": \"idle\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
         assert!(json.contains("\"activities\""));
@@ -1647,6 +1698,9 @@ observe:
         assert!(json.contains("\"status\": \"error\""));
         assert!(json.contains("\"constraints\""));
         assert!(json.contains("\"not_inside\""));
+        assert!(json.contains("\"outcome\": \"contradicted\""));
+        assert!(json.contains("\"contradicted_count\": 1"));
+        assert!(json.contains("\"action\": \"contradicted\""));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"time\": 1.000000"));
     }

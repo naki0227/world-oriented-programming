@@ -876,6 +876,10 @@ function renderConstraintList() {
     policy.className = "muted";
     policy.textContent = `policy: ${constraint.policy || "implicit"}`;
 
+    const outcome = document.createElement("p");
+    outcome.className = "muted";
+    outcome.textContent = `outcome: ${constraint.outcome || "idle"}`;
+
     const supported = document.createElement("p");
     supported.className = "muted";
     const supportedPolicies = Array.isArray(constraint.supported_policies)
@@ -891,6 +895,7 @@ function renderConstraintList() {
     card.appendChild(targets);
     card.appendChild(category);
     card.appendChild(policy);
+    card.appendChild(outcome);
     card.appendChild(supported);
     card.appendChild(activity);
     constraintList.appendChild(card);
@@ -948,11 +953,7 @@ function renderComparisonList() {
   const summary = document.createElement("article");
   summary.className = "sphere-card";
   const outcome =
-    state.report.status === "error"
-      ? "contradiction"
-      : (regionLaw.repaired_count ?? 0) > 0
-        ? "repaired world"
-        : "admissible world";
+    regionLaw.outcome || (state.report.status === "error" ? "contradicted" : "idle");
   summary.innerHTML = `
     <h3>Current Outcome</h3>
     <p>policy = ${regionLaw.policy || "implicit"}</p>

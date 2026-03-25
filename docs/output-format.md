@@ -36,8 +36,10 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
       "targets": ["A", "B"],
       "policy": "implicit",
       "supported_policies": [],
+      "outcome": "fired",
       "fired_count": 1,
-      "repaired_count": 0
+      "repaired_count": 0,
+      "contradicted_count": 0
     }
   ],
   "activities": [
@@ -78,8 +80,10 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
       "targets": ["A", "zone"],
       "policy": "reject",
       "supported_policies": ["reject", "clamp", "reflect"],
+      "outcome": "contradicted",
       "fired_count": 1,
-      "repaired_count": 0
+      "repaired_count": 0,
+      "contradicted_count": 1
     }
   ],
   "activities": [
@@ -123,5 +127,6 @@ This format is intentionally small but useful for:
 - exposing which world laws and repair policies were active during execution
 - exposing whether each law is invariant, boundary-oriented, or interaction-oriented
 - exposing which repair policies are supported by each law
+- exposing each law's run-level outcome (`idle`, `fired`, `repaired`, or `contradicted`)
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
