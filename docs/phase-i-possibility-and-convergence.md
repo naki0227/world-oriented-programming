@@ -202,6 +202,13 @@ The static analysis path should also expose candidate inventory before simulatio
 - how many candidates they declare
 - which labels are tied for the top soft score
 
+The runtime report should also expose a convergence summary after selection, so that underdetermined worlds are not reduced to a single opaque winner:
+
+- whether a branch was chosen directly, by fallback, or after repair
+- whether symbolic underdetermination remained after score ordering
+- whether any remaining underdetermination was still visible at the observation layer
+- aggregate totals across all candidate-bearing entities in the run
+
 ## Definition Of Success
 
 Phase I is successful when:

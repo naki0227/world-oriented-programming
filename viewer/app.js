@@ -995,6 +995,21 @@ function renderCandidateResolution() {
   }
 
   candidateResolutionList.innerHTML = "";
+  const convergenceAnalytics = state.report.convergence_analytics || {};
+  const summaryCard = document.createElement("article");
+  summaryCard.className = "sphere-card";
+  summaryCard.innerHTML = `
+    <h3>Run Summary</h3>
+    <p>candidate entities = ${convergenceAnalytics.candidate_entities ?? candidateResolutions.length}</p>
+    <p class="muted">direct = ${convergenceAnalytics.direct_entities ?? 0}</p>
+    <p class="muted">fallback = ${convergenceAnalytics.fallback_entities ?? 0}</p>
+    <p class="muted">repaired = ${convergenceAnalytics.repaired_entities ?? 0}</p>
+    <p class="muted">tie broken = ${convergenceAnalytics.tie_broken_entities ?? 0}</p>
+    <p class="muted">equivalent tie = ${convergenceAnalytics.equivalent_tie_entities ?? 0}</p>
+    <p class="muted">symbolically underdetermined = ${convergenceAnalytics.symbolically_underdetermined_entities ?? 0}</p>
+    <p class="muted">observationally underdetermined = ${convergenceAnalytics.observationally_underdetermined_entities ?? 0}</p>
+  `;
+  candidateResolutionList.appendChild(summaryCard);
   candidateResolutions.forEach((candidateResolution) => {
     const card = document.createElement("article");
     card.className = "sphere-card";
@@ -1003,6 +1018,9 @@ function renderCandidateResolution() {
       <p>candidates = ${candidateResolution.total_candidates}</p>
       <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
       <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
+      <p class="muted">mode = ${candidateResolution.convergence_mode || "direct"}</p>
+      <p class="muted">symbolically underdetermined = ${candidateResolution.symbolically_underdetermined ? "yes" : "no"}</p>
+      <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
       <p class="muted">selected = ${candidateResolution.selected_candidate || "none"}</p>
       <p class="muted">score = ${candidateResolution.selected_score || "n/a"}</p>
       <p class="muted">top score = ${candidateResolution.top_score || "n/a"}</p>
@@ -1037,11 +1055,14 @@ function renderCandidateComparison() {
   summary.className = "sphere-card";
   summary.innerHTML = `
     <h3>Current Pattern</h3>
+    <p>mode = ${candidateResolution.convergence_mode || "direct"}</p>
     <p>selected = ${candidateResolution.selected_candidate || "none"}</p>
     <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
     <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
     <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
     <p class="muted">tie broken = ${candidateResolution.tie_broken ? "yes" : "no"}</p>
+    <p class="muted">symbolically underdetermined = ${candidateResolution.symbolically_underdetermined ? "yes" : "no"}</p>
+    <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
     <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
     <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
   `;

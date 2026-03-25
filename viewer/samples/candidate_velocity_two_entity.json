@@ -36,21 +36,51 @@
       "contradicted_count": 0
     }
   ],
+  "convergence_analytics": {
+    "candidate_entities": 2,
+    "direct_entities": 0,
+    "fallback_entities": 2,
+    "repaired_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 2,
+    "skipped_candidates_total": 0
+  },
   "candidate_resolutions": [
     {
       "entity": "A",
       "total_candidates": 2,
       "rejected_candidates": 1,
+      "skipped_candidates": 0,
+      "convergence_mode": "fallback",
+      "symbolically_underdetermined": false,
+      "observationally_underdetermined": false,
       "selected_candidate": "safe",
       "selected_score": "score=2.000",
+      "top_score": "5.000",
+      "top_labels": ["fast"],
+      "tie_broken": false,
+      "equivalent_top_labels": [],
+      "observationally_equivalent_tie": false,
       "repaired_after_selection": false
     },
     {
       "entity": "B",
       "total_candidates": 2,
       "rejected_candidates": 1,
+      "skipped_candidates": 0,
+      "convergence_mode": "fallback",
+      "symbolically_underdetermined": false,
+      "observationally_underdetermined": false,
       "selected_candidate": "coast",
       "selected_score": "score=1.000",
+      "top_score": "4.000",
+      "top_labels": ["sprint"],
+      "tie_broken": false,
+      "equivalent_top_labels": [],
+      "observationally_equivalent_tie": false,
       "repaired_after_selection": false
     }
   ],

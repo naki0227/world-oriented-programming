@@ -25,14 +25,37 @@
       "contradicted_count": 0
     }
   ],
-  "candidate_resolution": {
-    "entity": "A",
-    "total_candidates": 1,
-    "rejected_candidates": 0,
-    "selected_candidate": "fast",
-    "selected_score": "score=5.000",
-    "repaired_after_selection": true
+  "convergence_analytics": {
+    "candidate_entities": 1,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 1,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 1
   },
+  "candidate_resolutions": [
+    {
+      "entity": "A",
+      "total_candidates": 2,
+      "rejected_candidates": 0,
+      "skipped_candidates": 1,
+      "convergence_mode": "repaired",
+      "symbolically_underdetermined": false,
+      "observationally_underdetermined": false,
+      "selected_candidate": "fast",
+      "selected_score": "score=5.000",
+      "top_score": "5.000",
+      "top_labels": ["fast"],
+      "tie_broken": false,
+      "equivalent_top_labels": ["fast"],
+      "observationally_equivalent_tie": false,
+      "repaired_after_selection": true
+    }
+  ],
   "activities": [
     {
       "time": 0.000000,

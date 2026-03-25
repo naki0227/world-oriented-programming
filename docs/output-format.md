@@ -58,6 +58,18 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 0
     }
   ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
   "candidate_resolutions": [],
   "activities": [
     {
@@ -113,6 +125,18 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 1
     }
   ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
   "candidate_resolutions": [],
   "activities": [
     {
@@ -146,7 +170,10 @@ Failure reports may still include:
 
 Phase I reports may additionally include:
 
+- `convergence_analytics` for run-level totals over candidate-bearing entities
 - `candidate_resolutions` when initial action candidates were evaluated before observation
+- `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `tie_broken`, or `equivalent_tie`)
+- `symbolically_underdetermined` and `observationally_underdetermined` for each candidate-bearing entity
 - `selected_candidate` and `selected_score` for the chosen branch
 - `top_score` and `top_labels` for the highest-score frontier before deterministic tie-breaking
 - `skipped_candidates` when early selection prevents later candidates from being evaluated
@@ -171,6 +198,7 @@ This format is intentionally small but useful for:
 - tracing when fired or repaired laws occurred during execution
 - exposing candidate-action selection as activity-log entries during the initial convergence step
 - exposing a compact candidate-resolution summary for underdetermined-world runs
+- exposing whether a run remained symbolically or observationally underdetermined after convergence
 
 ## Static Analysis
 

@@ -25,6 +25,7 @@ and provides:
 - display of active world laws, their categories, supported policies, and per-run law activity
 - display of report-level law analytics for category and outcome totals
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
+- display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
 - quick comparison between candidate fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
@@ -104,6 +105,17 @@ That makes it useful for:
 8. Click `Run Draft` to execute the generated scene through `sekai`
 9. Review the returned world state or contradiction report, including the last stable snapshot and law activity if the run fails
 10. Copy the generated `.sk` draft from the sidebar if you want to save it as an example
+
+## Phase I Notes
+
+When a report includes `candidate_resolutions`, the viewer now separates:
+
+- run-level convergence totals
+- per-entity convergence mode
+- symbolic underdetermination
+- observational underdetermination
+
+This makes it easier to tell whether a world remained ambiguous only symbolically or also at the observation layer.
 
 ## Round-Trip Notes
 

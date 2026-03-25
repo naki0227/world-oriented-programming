@@ -136,6 +136,7 @@ pub struct Snapshot {
 pub struct SimulationReport {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub convergence_analytics: ConvergenceAnalytics,
     pub candidate_resolutions: Vec<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
@@ -163,6 +164,9 @@ pub struct CandidateResolution {
     pub total_candidates: usize,
     pub rejected_candidates: usize,
     pub skipped_candidates: usize,
+    pub convergence_mode: String,
+    pub symbolically_underdetermined: bool,
+    pub observationally_underdetermined: bool,
     pub selected_candidate: Option<String>,
     pub selected_score: Option<String>,
     pub top_score: String,
@@ -171,6 +175,20 @@ pub struct CandidateResolution {
     pub equivalent_top_labels: Vec<String>,
     pub observationally_equivalent_tie: bool,
     pub repaired_after_selection: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConvergenceAnalytics {
+    pub candidate_entities: usize,
+    pub direct_entities: usize,
+    pub fallback_entities: usize,
+    pub repaired_entities: usize,
+    pub tie_broken_entities: usize,
+    pub equivalent_tie_entities: usize,
+    pub symbolically_underdetermined_entities: usize,
+    pub observationally_underdetermined_entities: usize,
+    pub rejected_candidates_total: usize,
+    pub skipped_candidates_total: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -309,6 +327,48 @@ impl SimulationReport {
             json.push('\n');
         }
         json.push_str("  ],\n");
+        json.push_str("  \"convergence_analytics\": {\n");
+        json.push_str(&format!(
+            "    \"candidate_entities\": {},\n",
+            self.convergence_analytics.candidate_entities
+        ));
+        json.push_str(&format!(
+            "    \"direct_entities\": {},\n",
+            self.convergence_analytics.direct_entities
+        ));
+        json.push_str(&format!(
+            "    \"fallback_entities\": {},\n",
+            self.convergence_analytics.fallback_entities
+        ));
+        json.push_str(&format!(
+            "    \"repaired_entities\": {},\n",
+            self.convergence_analytics.repaired_entities
+        ));
+        json.push_str(&format!(
+            "    \"tie_broken_entities\": {},\n",
+            self.convergence_analytics.tie_broken_entities
+        ));
+        json.push_str(&format!(
+            "    \"equivalent_tie_entities\": {},\n",
+            self.convergence_analytics.equivalent_tie_entities
+        ));
+        json.push_str(&format!(
+            "    \"symbolically_underdetermined_entities\": {},\n",
+            self.convergence_analytics.symbolically_underdetermined_entities
+        ));
+        json.push_str(&format!(
+            "    \"observationally_underdetermined_entities\": {},\n",
+            self.convergence_analytics.observationally_underdetermined_entities
+        ));
+        json.push_str(&format!(
+            "    \"rejected_candidates_total\": {},\n",
+            self.convergence_analytics.rejected_candidates_total
+        ));
+        json.push_str(&format!(
+            "    \"skipped_candidates_total\": {}\n",
+            self.convergence_analytics.skipped_candidates_total
+        ));
+        json.push_str("  },\n");
         json.push_str("  \"candidate_resolutions\": [\n");
         for (index, candidate_resolution) in self.candidate_resolutions.iter().enumerate() {
             json.push_str("    {\n");
@@ -324,10 +384,22 @@ impl SimulationReport {
                     "      \"rejected_candidates\": {},\n",
                     candidate_resolution.rejected_candidates
                 ));
-                json.push_str(&format!(
-                    "      \"skipped_candidates\": {},\n",
-                    candidate_resolution.skipped_candidates
-                ));
+            json.push_str(&format!(
+                "      \"skipped_candidates\": {},\n",
+                candidate_resolution.skipped_candidates
+            ));
+            json.push_str(&format!(
+                "      \"convergence_mode\": \"{}\",\n",
+                escape_json(&candidate_resolution.convergence_mode)
+            ));
+            json.push_str(&format!(
+                "      \"symbolically_underdetermined\": {},\n",
+                candidate_resolution.symbolically_underdetermined
+            ));
+            json.push_str(&format!(
+                "      \"observationally_underdetermined\": {},\n",
+                candidate_resolution.observationally_underdetermined
+            ));
                 match &candidate_resolution.selected_candidate {
                     Some(selected_candidate) => json.push_str(&format!(
                         "      \"selected_candidate\": \"{}\",\n",
@@ -739,6 +811,48 @@ impl SimulationEnvelope {
                     json.push('\n');
                 }
                 json.push_str("  ],\n");
+                json.push_str("  \"convergence_analytics\": {\n");
+                json.push_str(&format!(
+                    "    \"candidate_entities\": {},\n",
+                    report.convergence_analytics.candidate_entities
+                ));
+                json.push_str(&format!(
+                    "    \"direct_entities\": {},\n",
+                    report.convergence_analytics.direct_entities
+                ));
+                json.push_str(&format!(
+                    "    \"fallback_entities\": {},\n",
+                    report.convergence_analytics.fallback_entities
+                ));
+                json.push_str(&format!(
+                    "    \"repaired_entities\": {},\n",
+                    report.convergence_analytics.repaired_entities
+                ));
+                json.push_str(&format!(
+                    "    \"tie_broken_entities\": {},\n",
+                    report.convergence_analytics.tie_broken_entities
+                ));
+                json.push_str(&format!(
+                    "    \"equivalent_tie_entities\": {},\n",
+                    report.convergence_analytics.equivalent_tie_entities
+                ));
+                json.push_str(&format!(
+                    "    \"symbolically_underdetermined_entities\": {},\n",
+                    report.convergence_analytics.symbolically_underdetermined_entities
+                ));
+                json.push_str(&format!(
+                    "    \"observationally_underdetermined_entities\": {},\n",
+                    report.convergence_analytics.observationally_underdetermined_entities
+                ));
+                json.push_str(&format!(
+                    "    \"rejected_candidates_total\": {},\n",
+                    report.convergence_analytics.rejected_candidates_total
+                ));
+                json.push_str(&format!(
+                    "    \"skipped_candidates_total\": {}\n",
+                    report.convergence_analytics.skipped_candidates_total
+                ));
+                json.push_str("  },\n");
                 json.push_str("  \"candidate_resolutions\": [\n");
                 for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
                 {
@@ -758,6 +872,18 @@ impl SimulationEnvelope {
                     json.push_str(&format!(
                         "      \"skipped_candidates\": {},\n",
                         candidate_resolution.skipped_candidates
+                    ));
+                    json.push_str(&format!(
+                        "      \"convergence_mode\": \"{}\",\n",
+                        escape_json(&candidate_resolution.convergence_mode)
+                    ));
+                    json.push_str(&format!(
+                        "      \"symbolically_underdetermined\": {},\n",
+                        candidate_resolution.symbolically_underdetermined
+                    ));
+                    json.push_str(&format!(
+                        "      \"observationally_underdetermined\": {},\n",
+                        candidate_resolution.observationally_underdetermined
                     ));
                     match &candidate_resolution.selected_candidate {
                         Some(selected_candidate) => json.push_str(&format!(
@@ -898,6 +1024,18 @@ impl SimulationEnvelope {
                 json.push_str("    \"contradicted_constraints\": 0\n");
                 json.push_str("  },\n");
                 json.push_str("  \"constraints\": [],\n");
+                json.push_str("  \"convergence_analytics\": {\n");
+                json.push_str("    \"candidate_entities\": 0,\n");
+                json.push_str("    \"direct_entities\": 0,\n");
+                json.push_str("    \"fallback_entities\": 0,\n");
+                json.push_str("    \"repaired_entities\": 0,\n");
+                json.push_str("    \"tie_broken_entities\": 0,\n");
+                json.push_str("    \"equivalent_tie_entities\": 0,\n");
+                json.push_str("    \"symbolically_underdetermined_entities\": 0,\n");
+                json.push_str("    \"observationally_underdetermined_entities\": 0,\n");
+                json.push_str("    \"rejected_candidates_total\": 0,\n");
+                json.push_str("    \"skipped_candidates_total\": 0\n");
+                json.push_str("  },\n");
                 json.push_str("  \"candidate_resolutions\": [],\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
@@ -982,6 +1120,9 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+            &world.candidate_resolutions,
+        ),
         candidate_resolutions: world.candidate_resolutions.clone(),
         activities: world.activity_log.clone(),
         snapshots,
@@ -1016,6 +1157,9 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
+                    convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                        &world.candidate_resolutions,
+                    ),
                     candidate_resolutions: world.candidate_resolutions.clone(),
                     activities: world.activity_log.clone(),
                     snapshots,
@@ -1041,6 +1185,9 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
+            convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                &world.candidate_resolutions,
+            ),
             candidate_resolutions: world.candidate_resolutions.clone(),
             activities: world.activity_log.clone(),
             snapshots,
@@ -1367,17 +1514,34 @@ impl World {
                 equivalent_top_labels.sort();
             }
 
+            let tie_broken = top_labels.len() > 1;
+            let observationally_equivalent_tie = equivalent_top_labels.len() > 1;
+            let convergence_mode = if observationally_equivalent_tie {
+                "equivalent_tie"
+            } else if tie_broken {
+                "tie_broken"
+            } else if repaired_after_selection {
+                "repaired"
+            } else if rejected_candidates > 0 {
+                "fallback"
+            } else {
+                "direct"
+            };
+
             self.candidate_resolutions.push(CandidateResolution {
                 entity: sphere_name,
                 total_candidates,
                 rejected_candidates,
                 skipped_candidates: total_candidates - rejected_candidates - 1,
+                convergence_mode: convergence_mode.to_string(),
+                symbolically_underdetermined: tie_broken,
+                observationally_underdetermined: tie_broken && !observationally_equivalent_tie,
                 selected_candidate,
                 selected_score,
                 top_score: format!("{top_score:.3}"),
-                tie_broken: top_labels.len() > 1,
+                tie_broken,
                 top_labels,
-                observationally_equivalent_tie: equivalent_top_labels.len() > 1,
+                observationally_equivalent_tie,
                 equivalent_top_labels,
                 repaired_after_selection,
             });
@@ -1829,6 +1993,44 @@ impl LawAnalytics {
                 "repaired" => analytics.repaired_constraints += 1,
                 "contradicted" => analytics.contradicted_constraints += 1,
                 _ => {}
+            }
+        }
+
+        analytics
+    }
+}
+
+impl ConvergenceAnalytics {
+    pub fn from_candidate_resolutions(candidate_resolutions: &[CandidateResolution]) -> Self {
+        let mut analytics = Self {
+            candidate_entities: candidate_resolutions.len(),
+            direct_entities: 0,
+            fallback_entities: 0,
+            repaired_entities: 0,
+            tie_broken_entities: 0,
+            equivalent_tie_entities: 0,
+            symbolically_underdetermined_entities: 0,
+            observationally_underdetermined_entities: 0,
+            rejected_candidates_total: 0,
+            skipped_candidates_total: 0,
+        };
+
+        for resolution in candidate_resolutions {
+            analytics.rejected_candidates_total += resolution.rejected_candidates;
+            analytics.skipped_candidates_total += resolution.skipped_candidates;
+            match resolution.convergence_mode.as_str() {
+                "direct" => analytics.direct_entities += 1,
+                "fallback" => analytics.fallback_entities += 1,
+                "repaired" => analytics.repaired_entities += 1,
+                "tie_broken" => analytics.tie_broken_entities += 1,
+                "equivalent_tie" => analytics.equivalent_tie_entities += 1,
+                _ => {}
+            }
+            if resolution.symbolically_underdetermined {
+                analytics.symbolically_underdetermined_entities += 1;
+            }
+            if resolution.observationally_underdetermined {
+                analytics.observationally_underdetermined_entities += 1;
             }
         }
 
@@ -2345,6 +2547,7 @@ observe:
         assert!(json.contains("\"outcome\": \"idle\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
+        assert!(json.contains("\"convergence_analytics\""));
         assert!(json.contains("\"candidate_resolutions\": ["));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
@@ -2411,6 +2614,7 @@ constraint:
         assert!(json.contains("\"error\": \"world contradiction\""));
         assert!(json.contains("\"analytics\": {"));
         assert!(json.contains("\"constraints\": []"));
+        assert!(json.contains("\"convergence_analytics\": {"));
         assert!(json.contains("\"activities\": []"));
         assert!(json.contains("\"snapshots\": []"));
     }
@@ -2485,6 +2689,9 @@ observe:
         assert_eq!(candidate_resolution.total_candidates, 2);
         assert_eq!(candidate_resolution.rejected_candidates, 1);
         assert_eq!(candidate_resolution.skipped_candidates, 0);
+        assert_eq!(candidate_resolution.convergence_mode, "fallback");
+        assert!(!candidate_resolution.symbolically_underdetermined);
+        assert!(!candidate_resolution.observationally_underdetermined);
         assert_eq!(
             candidate_resolution.selected_candidate.as_deref(),
             Some("safe")
@@ -2534,6 +2741,7 @@ observe:
             candidate_resolution.selected_candidate.as_deref(),
             Some("fast")
         );
+        assert_eq!(candidate_resolution.convergence_mode, "repaired");
         assert_eq!(candidate_resolution.skipped_candidates, 1);
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
@@ -2626,6 +2834,9 @@ observe:
             vec!["alpha".to_string(), "beta".to_string()]
         );
         assert_eq!(candidate_resolution.skipped_candidates, 1);
+        assert_eq!(candidate_resolution.convergence_mode, "tie_broken");
+        assert!(candidate_resolution.symbolically_underdetermined);
+        assert!(candidate_resolution.observationally_underdetermined);
         assert!(candidate_resolution.tie_broken);
         assert_eq!(
             candidate_resolution.equivalent_top_labels,
@@ -2658,10 +2869,47 @@ observe:
             .find(|resolution| resolution.entity == "A")
             .expect("candidate resolution should be recorded");
         assert!(candidate_resolution.tie_broken);
+        assert_eq!(candidate_resolution.convergence_mode, "equivalent_tie");
+        assert!(candidate_resolution.symbolically_underdetermined);
+        assert!(!candidate_resolution.observationally_underdetermined);
         assert!(candidate_resolution.observationally_equivalent_tie);
         assert_eq!(
             candidate_resolution.equivalent_top_labels,
             vec!["alpha".to_string(), "beta".to_string()]
+        );
+    }
+
+    #[test]
+    fn candidate_velocity_reports_convergence_analytics() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (3, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.convergence_analytics.candidate_entities, 1);
+        assert_eq!(report.convergence_analytics.equivalent_tie_entities, 1);
+        assert_eq!(report.convergence_analytics.direct_entities, 0);
+        assert_eq!(report.convergence_analytics.tie_broken_entities, 0);
+        assert_eq!(
+            report.convergence_analytics.symbolically_underdetermined_entities,
+            1
+        );
+        assert_eq!(
+            report
+                .convergence_analytics
+                .observationally_underdetermined_entities,
+            0
         );
     }
 }
