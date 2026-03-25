@@ -234,6 +234,9 @@ the world should be able to defer a top-score ambiguity at one frontier and reso
 The current prototype now also includes a small preference-triggered version of that step:
 `prefer_candidate_at(A, beta, 1)` makes a later frontier prefer `beta` among an otherwise tied top-score set, so the world can move from deferred ambiguity to a determinate branch for a semantic reason stronger than alphabetical tie-breaking.
 
+It now also includes a score-update version:
+`rescore_candidate_at(A, beta, 1, 1)` changes the soft ranking itself at a later frontier, making it possible for re-convergence to follow newly active information rather than only a fixed score table declared at time zero.
+
 Once controlled re-convergence exists for one entity, the next useful case is staged world-level convergence:
 different entities may resolve at different frontiers, so observation status should be able to move from unresolved to determinate over time.
 

@@ -120,6 +120,7 @@ pub struct World {
     pub action_candidates_by_entity: BTreeMap<String, Vec<ActionCandidateDecl>>,
     pub deferred_resolution_times: BTreeMap<String, f64>,
     pub deferred_preference_triggers: BTreeMap<String, DeferredPreferenceTrigger>,
+    pub deferred_score_adjustments: BTreeMap<String, Vec<DeferredScoreAdjustment>>,
 }
 
 #[derive(Clone, Debug)]
@@ -189,6 +190,13 @@ pub struct DeferredPreferenceTrigger {
 }
 
 #[derive(Clone, Debug)]
+pub struct DeferredScoreAdjustment {
+    pub label: String,
+    pub time: f64,
+    pub delta: f64,
+}
+
+#[derive(Clone, Debug)]
 pub struct CandidateResolution {
     pub entity: String,
     pub total_candidates: usize,
@@ -212,6 +220,7 @@ pub struct CandidateResolution {
     pub resolved_from_deferred: bool,
     pub resolved_at_observation_time: Option<String>,
     pub preferred_label: Option<String>,
+    pub active_score_adjustments: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -222,6 +231,7 @@ pub struct ConvergenceAnalytics {
     pub repaired_entities: usize,
     pub deferred_entities: usize,
     pub preference_resolved_entities: usize,
+    pub rescore_resolved_entities: usize,
     pub tie_broken_entities: usize,
     pub equivalent_tie_entities: usize,
     pub determinate_entities: usize,
@@ -400,6 +410,10 @@ impl SimulationReport {
         json.push_str(&format!(
             "    \"preference_resolved_entities\": {},\n",
             self.convergence_analytics.preference_resolved_entities
+        ));
+        json.push_str(&format!(
+            "    \"rescore_resolved_entities\": {},\n",
+            self.convergence_analytics.rescore_resolved_entities
         ));
         json.push_str(&format!(
             "    \"tie_broken_entities\": {},\n",
@@ -587,6 +601,18 @@ impl SimulationReport {
                 )),
                 None => json.push_str("      \"preferred_label\": null,\n"),
             }
+            json.push_str("      \"active_score_adjustments\": [");
+            for (adjustment_index, adjustment) in candidate_resolution
+                .active_score_adjustments
+                .iter()
+                .enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(adjustment)));
+                if adjustment_index + 1 != candidate_resolution.active_score_adjustments.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
             match &candidate_resolution.resolved_at_observation_time {
                 Some(time) => json.push_str(&format!(
                     "      \"resolved_at_observation_time\": \"{}\"\n",
@@ -1018,6 +1044,10 @@ impl SimulationEnvelope {
                     report.convergence_analytics.preference_resolved_entities
                 ));
                 json.push_str(&format!(
+                    "    \"rescore_resolved_entities\": {},\n",
+                    report.convergence_analytics.rescore_resolved_entities
+                ));
+                json.push_str(&format!(
                     "    \"tie_broken_entities\": {},\n",
                     report.convergence_analytics.tie_broken_entities
                 ));
@@ -1207,6 +1237,19 @@ impl SimulationEnvelope {
                         )),
                         None => json.push_str("      \"preferred_label\": null,\n"),
                     }
+                    json.push_str("      \"active_score_adjustments\": [");
+                    for (adjustment_index, adjustment) in candidate_resolution
+                        .active_score_adjustments
+                        .iter()
+                        .enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(adjustment)));
+                        if adjustment_index + 1 != candidate_resolution.active_score_adjustments.len()
+                        {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
                     match &candidate_resolution.resolved_at_observation_time {
                         Some(time) => json.push_str(&format!(
                             "      \"resolved_at_observation_time\": \"{}\"\n",
@@ -1309,6 +1352,7 @@ impl SimulationEnvelope {
                 json.push_str("    \"repaired_entities\": 0,\n");
                 json.push_str("    \"deferred_entities\": 0,\n");
                 json.push_str("    \"preference_resolved_entities\": 0,\n");
+                json.push_str("    \"rescore_resolved_entities\": 0,\n");
                 json.push_str("    \"tie_broken_entities\": 0,\n");
                 json.push_str("    \"equivalent_tie_entities\": 0,\n");
                 json.push_str("    \"determinate_entities\": 0,\n");
@@ -1629,6 +1673,9 @@ impl World {
             deferred_preference_triggers: deferred_preference_triggers_from_action_directives(
                 &program.action_directives,
             ),
+            deferred_score_adjustments: deferred_score_adjustments_from_action_directives(
+                &program.action_directives,
+            ),
         };
 
         world.resolve_initial_action_candidates(
@@ -1793,6 +1840,7 @@ impl World {
                 false,
                 None,
                 None,
+                &[],
             )?;
             self.candidate_resolutions.push(resolution);
         }
@@ -1835,6 +1883,17 @@ impl World {
                 .get(&entity)
                 .filter(|trigger| observation_time + EPSILON >= trigger.time)
                 .map(|trigger| trigger.label.clone());
+            let score_adjustments = self
+                .deferred_score_adjustments
+                .get(&entity)
+                .map(|adjustments| {
+                    adjustments
+                        .iter()
+                        .filter(|adjustment| observation_time + EPSILON >= adjustment.time)
+                        .map(|adjustment| (adjustment.label.clone(), adjustment.delta))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
             let resolution = self.resolve_candidates_for_entity(
                 &entity,
                 &candidates,
@@ -1842,6 +1901,7 @@ impl World {
                 true,
                 Some(observation_time),
                 preferred_label.as_deref(),
+                &score_adjustments,
             )?;
             if let Some(existing) = self
                 .candidate_resolutions
@@ -1863,9 +1923,17 @@ impl World {
         resolved_from_deferred: bool,
         resolved_at_observation_time: Option<f64>,
         preferred_label: Option<&str>,
+        score_adjustments: &[(String, f64)],
     ) -> Result<CandidateResolution, SimulationError> {
         let sphere_index = ensure_sphere_exists(&self.spheres, sphere_name)?;
         let mut candidates = candidates.to_vec();
+        for candidate in &mut candidates {
+            for (label, delta) in score_adjustments {
+                if candidate.label == *label {
+                    candidate.score += *delta;
+                }
+            }
+        }
         candidates.sort_by(|left, right| {
             right
                 .score
@@ -1965,6 +2033,10 @@ impl World {
         let observationally_equivalent_tie = equivalent_top_labels.len() > 1;
         let deferred = allow_defer && tie_broken && !observationally_equivalent_tie;
         let preferred_label = preferred_label.map(ToString::to_string);
+        let active_score_adjustments = score_adjustments
+            .iter()
+            .map(|(label, delta)| format!("{label}:{delta:+.3}"))
+            .collect::<Vec<_>>();
         if deferred {
             self.activity_log.push(candidate_activity_entry(
                 self.current_time(),
@@ -1986,7 +2058,9 @@ impl World {
                     sphere_name,
                     label,
                     selected_score_value.unwrap_or(top_score),
-                    if resolved_from_deferred && preferred_label.is_some() {
+                    if resolved_from_deferred && !active_score_adjustments.is_empty() {
+                        "selected_after_rescore"
+                    } else if resolved_from_deferred && preferred_label.is_some() {
                         "selected_after_preference"
                     } else if resolved_from_deferred {
                         "selected_after_defer"
@@ -2000,6 +2074,8 @@ impl World {
 
         let convergence_mode = if deferred {
             "deferred"
+        } else if resolved_from_deferred && !active_score_adjustments.is_empty() {
+            "resolved_after_rescore"
         } else if resolved_from_deferred && preferred_label.is_some() {
             "resolved_after_preference"
         } else if resolved_from_deferred {
@@ -2071,6 +2147,7 @@ impl World {
             resolved_from_deferred,
             resolved_at_observation_time: resolved_at_observation_time.map(|time| format!("{time:.3}")),
             preferred_label,
+            active_score_adjustments,
         })
     }
 
@@ -2533,6 +2610,7 @@ impl ConvergenceAnalytics {
             repaired_entities: 0,
             deferred_entities: 0,
             preference_resolved_entities: 0,
+            rescore_resolved_entities: 0,
             tie_broken_entities: 0,
             equivalent_tie_entities: 0,
             determinate_entities: 0,
@@ -2553,6 +2631,7 @@ impl ConvergenceAnalytics {
                 "repaired" => analytics.repaired_entities += 1,
                 "deferred" => analytics.deferred_entities += 1,
                 "resolved_after_preference" => analytics.preference_resolved_entities += 1,
+                "resolved_after_rescore" => analytics.rescore_resolved_entities += 1,
                 "tie_broken" => analytics.tie_broken_entities += 1,
                 "equivalent_tie" => analytics.equivalent_tie_entities += 1,
                 _ => {}
@@ -2716,6 +2795,7 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
         .map(|directive| directive.entity.clone())
         .collect::<std::collections::BTreeSet<_>>();
     let preferred_entities = preferred_candidate_labels_from_action_directives(&program.action_directives);
+    let rescored_entities = rescore_candidate_labels_from_action_directives(&program.action_directives);
     let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
     for candidate in &program.action_candidates {
         grouped
@@ -2747,7 +2827,13 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
             let top_score_tied = top_labels.len() > 1;
             let defer_on_ambiguous_top = deferred_entities.contains(&entity);
             let resolution_hint = if top_score_tied && defer_on_ambiguous_top {
-                if let Some((label, time)) = preferred_entities.get(&entity) {
+                if let Some((rescore_label, delta, rescore_time)) = rescored_entities.get(&entity)
+                {
+                    format!(
+                        "defer_then_rescore_{}_by_{delta:+.3}_at_{rescore_time:.3}",
+                        rescore_label
+                    )
+                } else if let Some((label, time)) = preferred_entities.get(&entity) {
                     format!("defer_then_prefer_{}_at_{time:.3}", label)
                 } else {
                     "deferred_on_ambiguous_top".to_string()
@@ -2846,6 +2932,31 @@ fn deferred_preference_triggers_from_action_directives(
     result
 }
 
+fn deferred_score_adjustments_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, Vec<DeferredScoreAdjustment>> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "rescore_candidate_at" {
+            if let (Some(label), Some(time), Some(delta)) = (
+                &directive.label_argument,
+                directive.time_argument,
+                directive.score_argument,
+            ) {
+                result
+                    .entry(directive.entity.clone())
+                    .or_insert_with(Vec::new)
+                    .push(DeferredScoreAdjustment {
+                        label: label.clone(),
+                        time,
+                        delta,
+                    });
+            }
+        }
+    }
+    result
+}
+
 fn preferred_candidate_labels_from_action_directives(
     action_directives: &[ActionDirectiveDecl],
 ) -> BTreeMap<String, (String, f64)> {
@@ -2854,6 +2965,35 @@ fn preferred_candidate_labels_from_action_directives(
         if directive.kind == "prefer_candidate_at" {
             if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument) {
                 result.insert(directive.entity.clone(), (label.clone(), time));
+            }
+        } else if directive.kind == "rescore_candidate_at" {
+            if let (Some(label), Some(time), Some(delta)) = (
+                &directive.label_argument,
+                directive.time_argument,
+                directive.score_argument,
+            ) {
+                result.insert(
+                    directive.entity.clone(),
+                    (format!("{label}+{delta:.3}"), time),
+                );
+            }
+        }
+    }
+    result
+}
+
+fn rescore_candidate_labels_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, (String, f64, f64)> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "rescore_candidate_at" {
+            if let (Some(label), Some(time), Some(delta)) = (
+                &directive.label_argument,
+                directive.time_argument,
+                directive.score_argument,
+            ) {
+                result.insert(directive.entity.clone(), (label.clone(), delta, time));
             }
         }
     }
@@ -2868,7 +3008,13 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
             entity: directive.entity.clone(),
             kind: directive.kind.clone(),
             argument: match (&directive.label_argument, directive.time_argument) {
-                (Some(label), Some(time)) => Some(format!("{label}, {time:.3}")),
+                (Some(label), Some(time)) => {
+                    if let Some(delta) = directive.score_argument {
+                        Some(format!("{label}, {time:.3}, {delta:+.3}"))
+                    } else {
+                        Some(format!("{label}, {time:.3}"))
+                    }
+                }
                 (Some(label), None) => Some(label.clone()),
                 (None, Some(time)) => Some(format!("{time:.3}")),
                 (None, None) => None,
@@ -3901,6 +4047,46 @@ observe:
         assert!(report.activities.iter().any(|entry| {
             entry.kind == "candidate_velocity"
                 && entry.action == "selected_after_preference"
+                && entry.targets.iter().any(|target| target == "beta")
+        }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_after_defer_with_later_rescore() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (2, 0, 0) score 5
+    candidate_velocity(A, beta) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    rescore_candidate_at(A, beta, 1, 1)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_rescore");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("beta"));
+        assert_eq!(resolution.selected_score.as_deref(), Some("score=6.000"));
+        assert_eq!(
+            resolution.active_score_adjustments,
+            vec!["beta:+1.000".to_string()]
+        );
+        assert_eq!(report.convergence_analytics.rescore_resolved_entities, 1);
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "selected_after_rescore"
                 && entry.targets.iter().any(|target| target == "beta")
         }));
     }
