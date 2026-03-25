@@ -25,6 +25,7 @@ and provides:
 - display of active world laws, their categories, supported policies, and per-run law activity
 - display of report-level law analytics for category and outcome totals
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
+- quick comparison between candidate fallback and repaired-selection Phase I samples
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings

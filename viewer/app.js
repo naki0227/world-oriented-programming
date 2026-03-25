@@ -48,6 +48,7 @@ const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
 const candidateResolutionList = document.getElementById("candidate-resolution-list");
+const candidateComparisonList = document.getElementById("candidate-comparison-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
@@ -80,6 +81,11 @@ const POLICY_COMPARISON_SAMPLES = [
   { label: "reject", path: "./samples/forbidden_region.json" },
   { label: "clamp", path: "./samples/clamped_region.json" },
   { label: "reflect", path: "./samples/reflected_region.json" },
+];
+
+const CANDIDATE_COMPARISON_SAMPLES = [
+  { label: "fallback", path: "./samples/candidate_velocity.json" },
+  { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
 ];
 
 fileInput.addEventListener("change", async (event) => {
@@ -851,6 +857,7 @@ function renderSidebar() {
     renderConstraintList();
     renderAnalyticsList();
     renderCandidateResolution();
+    renderCandidateComparison();
     renderActivityList();
     renderComparisonList();
     return;
@@ -875,6 +882,7 @@ function renderSidebar() {
   renderConstraintList();
   renderAnalyticsList();
   renderCandidateResolution();
+  renderCandidateComparison();
   renderActivityList();
   renderComparisonList();
 }
@@ -994,6 +1002,62 @@ function renderCandidateResolution() {
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
     </article>
   `;
+}
+
+function renderCandidateComparison() {
+  if (!state.report) {
+    candidateComparisonList.innerHTML =
+      '<p class="muted">Load a Phase I report to compare fallback and repaired selection.</p>';
+    return;
+  }
+
+  const candidateResolution = state.report.candidate_resolution;
+  if (!candidateResolution) {
+    candidateComparisonList.innerHTML =
+      '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
+    return;
+  }
+
+  candidateComparisonList.innerHTML = "";
+
+  const summary = document.createElement("article");
+  summary.className = "sphere-card";
+  summary.innerHTML = `
+    <h3>Current Pattern</h3>
+    <p>selected = ${candidateResolution.selected_candidate || "none"}</p>
+    <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
+    <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+  `;
+  candidateComparisonList.appendChild(summary);
+
+  CANDIDATE_COMPARISON_SAMPLES.forEach((sample) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = sample.label;
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      sample.label === "fallback"
+        ? "The highest-scoring candidate is rejected, so a lower-scoring admissible candidate is selected."
+        : "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer.";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sample.path === sampleSelect.value ? "Loaded" : `Load ${sample.label}`;
+    button.disabled = sample.path === sampleSelect.value;
+    button.addEventListener("click", async () => {
+      sampleSelect.value = sample.path;
+      await loadSample(sample.path);
+    });
+
+    card.appendChild(title);
+    card.appendChild(note);
+    card.appendChild(button);
+    candidateComparisonList.appendChild(card);
+  });
 }
 
 function renderAnalyticsList() {
