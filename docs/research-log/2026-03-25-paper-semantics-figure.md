@@ -24,3 +24,8 @@ This figure is simple, stable under LaTeX compilation, and close to the staged o
 ## Next Step
 
 If the paper later needs a richer semantics illustration, this compact pipeline can be replaced by a more formal diagram.
+
+## Follow-up
+
+Adjusted the evaluation figures so that the later paper figures form a more consistent visual family.
+In particular, the contradiction, collision, and round-trip figures are now all treated as wide showcase figures rather than mixing full-width and single-column sizing.
