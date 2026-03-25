@@ -167,6 +167,7 @@ pub struct CandidateResolution {
     pub selected_score: Option<String>,
     pub top_score: String,
     pub top_labels: Vec<String>,
+    pub tie_broken: bool,
     pub repaired_after_selection: bool,
 }
 
@@ -343,17 +344,21 @@ impl SimulationReport {
                     "      \"top_score\": \"{}\",\n",
                     escape_json(&candidate_resolution.top_score)
                 ));
-                json.push_str("      \"top_labels\": [");
-                for (label_index, label) in candidate_resolution.top_labels.iter().enumerate() {
-                    json.push_str(&format!("\"{}\"", escape_json(label)));
-                    if label_index + 1 != candidate_resolution.top_labels.len() {
-                        json.push_str(", ");
-                    }
+            json.push_str("      \"top_labels\": [");
+            for (label_index, label) in candidate_resolution.top_labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_resolution.top_labels.len() {
+                    json.push_str(", ");
                 }
-                json.push_str("],\n");
-                json.push_str(&format!(
-                    "      \"repaired_after_selection\": {}\n",
-                    candidate_resolution.repaired_after_selection
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"tie_broken\": {},\n",
+                candidate_resolution.tie_broken
+            ));
+            json.push_str(&format!(
+                "      \"repaired_after_selection\": {}\n",
+                candidate_resolution.repaired_after_selection
             ));
             json.push_str("    }");
             if index + 1 != self.candidate_resolutions.len() {
@@ -763,6 +768,10 @@ impl SimulationEnvelope {
                         }
                     }
                     json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"tie_broken\": {},\n",
+                        candidate_resolution.tie_broken
+                    ));
                     json.push_str(&format!(
                         "      \"repaired_after_selection\": {}\n",
                         candidate_resolution.repaired_after_selection
@@ -1308,6 +1317,7 @@ impl World {
                 selected_candidate,
                 selected_score,
                 top_score: format!("{top_score:.3}"),
+                tie_broken: top_labels.len() > 1,
                 top_labels,
                 repaired_after_selection,
             });
@@ -2400,6 +2410,7 @@ observe:
         );
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
+        assert!(!candidate_resolution.tie_broken);
     }
 
     #[test]
@@ -2443,6 +2454,7 @@ observe:
         assert_eq!(candidate_resolution.skipped_candidates, 1);
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
+        assert!(!candidate_resolution.tie_broken);
         assert!(candidate_resolution.repaired_after_selection);
     }
 
@@ -2526,5 +2538,6 @@ observe:
             vec!["alpha".to_string(), "beta".to_string()]
         );
         assert_eq!(candidate_resolution.skipped_candidates, 1);
+        assert!(candidate_resolution.tie_broken);
     }
 }

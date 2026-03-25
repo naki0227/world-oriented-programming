@@ -86,6 +86,7 @@ const POLICY_COMPARISON_SAMPLES = [
 const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
+  { label: "tie", path: "./samples/candidate_velocity_tied.json" },
 ];
 
 fileInput.addEventListener("change", async (event) => {
@@ -1005,6 +1006,7 @@ function renderCandidateResolution() {
       <p class="muted">score = ${candidateResolution.selected_score || "n/a"}</p>
       <p class="muted">top score = ${candidateResolution.top_score || "n/a"}</p>
       <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
+      <p class="muted">tie broken = ${candidateResolution.tie_broken ? "yes" : "no"}</p>
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
     `;
     candidateResolutionList.appendChild(card);
@@ -1036,6 +1038,7 @@ function renderCandidateComparison() {
     <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
     <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
     <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
+    <p class="muted">tie broken = ${candidateResolution.tie_broken ? "yes" : "no"}</p>
     <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
   `;
   candidateComparisonList.appendChild(summary);
@@ -1052,7 +1055,9 @@ function renderCandidateComparison() {
     note.textContent =
       sample.label === "fallback"
         ? "The highest-scoring candidate is rejected, so a lower-scoring admissible candidate is selected."
-        : "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer.";
+        : sample.label === "repaired"
+          ? "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer."
+          : "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped.";
 
     const button = document.createElement("button");
     button.type = "button";

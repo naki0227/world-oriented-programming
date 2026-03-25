@@ -150,6 +150,7 @@ Phase I reports may additionally include:
 - `selected_candidate` and `selected_score` for the chosen branch
 - `top_score` and `top_labels` for the highest-score frontier before deterministic tie-breaking
 - `skipped_candidates` when early selection prevents later candidates from being evaluated
+- `tie_broken` when multiple top-score candidates existed and deterministic ordering selected one
 - `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
 
 ## Rationale
