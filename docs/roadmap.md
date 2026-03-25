@@ -130,6 +130,142 @@ Topics:
 - event scheduling
 - symbolic simplification
 
+## Phase G. Time And Event Semantics
+
+Research stage
+
+Outputs:
+
+- formal time domain for `sekai`
+- observation operator and stable snapshot definition
+- deterministic event ordering rule
+- separation between event firing, enforcement, and contradiction
+- semantics draft usable in the paper
+
+Definition of done:
+
+- the runtime's notion of time is mathematically documented
+- simultaneous or competing events have an explicit resolution rule
+- local synchronization has a formal scope
+- snapshot and failure semantics are stated precisely enough for a semantics section
+
+### Phase G1. Time Model
+
+Outputs:
+
+- global timeline definition
+- object-local progress function
+- observation operator
+- stable snapshot predicate
+
+Definition of done:
+
+- `sekai` time is defined as a world-ordering structure, not only a numeric clock
+
+### Phase G2. Event Ordering
+
+Outputs:
+
+- simultaneous-event rule
+- semantic priority order
+- deterministic tie-breaker
+
+Definition of done:
+
+- the same world configuration yields the same event order under the same runtime semantics
+
+### Phase G3. Local Synchronization
+
+Outputs:
+
+- synchronization scope definition
+- dependency closure for interacting entities
+- minimal consistency set for event resolution
+
+Definition of done:
+
+- local synchronization is formalized rather than treated as an implementation detail
+
+### Phase G4. Event / Enforcement Semantics
+
+Outputs:
+
+- transition-system account of event firing
+- repair transition
+- contradiction transition
+
+Definition of done:
+
+- fired, repaired, and contradicted laws are defined at the semantic level
+
+### Phase G5. Semantic Consolidation
+
+Outputs:
+
+- operational semantics draft
+- snapshot semantics draft
+- failure semantics draft
+
+Definition of done:
+
+- `sekai` has a semantics section that can anchor the next paper draft
+
+## Phase H. Diagram-To-Logic Extraction
+
+Research stage
+
+Outputs:
+
+- richer candidate extraction from diagrams
+- explanation of why a candidate relation was proposed
+- editing loop between accepted logic and world execution
+
+Definition of done:
+
+- the visual interface proposes structured logic instead of acting only as a scene editor
+
+## Phase I. Possibility And Convergence
+
+Research stage
+
+Outputs:
+
+- candidate-state or candidate-action representation
+- separation between hard constraints and soft preferences
+- convergence rule for partially determined worlds
+
+Definition of done:
+
+- `sekai` can express underdetermined worlds that converge under constraints
+
+## Phase J. Richer Geometry And Space
+
+Research stage
+
+Outputs:
+
+- richer surfaces and volumes
+- path and visibility primitives
+- stronger 3D geometry support
+
+Definition of done:
+
+- the language can model more than moving spheres and axis-aligned forbidden regions
+
+## Phase K. Comparative Evaluation
+
+Research stage
+
+Outputs:
+
+- comparisons against imperative baselines
+- specification-size comparisons
+- qualitative evaluation or user-study planning
+
+Definition of done:
+
+- the project has evidence for why this model is better than an imperative alternative for its target tasks
+
 ## Near-Term Milestone
 
 Within six months, achieve:
