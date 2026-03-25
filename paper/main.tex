@@ -146,11 +146,40 @@ time frontier and observation structure, event ordering, local synchronization s
 The present paper does not yet attempt a theorem-level development.
 It does, however, now have enough structure to present a genuine semantics trajectory rather than only an execution metaphor.
 
+\begin{figure}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{c c c c c c}
+    \fbox{\parbox[c][1.8em][c]{0.10\columnwidth}{\centering $W_t$}} &
+    $\Rightarrow$ &
+    \fbox{\parbox[c][1.8em][c]{0.16\columnwidth}{\centering $ev = Next(W_t)$}} &
+    $\Rightarrow$ &
+    \fbox{\parbox[c][1.8em][c]{0.15\columnwidth}{\centering $Sync(ev)$}} &
+    $\Rightarrow$ \\
+    \multicolumn{6}{c}{} \\
+    \fbox{\parbox[c][1.8em][c]{0.15\columnwidth}{\centering $W_t^{ev}$}} &
+    $\Rightarrow$ &
+    \fbox{\parbox[c][2.8em][c]{0.16\columnwidth}{\centering admissible\\ $W_t'$}} &
+    \multicolumn{1}{c}{or} &
+    \fbox{\parbox[c][2.8em][c]{0.14\columnwidth}{\centering contradiction\\ $W_t^{X}$}} &
+    \\
+  \end{tabular}
+
+  \vspace{0.4em}
+
+  \fbox{\parbox[c][2.1em][c]{0.68\columnwidth}{\centering observation frontier: $\mathrm{Obs}(W, t_{obs})$ is valid only after earlier event frontiers are resolved}}
+  \caption{Semantics pipeline for the current \emph{sekai} model. A world at frontier $t$ yields a next event, a minimal synchronization carrier, and then either an admissible continuation or contradiction at the same frontier. Observation is defined over resolved frontiers rather than over a mandatory global frame loop.}
+  \label{fig:semantics-pipeline}
+\end{figure}
+
 \subsection{Time Frontiers and Observation}
 
 The working time model treats the world at a semantic frontier $t$ rather than as a sequence of user-authored frame updates.
 Observation is expressed as a request for a coherent snapshot at some time $t_{obs}$.
 This matters because it shifts temporal meaning away from a frame loop and toward a frontier-based interpretation of world state.
+Figure~\ref{fig:semantics-pipeline} summarizes the current staged reading of that process.
 
 In this view, the runtime is not repeatedly asked to ``run the next update.''
 It is asked to provide an admissible world at a requested semantic frontier, resolving whatever earlier event frontiers must be settled first.
