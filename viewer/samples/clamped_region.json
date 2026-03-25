@@ -1,0 +1,52 @@
+{
+  "source": "examples/clamped_region.sk",
+  "status": "ok",
+  "error": null,
+  "constraints": [
+    {
+      "kind": "not_inside",
+      "targets": ["A", "zone"],
+      "policy": "clamp",
+      "fired_count": 1,
+      "repaired_count": 1
+    }
+  ],
+  "activities": [
+    {
+      "time": 2.000000,
+      "kind": "not_inside",
+      "targets": ["A", "zone"],
+      "policy": "clamp",
+      "action": "fired"
+    },
+    {
+      "time": 2.000000,
+      "kind": "not_inside",
+      "targets": ["A", "zone"],
+      "policy": "clamp",
+      "action": "repaired"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 1.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 1.000000, "y": 0.000000, "z": 0.000000 },
+          "velocity": { "x": 1.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 3.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 2.000000, "y": 0.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}

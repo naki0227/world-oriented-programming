@@ -22,6 +22,7 @@ and provides:
 - switching between `3d`, `xy`, and `xz`
 - per-snapshot inspection of object positions and velocities
 - contradiction display for failed worlds
+- display of active world laws and per-run law activity
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
 - automatic constraint candidate suggestion with user-controlled adoption
@@ -57,6 +58,8 @@ Sample JSON files can be generated with:
 
 ```text
 cargo run -p sekai-cli -- simulate-report examples/bounce.sk > viewer/samples/bounce.json
+cargo run -p sekai-cli -- simulate-report examples/clamped_speed.sk > viewer/samples/clamped_speed.json
+cargo run -p sekai-cli -- simulate-report examples/clamped_region.sk > viewer/samples/clamped_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 ```

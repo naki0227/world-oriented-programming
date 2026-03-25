@@ -1,0 +1,45 @@
+{
+  "source": "examples/clamped_speed.sk",
+  "status": "ok",
+  "error": null,
+  "constraints": [
+    {
+      "kind": "velocity_limit",
+      "targets": ["A"],
+      "policy": "clamp",
+      "fired_count": 0,
+      "repaired_count": 1
+    }
+  ],
+  "activities": [
+    {
+      "time": 0.000000,
+      "kind": "velocity_limit",
+      "targets": ["A"],
+      "policy": "clamp",
+      "action": "repaired"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 10.000000, "z": 0.000000 },
+          "velocity": { "x": 3.000000, "y": 4.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 1.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 3.000000, "y": 14.000000, "z": 0.000000 },
+          "velocity": { "x": 3.000000, "y": 4.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}
