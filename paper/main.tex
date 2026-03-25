@@ -138,6 +138,27 @@ They only need synchronized interpretation when the world's semantics require it
 In the current prototype, this idea appears in a simple but meaningful form.
 Worlds are observed through snapshots at requested times, while multi-object interaction is only resolved when a declared interaction constraint becomes relevant.
 
+\subsection{Toward an Operational Semantics}
+
+The semantics work now underway sharpens this prototype intuition into an explicit staged model.
+The current formulation distinguishes five semantic layers:
+time frontier and observation structure, event ordering, local synchronization scope, event versus enforcement transition, and final semantic consolidation.
+
+The working time model treats the world at a semantic frontier $t$ rather than as a sequence of user-authored frame updates.
+Candidate events are selected from that frontier by an ordering rule that combines earliest-time selection with a semantic priority and a deterministic tie-breaker.
+Once an event is selected, only its minimal synchronization carrier needs to be brought to a common frontier.
+This is the semantic core of the claim ``global asynchrony with local synchronization.''
+
+The next transition is then factored into event firing and admissibility enforcement.
+In the admissible case, the world continues after any required repair.
+In the inadmissible case, execution reaches contradiction at the same semantic frontier instead of falling back to an out-of-band exception model.
+This framing also gives a clean reading to the runtime's current activity labels: fired, repaired, and contradicted.
+
+Most importantly, it lets the paper state a stronger semantic claim than before:
+deterministic snapshots need not come from mandatory global lockstep execution.
+They can instead arise from deterministic event selection plus coherent local synchronization and admissibility handling.
+The present prototype does not yet provide a theorem-level development, but it now has the structure needed for a real semantics section rather than only an execution metaphor.
+
 \section{Prototype Architecture}
 
 The prototype consists of five connected layers:
