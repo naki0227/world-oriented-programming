@@ -201,6 +201,7 @@ The static analysis path should also expose candidate inventory before simulatio
 - which entities carry candidates
 - how many candidates they declare
 - which labels are tied for the top soft score
+- which entities explicitly request deferred handling for ambiguous top choices
 
 The runtime report should also expose a convergence summary after selection, so that underdetermined worlds are not reduced to a single opaque winner:
 

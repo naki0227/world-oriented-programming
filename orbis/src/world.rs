@@ -148,6 +148,7 @@ pub struct LawInventory {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
     pub candidate_inventory: Vec<CandidateInventorySummary>,
+    pub action_directive_inventory: Vec<ActionDirectiveSummary>,
 }
 
 #[derive(Clone, Debug)]
@@ -157,6 +158,12 @@ pub struct CandidateInventorySummary {
     pub labels: Vec<String>,
     pub top_score: String,
     pub top_labels: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ActionDirectiveSummary {
+    pub entity: String,
+    pub kind: String,
 }
 
 #[derive(Clone, Debug)]
@@ -717,6 +724,24 @@ impl LawInventory {
             }
             json.push('\n');
         }
+        json.push_str("  ],\n");
+        json.push_str("  \"action_directive_inventory\": [\n");
+        for (index, directive) in self.action_directive_inventory.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&directive.entity)
+            ));
+            json.push_str(&format!(
+                "      \"kind\": \"{}\"\n",
+                escape_json(&directive.kind)
+            ));
+            json.push_str("    }");
+            if index + 1 != self.action_directive_inventory.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
         json.push_str("  ]\n");
         json.push('}');
         json
@@ -1248,6 +1273,7 @@ pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationErro
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
         candidate_inventory: candidate_inventory_from_program(program),
+        action_directive_inventory: action_directive_inventory_from_program(program),
     })
 }
 
@@ -2405,6 +2431,23 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
         .collect()
 }
 
+fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirectiveSummary> {
+    let mut directives = program
+        .action_directives
+        .iter()
+        .map(|directive| ActionDirectiveSummary {
+            entity: directive.entity.clone(),
+            kind: directive.kind.clone(),
+        })
+        .collect::<Vec<_>>();
+    directives.sort_by(|left, right| {
+        left.entity
+            .cmp(&right.entity)
+            .then_with(|| left.kind.cmp(&right.kind))
+    });
+    directives
+}
+
 fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
     let signed_distance = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
     let approach_speed = plane.normal.dot(sphere.velocity);
@@ -2826,6 +2869,29 @@ constraint:
         assert!(json.contains("\"labels\": [\"fast\", \"safe\"]"));
         assert!(json.contains("\"top_score\": \"5.000\""));
         assert!(json.contains("\"top_labels\": [\"fast\"]"));
+    }
+
+    #[test]
+    fn analyze_program_reports_action_directives() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+constraint:
+    speed(A) <= 4
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let inventory = analyze_program(&program).expect("analysis should succeed");
+        let json = inventory.to_json("deferred.sk");
+        assert!(json.contains("\"action_directive_inventory\""));
+        assert!(json.contains("\"entity\": \"A\""));
+        assert!(json.contains("\"kind\": \"defer_on_ambiguous_top\""));
     }
 
     #[test]

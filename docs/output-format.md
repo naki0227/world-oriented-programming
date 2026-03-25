@@ -224,7 +224,7 @@ This format is intentionally small but useful for:
 ## Static Analysis
 
 `sekai analyze` uses the same constraint build path but stops before time evolution.
-It reports the declared law inventory, aggregated law analytics, and any Phase I candidate inventory without simulation snapshots.
+It reports the declared law inventory, aggregated law analytics, any Phase I candidate inventory, and any Phase I action directives without simulation snapshots.
 
 For example, a Phase I analyze result may additionally include:
 
@@ -236,6 +236,12 @@ For example, a Phase I analyze result may additionally include:
     "labels": ["fast", "safe"],
     "top_score": "5.000",
     "top_labels": ["fast"]
+  }
+],
+"action_directive_inventory": [
+  {
+    "entity": "A",
+    "kind": "defer_on_ambiguous_top"
   }
 ]
 ```
