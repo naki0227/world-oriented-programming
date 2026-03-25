@@ -181,6 +181,19 @@ where the runtime:
 - logs which candidates were rejected and which one was selected
 - exposes a compact candidate-resolution summary in the structured report
 
+The next minimal demonstration after pure rejection filtering is a repaired selection:
+
+```text
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+
+constraint:
+    clamp speed(A) <= 4
+```
+
+In that case the runtime may still choose `fast`, provided the hard law layer repairs it into an admissible continuation.
+
 ## Definition Of Success
 
 Phase I is successful when:

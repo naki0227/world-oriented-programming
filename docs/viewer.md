@@ -70,6 +70,7 @@ cargo run -p sekai-cli -- simulate-report examples/bounce.sk > viewer/samples/bo
 cargo run -p sekai-cli -- simulate-report examples/clamped_speed.sk > viewer/samples/clamped_speed.json
 cargo run -p sekai-cli -- simulate-report examples/clamped_region.sk > viewer/samples/clamped_region.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity.sk > viewer/samples/candidate_velocity.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_clamped.sk > viewer/samples/candidate_velocity_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
