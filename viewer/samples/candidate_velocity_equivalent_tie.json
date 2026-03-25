@@ -40,6 +40,11 @@
     "rejected_candidates_total": 0,
     "skipped_candidates_total": 1
   },
+  "observation_summary": {
+    "status": "representative",
+    "representative_entities": 1,
+    "ambiguous_entities": 0
+  },
   "candidate_resolutions": [
     {
       "entity": "A",

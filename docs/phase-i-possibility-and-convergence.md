@@ -210,6 +210,13 @@ The runtime report should also expose a convergence summary after selection, so 
 - whether the observation should be read as determinate, representative, or still ambiguous
 - aggregate totals across all candidate-bearing entities in the run
 
+In the current prototype this is also summarized at run level as:
+- `determinate`
+- `representative`
+- `unresolved`
+
+This is the first executable stand-in for `Obs?(W^?, t_obs) = U`.
+
 ## Definition Of Success
 
 Phase I is successful when:

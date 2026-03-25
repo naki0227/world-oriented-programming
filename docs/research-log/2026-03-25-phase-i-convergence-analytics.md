@@ -14,6 +14,13 @@ It also now distinguishes observation-level statuses:
 - `representative`
 - `ambiguous`
 
+At run level the report now also exposes:
+- `determinate`
+- `representative`
+- `unresolved`
+
+This is the first prototype-level hook for `Obs? = U`.
+
 Each entity-level candidate resolution now also says whether the world remained symbolically underdetermined and whether that underdetermination was still visible at the observation layer.
 
 This pushes Phase I closer to a real convergence model instead of a set of isolated candidate-selection examples.

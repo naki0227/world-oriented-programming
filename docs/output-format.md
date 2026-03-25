@@ -65,10 +65,18 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
     "repaired_entities": 0,
     "tie_broken_entities": 0,
     "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
     "symbolically_underdetermined_entities": 0,
     "observationally_underdetermined_entities": 0,
     "rejected_candidates_total": 0,
     "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
   },
   "candidate_resolutions": [],
   "activities": [
@@ -132,10 +140,18 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
     "repaired_entities": 0,
     "tie_broken_entities": 0,
     "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
     "symbolically_underdetermined_entities": 0,
     "observationally_underdetermined_entities": 0,
     "rejected_candidates_total": 0,
     "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
   },
   "candidate_resolutions": [],
   "activities": [
@@ -171,6 +187,7 @@ Failure reports may still include:
 Phase I reports may additionally include:
 
 - `convergence_analytics` for run-level totals over candidate-bearing entities
+- `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
 - `candidate_resolutions` when initial action candidates were evaluated before observation
 - `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)
@@ -202,6 +219,7 @@ This format is intentionally small but useful for:
 - exposing a compact candidate-resolution summary for underdetermined-world runs
 - exposing whether a run remained symbolically or observationally underdetermined after convergence
 - exposing whether symbolic ties have already collapsed into a determinate or representative observation
+- exposing a minimal `Obs? = U` style status when observation is still unresolved
 
 ## Static Analysis
 

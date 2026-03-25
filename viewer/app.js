@@ -44,6 +44,7 @@ const timeLabel = document.getElementById("time-label");
 const sourceLabel = document.getElementById("source-label");
 const snapshotCount = document.getElementById("snapshot-count");
 const projectionLabel = document.getElementById("projection-label");
+const observationStatus = document.getElementById("observation-status");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
@@ -295,6 +296,8 @@ function loadReport(report, sourceName) {
   stopPlayback();
   sourceLabel.textContent = sourceName || state.report.source || "Unknown source";
   snapshotCount.textContent = String(state.report.snapshots.length);
+  observationStatus.textContent =
+    state.report.observation_summary?.status || "determinate";
   timeSlider.max = String(Math.max(0, state.report.snapshots.length - 1));
   timeSlider.value = "0";
   state.colorMap = buildColorMap(state.report);
@@ -320,6 +323,9 @@ function normalizeReport(report) {
       status: report.status,
       error: report.error || null,
       analytics: report.analytics || defaultAnalytics(report.constraints || []),
+      observation_summary:
+        report.observation_summary ||
+        defaultObservationSummary(report.candidate_resolutions || []),
       constraints: report.constraints || [],
       candidate_resolutions: report.candidate_resolutions || [],
       activities: report.activities || [],
@@ -331,10 +337,32 @@ function normalizeReport(report) {
     status: "ok",
     error: null,
     analytics: report.analytics || defaultAnalytics(report.constraints || []),
+    observation_summary:
+      report.observation_summary ||
+      defaultObservationSummary(report.candidate_resolutions || []),
     constraints: report.constraints || [],
     candidate_resolutions: report.candidate_resolutions || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
+  };
+}
+
+function defaultObservationSummary(candidateResolutions) {
+  const representativeEntities = candidateResolutions.filter(
+    (resolution) => resolution.observation_mode === "representative"
+  ).length;
+  const ambiguousEntities = candidateResolutions.filter(
+    (resolution) => resolution.observation_mode === "ambiguous"
+  ).length;
+  return {
+    status:
+      ambiguousEntities > 0
+        ? "unresolved"
+        : representativeEntities > 0
+          ? "representative"
+          : "determinate",
+    representative_entities: representativeEntities,
+    ambiguous_entities: ambiguousEntities,
   };
 }
 

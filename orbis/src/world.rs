@@ -137,6 +137,7 @@ pub struct SimulationReport {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
     pub convergence_analytics: ConvergenceAnalytics,
+    pub observation_summary: ObservationSummary,
     pub candidate_resolutions: Vec<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
@@ -194,6 +195,13 @@ pub struct ConvergenceAnalytics {
     pub observationally_underdetermined_entities: usize,
     pub rejected_candidates_total: usize,
     pub skipped_candidates_total: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ObservationSummary {
+    pub status: String,
+    pub representative_entities: usize,
+    pub ambiguous_entities: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -384,6 +392,20 @@ impl SimulationReport {
         json.push_str(&format!(
             "    \"skipped_candidates_total\": {}\n",
             self.convergence_analytics.skipped_candidates_total
+        ));
+        json.push_str("  },\n");
+        json.push_str("  \"observation_summary\": {\n");
+        json.push_str(&format!(
+            "    \"status\": \"{}\",\n",
+            escape_json(&self.observation_summary.status)
+        ));
+        json.push_str(&format!(
+            "    \"representative_entities\": {},\n",
+            self.observation_summary.representative_entities
+        ));
+        json.push_str(&format!(
+            "    \"ambiguous_entities\": {}\n",
+            self.observation_summary.ambiguous_entities
         ));
         json.push_str("  },\n");
         json.push_str("  \"candidate_resolutions\": [\n");
@@ -894,6 +916,20 @@ impl SimulationEnvelope {
                     report.convergence_analytics.skipped_candidates_total
                 ));
                 json.push_str("  },\n");
+                json.push_str("  \"observation_summary\": {\n");
+                json.push_str(&format!(
+                    "    \"status\": \"{}\",\n",
+                    escape_json(&report.observation_summary.status)
+                ));
+                json.push_str(&format!(
+                    "    \"representative_entities\": {},\n",
+                    report.observation_summary.representative_entities
+                ));
+                json.push_str(&format!(
+                    "    \"ambiguous_entities\": {}\n",
+                    report.observation_summary.ambiguous_entities
+                ));
+                json.push_str("  },\n");
                 json.push_str("  \"candidate_resolutions\": [\n");
                 for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
                 {
@@ -1094,6 +1130,11 @@ impl SimulationEnvelope {
                 json.push_str("    \"rejected_candidates_total\": 0,\n");
                 json.push_str("    \"skipped_candidates_total\": 0\n");
                 json.push_str("  },\n");
+                json.push_str("  \"observation_summary\": {\n");
+                json.push_str("    \"status\": \"determinate\",\n");
+                json.push_str("    \"representative_entities\": 0,\n");
+                json.push_str("    \"ambiguous_entities\": 0\n");
+                json.push_str("  },\n");
                 json.push_str("  \"candidate_resolutions\": [],\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
@@ -1181,6 +1222,9 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
             &world.candidate_resolutions,
         ),
+        observation_summary: ObservationSummary::from_candidate_resolutions(
+            &world.candidate_resolutions,
+        ),
         candidate_resolutions: world.candidate_resolutions.clone(),
         activities: world.activity_log.clone(),
         snapshots,
@@ -1218,6 +1262,9 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                         &world.candidate_resolutions,
                     ),
+                    observation_summary: ObservationSummary::from_candidate_resolutions(
+                        &world.candidate_resolutions,
+                    ),
                     candidate_resolutions: world.candidate_resolutions.clone(),
                     activities: world.activity_log.clone(),
                     snapshots,
@@ -1244,6 +1291,9 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
             convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                &world.candidate_resolutions,
+            ),
+            observation_summary: ObservationSummary::from_candidate_resolutions(
                 &world.candidate_resolutions,
             ),
             candidate_resolutions: world.candidate_resolutions.clone(),
@@ -2124,6 +2174,33 @@ impl ConvergenceAnalytics {
     }
 }
 
+impl ObservationSummary {
+    pub fn from_candidate_resolutions(candidate_resolutions: &[CandidateResolution]) -> Self {
+        let representative_entities = candidate_resolutions
+            .iter()
+            .filter(|resolution| resolution.observation_mode == "representative")
+            .count();
+        let ambiguous_entities = candidate_resolutions
+            .iter()
+            .filter(|resolution| resolution.observation_mode == "ambiguous")
+            .count();
+
+        let status = if ambiguous_entities > 0 {
+            "unresolved"
+        } else if representative_entities > 0 {
+            "representative"
+        } else {
+            "determinate"
+        };
+
+        Self {
+            status: status.to_string(),
+            representative_entities,
+            ambiguous_entities,
+        }
+    }
+}
+
 impl RepairPolicy {
     fn as_str(self) -> &'static str {
         match self {
@@ -2635,6 +2712,7 @@ observe:
         assert!(json.contains("\"repaired_count\""));
         assert!(json.contains("\"convergence_analytics\""));
         assert!(json.contains("\"determinate_entities\""));
+        assert!(json.contains("\"observation_summary\""));
         assert!(json.contains("\"candidate_resolutions\": ["));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
@@ -2702,6 +2780,7 @@ constraint:
         assert!(json.contains("\"analytics\": {"));
         assert!(json.contains("\"constraints\": []"));
         assert!(json.contains("\"convergence_analytics\": {"));
+        assert!(json.contains("\"observation_summary\": {"));
         assert!(json.contains("\"activities\": []"));
         assert!(json.contains("\"snapshots\": []"));
     }
@@ -3005,6 +3084,9 @@ observe:
         assert_eq!(report.convergence_analytics.determinate_entities, 0);
         assert_eq!(report.convergence_analytics.representative_entities, 1);
         assert_eq!(report.convergence_analytics.ambiguous_entities, 0);
+        assert_eq!(report.observation_summary.status, "representative");
+        assert_eq!(report.observation_summary.representative_entities, 1);
+        assert_eq!(report.observation_summary.ambiguous_entities, 0);
         assert_eq!(
             report.convergence_analytics.symbolically_underdetermined_entities,
             1
@@ -3015,5 +3097,28 @@ observe:
                 .observationally_underdetermined_entities,
             0
         );
+    }
+
+    #[test]
+    fn candidate_velocity_can_surface_unresolved_observation() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.observation_summary.status, "unresolved");
+        assert_eq!(report.observation_summary.representative_entities, 0);
+        assert_eq!(report.observation_summary.ambiguous_entities, 1);
     }
 }

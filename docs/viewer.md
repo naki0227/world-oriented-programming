@@ -118,6 +118,8 @@ When a report includes `candidate_resolutions`, the viewer now separates:
 
 This makes it easier to tell whether a world remained ambiguous only symbolically or also at the observation layer.
 
+The report header now also exposes a run-level observation status, so unresolved Phase I cases can be spotted without opening any entity card.
+
 ## Round-Trip Notes
 
 `Run Draft` posts the generated DSL to a local endpoint:
