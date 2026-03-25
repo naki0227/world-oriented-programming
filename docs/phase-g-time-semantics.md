@@ -43,6 +43,11 @@ where:
 - `A` is the admissibility policy induced by those laws
 - `t` is the current semantic frontier of the world execution
 
+We also write:
+
+- `sigma_t(e)` for the materialized state of entity `e` at world frontier `t`
+- `tau_t(e)` for the local progress timestamp of entity `e` inside `W_t`
+
 ## Object-Local Progress
 
 Each entity `e ∈ E` has a local progress timestamp:
@@ -60,6 +65,21 @@ Interpretation:
 
 This allows the semantics to represent globally asynchronous storage with locally synchronized interaction.
 
+## Time Monotonicity Invariants
+
+The prototype and the intended semantics both rely on monotonic time advancement.
+
+For every reachable world configuration:
+
+1. world-frontier monotonicity:
+   `t` never decreases
+2. local monotonicity:
+   for every entity `e`, `tau(e)` never decreases
+3. local boundedness:
+   for every entity `e`, `tau(e) <= t`
+
+These invariants ensure that lazy materialization does not imply temporal rollback.
+
 ## Evolution Operator
 
 For each entity `e`, define an unconstrained evolution operator:
@@ -73,6 +93,37 @@ In the current prototype, for constant velocity motion:
 `position_e(t2) = position_e(t1) + velocity_e(t1) * (t2 - t1)`
 
 unless an event or enforcement rule changes the trajectory at an intermediate time.
+
+For a set of entities `X ⊆ E`, define the joint advancement operator:
+
+`Advance_X(W_t, t')`
+
+which advances only entities in `X` from their current local timestamps toward `t'`.
+
+This operator is partial:
+it is only semantically valid when no unresolved earlier event or contradiction blocks advancement.
+
+## Candidate Events
+
+Let `Ev(W_t)` be the set of candidate events visible from world configuration `W_t`.
+
+Each candidate event `ev ∈ Ev(W_t)` has:
+
+- a scheduled time `time(ev) ∈ T`
+- a participant set `part(ev) ⊆ E`
+- a generating law `law(ev) ∈ C`
+
+The intended meaning is:
+
+`ev` is the next semantically relevant interaction or admissibility boundary proposed by the current world state.
+
+For the current prototype, candidate events include:
+
+- sphere-plane collision
+- sphere-sphere collision
+- forbidden-region entry
+
+Phase G2 will define how `Ev(W_t)` is ordered when multiple candidates share the same time.
 
 ## Observation Operator
 
@@ -89,6 +140,21 @@ Its meaning is:
 3. emit a coherent snapshot of the resulting world
 
 The prototype currently treats all declared spheres as observation-relevant.
+
+## Observation Frontier
+
+Define the observation frontier induced by a request at time `t_obs` as:
+
+`Frontier(W, t_obs) = { e ∈ E | e is observation-relevant at t_obs }`
+
+For the current prototype:
+
+`Frontier(W, t_obs) = E_spheres`
+
+In later phases, this frontier may be narrowed by dependency or view locality.
+
+The important semantic point is that observation is not merely a read.
+It is a request to construct a coherent world boundary at `t_obs`.
 
 ## Stable Snapshot Predicate
 
@@ -107,6 +173,15 @@ This distinguishes:
 - a merely requested observation time
 - a semantically admissible observation
 
+More explicitly, `Stable(W, t_obs)` requires:
+
+1. every entity in `Frontier(W, t_obs)` has been materialized to `t_obs`
+2. no unresolved candidate event exists with time `< t_obs`
+3. all required admissibility enforcement at or before `t_obs` has been applied
+4. no contradiction has been reached at or before `t_obs`
+
+This predicate is what turns a runtime snapshot into a semantic snapshot.
+
 ## Event-Relevant Time
 
 Not every entity must be materialized at every global time.
@@ -119,6 +194,11 @@ Time becomes relevant for an entity when:
 - a law requires admissibility enforcement involving that entity
 
 This is the semantic basis of lazy advancement.
+
+Equivalently:
+
+time is not forced to become relevant uniformly across the world.
+It becomes relevant through observation, interaction, and admissibility demand.
 
 ## Local Synchronization Principle
 
@@ -135,6 +215,16 @@ global asynchrony with local synchronization.
 
 Phase G3 will formalize the synchronization scope more precisely.
 
+At the G1 level, we can already describe the intended synchronization carrier:
+
+for a candidate event `ev`, define its minimal synchronization carrier as:
+
+`Sync(ev) = part(ev) ∪ deps(ev)`
+
+where `deps(ev)` is the smallest dependency closure needed to evaluate the event coherently.
+
+G3 will define `deps(ev)` more rigorously.
+
 ## Snapshot Determinism Goal
 
 For a fixed world declaration and fixed semantic ordering rules, `Obs(W, t_obs)` should be deterministic.
@@ -145,6 +235,10 @@ This requires:
 - deterministic tie-breaking when events are simultaneous
 - deterministic enforcement policy application
 
+Equivalently:
+
+if `W`, `t_obs`, and the semantic ordering rules are fixed, then `Obs(W, t_obs)` must denote a unique snapshot or a unique contradiction outcome.
+
 Phase G2 and G4 refine this requirement.
 
 ## Failure At Time
@@ -154,6 +248,9 @@ If no admissible configuration exists at time `t`, the world reaches contradicti
 Write:
 
 `W @ t -> contradiction`
+
+Contradiction is therefore a temporal outcome, not a timeless error condition.
+It states that no admissible continuation exists at semantic time `t` under the current law set and enforcement rules.
 
 The prototype already records this operationally as a failed report with law activity and partial stable snapshots.
 
@@ -170,9 +267,22 @@ Current runtime variables map to the semantic layer as follows:
 - `global_time` corresponds to the world frontier `t`
 - `last_update_time` corresponds to `tau(e)`
 - snapshots correspond to `Obs(W, t_obs)` when `Stable(W, t_obs)` holds
+- candidate events in the scheduler correspond to elements of `Ev(W_t)`
 
 This does not mean the current runtime fully realizes the final semantics.
 It means the runtime already exposes the right semantic hooks.
+
+## Why G1 Matters Before G2
+
+G2 cannot be written cleanly without G1 because event ordering presupposes:
+
+- a time domain
+- a notion of current world frontier
+- a notion of candidate event time
+- a definition of what counts as a stable observable world
+
+So G1 is not an optional preface.
+It is the semantic substrate that makes event ordering meaningful.
 
 ## What G1 Fixes
 
