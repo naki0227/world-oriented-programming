@@ -300,3 +300,142 @@ These definitions are the basis for:
 - G3 local synchronization scope
 - G4 transition semantics
 - G5 semantic consolidation
+
+## Phase G2 Event Ordering
+
+G2 defines how candidate events are selected when several are simultaneously or nearly simultaneously eligible.
+
+### Ordering Goal
+
+For each reachable configuration `W_t`, define a deterministic selection operator:
+
+`Next(W_t) -> ev or none`
+
+such that:
+
+- if a semantically relevant event exists, `Next(W_t)` returns a unique event
+- if no event exists before the next observation frontier, `Next(W_t) = none`
+
+### Earliest-Time Principle
+
+Primary ordering is temporal.
+
+For candidate events `ev1, ev2 ∈ Ev(W_t)`:
+
+`ev1 <_time ev2` iff `time(ev1) < time(ev2)`
+
+The first selection rule is:
+
+choose only events with minimal event time.
+
+Formally, define:
+
+`MinEv(W_t) = { ev ∈ Ev(W_t) | ∀ev' ∈ Ev(W_t), time(ev) <= time(ev') }`
+
+If `MinEv(W_t)` has one element, selection is immediate.
+
+### Simultaneous Events
+
+If `|MinEv(W_t)| > 1`, the semantics must resolve simultaneity.
+
+The current semantic direction is:
+
+1. preserve semantic causality first
+2. apply a deterministic priority rule second
+3. apply a deterministic tie-breaker last
+
+This avoids treating simultaneity as arbitrary scheduler accident.
+
+### Event Categories For Ordering
+
+For G2, each candidate event belongs to one of the following semantic classes:
+
+- boundary-contact event
+- boundary-entry event
+- interaction event
+
+Current prototype mapping:
+
+- sphere-plane collision -> boundary-contact
+- forbidden-region entry -> boundary-entry
+- sphere-sphere collision -> interaction
+
+### Priority Lattice
+
+Within the same event time, G2 currently adopts a semantic priority lattice:
+
+`boundary-entry > boundary-contact > interaction`
+
+Interpretation:
+
+- boundary-entry events are resolved first because they directly threaten admissibility
+- boundary-contact events are resolved next because they alter immediate motion at a boundary
+- interaction events are resolved after boundary conditions have been normalized
+
+This is a semantic proposal, not yet the final runtime law.
+It is the current intended formal direction.
+
+### Deterministic Tie-Breaker
+
+If two candidate events have:
+
+- the same event time, and
+- the same semantic priority
+
+then selection falls back to a deterministic tie-breaker.
+
+The current prototype-compatible proposal is:
+
+1. compare the generating law kind in a fixed lexical order
+2. compare participant identifiers in sorted lexical order
+3. compare an implementation-stable fallback index if still needed
+
+This keeps event ordering deterministic without pretending that all simultaneous events are semantically identical.
+
+### Causality Preservation Requirement
+
+The purpose of the ordering rule is not merely determinism.
+It is to preserve semantic causality.
+
+The intended requirement is:
+
+if `ev1` changes the admissibility or participant state on which `ev2` depends, then `ev1` must not be ordered after `ev2`.
+
+Later work can express this through a causality graph:
+
+`ev1 -> ev2`
+
+meaning that `ev2` is semantically downstream from `ev1`.
+
+### Selection Schema
+
+The full intended event-selection schema is therefore:
+
+1. construct `Ev(W_t)`
+2. restrict to `MinEv(W_t)`
+3. apply semantic priority within `MinEv(W_t)`
+4. apply deterministic tie-breaker if needed
+5. produce `Next(W_t)`
+
+This is the bridge between G1 time semantics and G4 transition semantics.
+
+### Relationship To Observation
+
+Observation must respect event ordering.
+
+For `Obs(W, t_obs)`:
+
+- if an event `ev` exists with `time(ev) < t_obs`, it must be resolved before snapshot construction
+- if several events exist at the same earliest time, the G2 ordering rule determines which transition is taken first
+
+So observation determinism depends directly on event determinism.
+
+### G2 Scope Boundary
+
+G2 does not yet define the full repair or contradiction transition.
+It only defines which event is selected next and why.
+
+That selected event will later feed:
+
+- G3 synchronization scope
+- G4 event / repair / contradiction transition rules
