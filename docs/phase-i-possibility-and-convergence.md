@@ -181,6 +181,7 @@ where the runtime:
 - logs which candidates were rejected and which one was selected
 - exposes a compact candidate-resolution summary in the structured report
 - can apply the same initial resolution pass to multiple entities in a deterministic order
+- can expose top-score ties and skipped candidates after early deterministic selection
 
 The next minimal demonstration after pure rejection filtering is a repaired selection:
 

@@ -115,6 +115,7 @@ pub struct World {
     pub region: Option<Region>,
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
+    pub candidate_resolutions: Vec<CandidateResolution>,
     pub activity_log: Vec<ActivityEntry>,
 }
 
@@ -161,8 +162,11 @@ pub struct CandidateResolution {
     pub entity: String,
     pub total_candidates: usize,
     pub rejected_candidates: usize,
+    pub skipped_candidates: usize,
     pub selected_candidate: Option<String>,
     pub selected_score: Option<String>,
+    pub top_score: String,
+    pub top_labels: Vec<String>,
     pub repaired_after_selection: bool,
 }
 
@@ -313,27 +317,43 @@ impl SimulationReport {
                 "      \"total_candidates\": {},\n",
                 candidate_resolution.total_candidates
             ));
-            json.push_str(&format!(
-                "      \"rejected_candidates\": {},\n",
-                candidate_resolution.rejected_candidates
-            ));
-            match &candidate_resolution.selected_candidate {
-                Some(selected_candidate) => json.push_str(&format!(
-                    "      \"selected_candidate\": \"{}\",\n",
+                json.push_str(&format!(
+                    "      \"rejected_candidates\": {},\n",
+                    candidate_resolution.rejected_candidates
+                ));
+                json.push_str(&format!(
+                    "      \"skipped_candidates\": {},\n",
+                    candidate_resolution.skipped_candidates
+                ));
+                match &candidate_resolution.selected_candidate {
+                    Some(selected_candidate) => json.push_str(&format!(
+                        "      \"selected_candidate\": \"{}\",\n",
                     escape_json(selected_candidate)
                 )),
                 None => json.push_str("      \"selected_candidate\": null,\n"),
             }
-            match &candidate_resolution.selected_score {
-                Some(selected_score) => json.push_str(&format!(
-                    "      \"selected_score\": \"{}\",\n",
-                    escape_json(selected_score)
-                )),
-                None => json.push_str("      \"selected_score\": null,\n"),
-            }
-            json.push_str(&format!(
-                "      \"repaired_after_selection\": {}\n",
-                candidate_resolution.repaired_after_selection
+                match &candidate_resolution.selected_score {
+                    Some(selected_score) => json.push_str(&format!(
+                        "      \"selected_score\": \"{}\",\n",
+                        escape_json(selected_score)
+                    )),
+                    None => json.push_str("      \"selected_score\": null,\n"),
+                }
+                json.push_str(&format!(
+                    "      \"top_score\": \"{}\",\n",
+                    escape_json(&candidate_resolution.top_score)
+                ));
+                json.push_str("      \"top_labels\": [");
+                for (label_index, label) in candidate_resolution.top_labels.iter().enumerate() {
+                    json.push_str(&format!("\"{}\"", escape_json(label)));
+                    if label_index + 1 != candidate_resolution.top_labels.len() {
+                        json.push_str(", ");
+                    }
+                }
+                json.push_str("],\n");
+                json.push_str(&format!(
+                    "      \"repaired_after_selection\": {}\n",
+                    candidate_resolution.repaired_after_selection
             ));
             json.push_str("    }");
             if index + 1 != self.candidate_resolutions.len() {
@@ -712,6 +732,10 @@ impl SimulationEnvelope {
                         "      \"rejected_candidates\": {},\n",
                         candidate_resolution.rejected_candidates
                     ));
+                    json.push_str(&format!(
+                        "      \"skipped_candidates\": {},\n",
+                        candidate_resolution.skipped_candidates
+                    ));
                     match &candidate_resolution.selected_candidate {
                         Some(selected_candidate) => json.push_str(&format!(
                             "      \"selected_candidate\": \"{}\",\n",
@@ -726,6 +750,19 @@ impl SimulationEnvelope {
                         )),
                         None => json.push_str("      \"selected_score\": null,\n"),
                     }
+                    json.push_str(&format!(
+                        "      \"top_score\": \"{}\",\n",
+                        escape_json(&candidate_resolution.top_score)
+                    ));
+                    json.push_str("      \"top_labels\": [");
+                    for (label_index, label) in candidate_resolution.top_labels.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(label)));
+                        if label_index + 1 != candidate_resolution.top_labels.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
                     json.push_str(&format!(
                         "      \"repaired_after_selection\": {}\n",
                         candidate_resolution.repaired_after_selection
@@ -902,7 +939,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
-        candidate_resolutions: candidate_resolutions_from_activities(&world.activity_log),
+        candidate_resolutions: world.candidate_resolutions.clone(),
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -936,9 +973,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
-                    candidate_resolutions: candidate_resolutions_from_activities(
-                        &world.activity_log,
-                    ),
+                    candidate_resolutions: world.candidate_resolutions.clone(),
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -963,7 +998,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
-            candidate_resolutions: candidate_resolutions_from_activities(&world.activity_log),
+            candidate_resolutions: world.candidate_resolutions.clone(),
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1047,9 +1082,10 @@ impl World {
             plane,
             region,
             constraints,
-            constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
-            activity_log: Vec::new(),
-        };
+                constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
+                candidate_resolutions: Vec::new(),
+                activity_log: Vec::new(),
+            };
 
         world.resolve_initial_action_candidates(&program.action_candidates)?;
         world.validated()
@@ -1203,8 +1239,22 @@ impl World {
                     .total_cmp(&left.score)
                     .then_with(|| left.label.cmp(&right.label))
             });
+            let total_candidates = candidates.len();
+            let top_score = candidates
+                .first()
+                .map(|candidate| candidate.score)
+                .unwrap_or(0.0);
+            let top_labels = candidates
+                .iter()
+                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+                .map(|candidate| candidate.label.clone())
+                .collect::<Vec<_>>();
 
             let mut selected = false;
+            let mut rejected_candidates = 0usize;
+            let mut selected_candidate = None;
+            let mut selected_score = None;
+            let mut repaired_after_selection = false;
             for candidate in candidates {
                 let mut probe = self.clone();
                 probe.activity_log.clear();
@@ -1220,11 +1270,18 @@ impl World {
                             candidate.score,
                             "selected",
                         ));
+                        selected_candidate = Some(candidate.label.clone());
+                        selected_score = Some(format!("score={:.3}", candidate.score));
+                        repaired_after_selection = probe
+                            .activity_log
+                            .iter()
+                            .any(|activity| activity.action == "repaired");
                         self.activity_log.extend(probe.activity_log);
                         selected = true;
                         break;
                     }
                     Err(_) => {
+                        rejected_candidates += 1;
                         self.activity_log.push(candidate_activity_entry(
                             self.current_time(),
                             &sphere_name,
@@ -1242,6 +1299,18 @@ impl World {
                     sphere_name
                 )));
             }
+
+            self.candidate_resolutions.push(CandidateResolution {
+                entity: sphere_name,
+                total_candidates,
+                rejected_candidates,
+                skipped_candidates: total_candidates - rejected_candidates - 1,
+                selected_candidate,
+                selected_score,
+                top_score: format!("{top_score:.3}"),
+                top_labels,
+                repaired_after_selection,
+            });
         }
 
         Ok(())
@@ -1780,52 +1849,6 @@ fn candidate_activity_entry(
         policy: format!("score={score:.3}"),
         action: action.to_string(),
     }
-}
-
-fn candidate_resolutions_from_activities(
-    activities: &[ActivityEntry],
-) -> Vec<CandidateResolution> {
-    let mut grouped = BTreeMap::<String, Vec<&ActivityEntry>>::new();
-    for activity in activities
-        .iter()
-        .filter(|activity| activity.kind == "candidate_velocity")
-    {
-        if let Some(entity) = activity.targets.first() {
-            grouped.entry(entity.clone()).or_default().push(activity);
-        }
-    }
-
-    grouped
-        .into_iter()
-        .map(|(entity, candidate_activities)| {
-            let selected = candidate_activities
-                .iter()
-                .copied()
-                .find(|activity| activity.action == "selected");
-
-            CandidateResolution {
-                entity,
-                total_candidates: candidate_activities.len(),
-                rejected_candidates: candidate_activities
-                    .iter()
-                    .filter(|activity| activity.action == "rejected_by_hard_law")
-                    .count(),
-                selected_candidate: selected
-                    .and_then(|activity| activity.targets.get(1))
-                    .cloned(),
-                selected_score: selected.map(|activity| activity.policy.clone()),
-                repaired_after_selection: selected
-                    .map(|selected_activity| {
-                        activities.iter().any(|activity| {
-                            activity.kind != "candidate_velocity"
-                                && activity.time == selected_activity.time
-                                && activity.action == "repaired"
-                        })
-                    })
-                    .unwrap_or(false),
-            }
-        })
-        .collect()
 }
 
 fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
@@ -2370,10 +2393,13 @@ observe:
         assert_eq!(candidate_resolution.entity, "A");
         assert_eq!(candidate_resolution.total_candidates, 2);
         assert_eq!(candidate_resolution.rejected_candidates, 1);
+        assert_eq!(candidate_resolution.skipped_candidates, 0);
         assert_eq!(
             candidate_resolution.selected_candidate.as_deref(),
             Some("safe")
         );
+        assert_eq!(candidate_resolution.top_score, "5.000");
+        assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
     }
 
     #[test]
@@ -2414,6 +2440,9 @@ observe:
             candidate_resolution.selected_candidate.as_deref(),
             Some("fast")
         );
+        assert_eq!(candidate_resolution.skipped_candidates, 1);
+        assert_eq!(candidate_resolution.top_score, "5.000");
+        assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
         assert!(candidate_resolution.repaired_after_selection);
     }
 
@@ -2465,5 +2494,37 @@ observe:
             .candidate_resolutions
             .iter()
             .any(|resolution| resolution.entity == "B"));
+    }
+
+    #[test]
+    fn candidate_velocity_reports_top_score_ties() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert_eq!(candidate_resolution.selected_candidate.as_deref(), Some("alpha"));
+        assert_eq!(candidate_resolution.top_score, "5.000");
+        assert_eq!(
+            candidate_resolution.top_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+        assert_eq!(candidate_resolution.skipped_candidates, 1);
     }
 }

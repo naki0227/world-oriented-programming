@@ -1000,8 +1000,11 @@ function renderCandidateResolution() {
       <h3>${candidateResolution.entity}</h3>
       <p>candidates = ${candidateResolution.total_candidates}</p>
       <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
+      <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
       <p class="muted">selected = ${candidateResolution.selected_candidate || "none"}</p>
       <p class="muted">score = ${candidateResolution.selected_score || "n/a"}</p>
+      <p class="muted">top score = ${candidateResolution.top_score || "n/a"}</p>
+      <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
     `;
     candidateResolutionList.appendChild(card);
@@ -1031,6 +1034,8 @@ function renderCandidateComparison() {
     <h3>Current Pattern</h3>
     <p>selected = ${candidateResolution.selected_candidate || "none"}</p>
     <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
+    <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
+    <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
     <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
   `;
   candidateComparisonList.appendChild(summary);
