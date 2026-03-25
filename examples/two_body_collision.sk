@@ -1,0 +1,19 @@
+sphere A
+sphere B
+plane floor
+
+position(A) = (0, 2, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+
+position(B) = (4, 2, 0)
+velocity(B) = (-1, 0, 0)
+radius(B) = 1
+
+constraint:
+    elastic collision(A, B)
+
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 3

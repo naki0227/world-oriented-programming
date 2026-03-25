@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>sekai viewer</title>
+    <link rel="stylesheet" href="./styles.css?v=2">
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero">
+        <p class="eyebrow">sekai viewer v0.1</p>
+        <h1>Executable Worlds, Scrubbable In Time</h1>
+        <p class="lede">
+          Load a JSON snapshot report from <code>sekai simulate-report</code>, scrub across time,
+          and inspect the current world state without writing a viewer-specific pipeline.
+        </p>
+      </section>
+
+      <section class="panel controls">
+        <div class="control-row">
+          <label class="upload">
+            <span>Load JSON</span>
+            <input id="file-input" type="file" accept=".json,application/json">
+          </label>
+          <button id="play-toggle" type="button">Play</button>
+          <button id="reset-view" type="button">Reset View</button>
+          <button id="edit-toggle" type="button">Edit Draft</button>
+          <button id="run-draft" type="button">Run Draft</button>
+          <label>
+            View
+            <select id="view-mode">
+              <option value="3d">3D</option>
+              <option value="xy">XY</option>
+              <option value="xz">XZ</option>
+            </select>
+          </label>
+          <label>
+            Sample
+            <select id="sample-select">
+              <option value="">Choose sample</option>
+              <option value="./samples/bounce.json">bounce</option>
+              <option value="./samples/two_body_collision.json">two_body_collision</option>
+              <option value="./samples/forbidden_region.json">forbidden_region</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="control-row slider-row">
+          <label for="time-slider">Time</label>
+          <input id="time-slider" type="range" min="0" max="0" value="0" step="1">
+          <span id="time-label">t = 0.000</span>
+        </div>
+
+        <div class="control-row slider-row">
+          <label for="yaw-slider">Yaw</label>
+          <input id="yaw-slider" type="range" min="-180" max="180" value="-35" step="1">
+          <span id="yaw-label">-35°</span>
+          <label for="pitch-slider">Pitch</label>
+          <input id="pitch-slider" type="range" min="-80" max="80" value="22" step="1">
+          <span id="pitch-label">22°</span>
+          <label for="zoom-slider">Zoom</label>
+          <input id="zoom-slider" type="range" min="40" max="220" value="110" step="1">
+          <span id="zoom-label">1.10x</span>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <section class="panel canvas-panel">
+          <canvas id="world-canvas" width="1100" height="680"></canvas>
+        </section>
+
+        <aside class="panel sidebar">
+          <div>
+            <h2>Report</h2>
+            <dl class="meta">
+              <dt>Source</dt>
+              <dd id="source-label">No report loaded</dd>
+              <dt>Snapshots</dt>
+              <dd id="snapshot-count">0</dd>
+              <dt>Projection</dt>
+              <dd id="projection-label">XY</dd>
+            </dl>
+          </div>
+
+          <div>
+            <h2>Current Snapshot</h2>
+            <div id="snapshot-list" class="snapshot-list">
+              <p class="muted">Load a report to inspect world state.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>World Laws</h2>
+            <div id="constraint-list" class="snapshot-list">
+              <p class="muted">Load a report to inspect active constraints.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Diagram Draft</h2>
+            <p id="draft-hint" class="muted">
+              Turn on Edit Draft, switch to XY, then click the canvas to place spheres.
+            </p>
+            <div class="draft-actions">
+              <button id="remove-sphere" type="button">Remove Selected</button>
+              <button id="clear-draft" type="button">Clear Draft</button>
+            </div>
+            <div class="draft-form">
+              <label>
+                Selected
+                <select id="draft-sphere-select"></select>
+              </label>
+              <label>
+                Name
+                <input id="draft-name" type="text" value="">
+              </label>
+              <label>
+                Radius
+                <input id="draft-radius" type="number" value="1" step="0.1">
+              </label>
+              <label>
+                vx
+                <input id="draft-vx" type="number" value="0" step="0.1">
+              </label>
+              <label>
+                vy
+                <input id="draft-vy" type="number" value="0" step="0.1">
+              </label>
+              <label>
+                vz
+                <input id="draft-vz" type="number" value="0" step="0.1">
+              </label>
+              <label class="checkbox-row">
+                <input id="draft-floor-enabled" type="checkbox" checked>
+                <span>Include floor</span>
+              </label>
+              <label>
+                Floor offset
+                <input id="draft-floor-offset" type="number" value="0" step="0.1">
+              </label>
+              <label class="checkbox-row">
+                <input id="draft-region-enabled" type="checkbox">
+                <span>Include forbidden region</span>
+              </label>
+              <label>
+                Region min x
+                <input id="draft-region-min-x" type="number" value="-1" step="0.1">
+              </label>
+              <label>
+                Region min y
+                <input id="draft-region-min-y" type="number" value="1" step="0.1">
+              </label>
+              <label>
+                Region max x
+                <input id="draft-region-max-x" type="number" value="1" step="0.1">
+              </label>
+              <label>
+                Region max y
+                <input id="draft-region-max-y" type="number" value="3" step="0.1">
+              </label>
+            </div>
+            <h3 class="subhead">Constraint Candidates</h3>
+            <div id="constraint-candidates" class="constraint-candidates">
+              <p class="muted">Place objects to generate candidate constraints.</p>
+            </div>
+            <p id="draft-status" class="muted">Run Draft sends the generated scene through the local runtime.</p>
+            <label class="dsl-label" for="draft-output">Generated .sk</label>
+            <textarea id="draft-output" rows="14" readonly></textarea>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js?v=2"></script>
+  </body>
+</html>

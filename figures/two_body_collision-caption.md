@@ -1,0 +1,1 @@
+Figure: Local synchronization in a two-body collision scenario (two_body_collision.sk). Two spheres advance independently until contact, at which point an explicit elastic-collision constraint is applied. The panels at t=0.000, t=1.000, and t=3.000 show that interaction is localized to the collision event, after which the spheres separate with exchanged velocities.

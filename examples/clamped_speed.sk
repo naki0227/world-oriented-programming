@@ -1,0 +1,15 @@
+sphere A
+plane floor
+
+position(A) = (0, 10, 0)
+velocity(A) = (6, 8, 0)
+radius(A) = 1
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+constraint:
+    clamp speed(A) <= 5
+
+observe:
+    snapshot at 0
+    snapshot at 1

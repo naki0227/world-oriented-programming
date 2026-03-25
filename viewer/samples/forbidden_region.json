@@ -1,0 +1,6 @@
+{
+  "source": "examples/forbidden_region.sk",
+  "status": "error",
+  "error": "sphere `A` entered forbidden region `zone` at t=2.000",
+  "snapshots": []
+}

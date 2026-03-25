@@ -1,0 +1,1 @@
+Figure: Declarative bouncing-sphere scenario in `sekai` (bounce.sk). A single sphere evolves without any user-authored update loop. The panels show snapshots at t=0.000, t=1.000, t=3.000, and t=4.000; the downward trajectory is reflected at the floor, after which the vertical velocity reverses while the horizontal component is preserved.

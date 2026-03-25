@@ -1,0 +1,69 @@
+# Paper Assets v0.1
+
+## Purpose
+
+This document lists the current executable assets that can already be cited in a paper draft.
+
+## Figures
+
+### Figure 1
+
+- image: `figures/bounce-xy.png`
+- caption source: `figures/bounce-caption.md`
+- role: minimal proof that a world can evolve without a user-authored update loop
+
+### Figure 2
+
+- image: `figures/two_body_collision-xy.png`
+- caption source: `figures/two_body_collision-caption.md`
+- role: demonstration of local synchronization through explicit sphere-sphere interaction
+
+### Figure 3
+
+- image: `figures/viewer-01-3d-two-body-paper.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: viewer overview for executable world inspection
+
+### Figure 4
+
+- image: `figures/viewer-02-draft-candidates-paper.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: diagram-to-logic candidate generation
+
+### Figure 5
+
+- image: `figures/viewer-03-roundtrip-result-paper.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: round-trip from diagram editing to runtime execution
+
+### Figure 6
+
+- image: `figures/viewer-04-contradiction-report-paper.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: contradiction reporting as a world-law violation inside the viewer
+
+## Executable Examples
+
+- `examples/bounce.sk`
+- `examples/forbidden_region.sk`
+- `examples/two_body_collision.sk`
+
+## Validation Commands
+
+```text
+cargo test
+cargo run -p sekai-cli -- simulate examples/bounce.sk
+cargo run -p sekai-cli -- simulate examples/forbidden_region.sk
+cargo run -p sekai-cli -- simulate examples/two_body_collision.sk
+python3 scripts/render_figure.py examples/bounce.sk
+python3 scripts/render_figure.py examples/two_body_collision.sk
+```
+
+## Recommended Use In A Draft
+
+- use Figure 1 in the prototype overview or minimal validation section
+- use Figure 2 in the synchronization or interaction section
+- use Figure 3 near the prototype interface overview
+- use Figure 4 in the visual-logical interface discussion
+- use Figure 5 in the round-trip execution discussion
+- use Figure 6 in the constraint-validation discussion

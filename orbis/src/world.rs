@@ -1,0 +1,1247 @@
+use std::fmt;
+
+use crate::parser::Program;
+
+const EPSILON: f64 = 1e-9;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Vec3 {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
+impl Vec3 {
+    pub const fn new(x: f64, y: f64, z: f64) -> Self {
+        Self { x, y, z }
+    }
+
+    pub fn dot(self, other: Self) -> f64 {
+        self.x * other.x + self.y * other.y + self.z * other.z
+    }
+
+    pub fn magnitude(self) -> f64 {
+        self.dot(self).sqrt()
+    }
+
+    pub fn normalized(self) -> Result<Self, SimulationError> {
+        let length = self.magnitude();
+        if length <= EPSILON {
+            return Err(SimulationError::InvalidPlaneNormal);
+        }
+        Ok(Self::new(self.x / length, self.y / length, self.z / length))
+    }
+}
+
+impl std::ops::Add for Vec3 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+    }
+}
+
+impl std::ops::Sub for Vec3 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
+    }
+}
+
+impl std::ops::Mul<f64> for Vec3 {
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self::new(self.x * rhs, self.y * rhs, self.z * rhs)
+    }
+}
+
+impl fmt::Display for Vec3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({:.3}, {:.3}, {:.3})", self.x, self.y, self.z)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Sphere {
+    pub name: String,
+    pub position: Vec3,
+    pub velocity: Vec3,
+    pub radius: f64,
+    pub last_update_time: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Plane {
+    pub name: String,
+    pub normal: Vec3,
+    pub offset: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Region {
+    pub name: String,
+    pub min: Vec3,
+    pub max: Vec3,
+}
+
+#[derive(Clone, Debug)]
+pub enum Constraint {
+    ReflectOnCollision { sphere_index: usize },
+    VelocityLimit {
+        sphere_index: usize,
+        max_speed: f64,
+        policy: RepairPolicy,
+    },
+    NotInside {
+        sphere_index: usize,
+        policy: RepairPolicy,
+    },
+    ElasticCollision { left_index: usize, right_index: usize },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RepairPolicy {
+    Reject,
+    Clamp,
+}
+
+#[derive(Clone, Debug)]
+pub struct World {
+    pub spheres: Vec<Sphere>,
+    pub plane: Plane,
+    pub region: Option<Region>,
+    pub constraints: Vec<Constraint>,
+    pub constraint_traces: Vec<ConstraintTrace>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SphereSnapshot {
+    pub name: String,
+    pub position: Vec3,
+    pub velocity: Vec3,
+}
+
+#[derive(Clone, Debug)]
+pub struct Snapshot {
+    pub time: f64,
+    pub spheres: Vec<SphereSnapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SimulationReport {
+    pub constraints: Vec<ConstraintSummary>,
+    pub snapshots: Vec<Snapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConstraintSummary {
+    pub kind: String,
+    pub targets: Vec<String>,
+    pub policy: String,
+    pub fired_count: usize,
+    pub repaired_count: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ConstraintTrace {
+    pub fired_count: usize,
+    pub repaired_count: usize,
+}
+
+impl SimulationReport {
+    pub fn to_json(&self, source: &str) -> String {
+        let mut json = String::new();
+        json.push_str("{\n");
+        json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(source)));
+        json.push_str("  \"constraints\": [\n");
+        for (index, constraint) in self.constraints.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"kind\": \"{}\",\n",
+                escape_json(&constraint.kind)
+            ));
+            json.push_str("      \"targets\": [");
+            for (target_index, target) in constraint.targets.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(target)));
+                if target_index + 1 != constraint.targets.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"policy\": \"{}\",\n",
+                escape_json(&constraint.policy)
+            ));
+            json.push_str(&format!(
+                "      \"fired_count\": {},\n",
+                constraint.fired_count
+            ));
+            json.push_str(&format!(
+                "      \"repaired_count\": {}\n",
+                constraint.repaired_count
+            ));
+            json.push_str("    }");
+            if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"snapshots\": [\n");
+
+        for (snapshot_index, snapshot) in self.snapshots.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"time\": {:.6},\n", snapshot.time));
+            json.push_str("      \"spheres\": [\n");
+
+            for (sphere_index, sphere) in snapshot.spheres.iter().enumerate() {
+                json.push_str("        {\n");
+                json.push_str(&format!(
+                    "          \"name\": \"{}\",\n",
+                    escape_json(&sphere.name)
+                ));
+                json.push_str(&format!(
+                    "          \"position\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                    sphere.position.x, sphere.position.y, sphere.position.z
+                ));
+                json.push_str(&format!(
+                    "          \"velocity\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }}\n",
+                    sphere.velocity.x, sphere.velocity.y, sphere.velocity.z
+                ));
+                json.push_str("        }");
+                if sphere_index + 1 != snapshot.spheres.len() {
+                    json.push(',');
+                }
+                json.push('\n');
+            }
+
+            json.push_str("      ]\n");
+            json.push_str("    }");
+            if snapshot_index + 1 != self.snapshots.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+
+        json.push_str("  ]\n");
+        json.push('}');
+        json
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SimulationEnvelope {
+    pub source: String,
+    pub status: String,
+    pub report: Option<SimulationReport>,
+    pub error: Option<String>,
+}
+
+impl SimulationEnvelope {
+    pub fn success(source: &str, report: SimulationReport) -> Self {
+        Self {
+            source: source.to_string(),
+            status: "ok".to_string(),
+            report: Some(report),
+            error: None,
+        }
+    }
+
+    pub fn failure(source: &str, error: impl Into<String>) -> Self {
+        Self {
+            source: source.to_string(),
+            status: "error".to_string(),
+            report: None,
+            error: Some(error.into()),
+        }
+    }
+
+    pub fn to_json(&self) -> String {
+        let mut json = String::new();
+        json.push_str("{\n");
+        json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(&self.source)));
+        json.push_str(&format!("  \"status\": \"{}\",\n", escape_json(&self.status)));
+        match &self.report {
+            Some(report) => {
+                json.push_str("  \"error\": null,\n");
+                json.push_str("  \"constraints\": [\n");
+                for (index, constraint) in report.constraints.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!(
+                        "      \"kind\": \"{}\",\n",
+                        escape_json(&constraint.kind)
+                    ));
+                    json.push_str("      \"targets\": [");
+                    for (target_index, target) in constraint.targets.iter().enumerate() {
+                        json.push_str(&format!("\"{}\"", escape_json(target)));
+                        if target_index + 1 != constraint.targets.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"policy\": \"{}\",\n",
+                        escape_json(&constraint.policy)
+                    ));
+                    json.push_str(&format!(
+                        "      \"fired_count\": {},\n",
+                        constraint.fired_count
+                    ));
+                    json.push_str(&format!(
+                        "      \"repaired_count\": {}\n",
+                        constraint.repaired_count
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.constraints.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
+                json.push_str("  \"snapshots\": [\n");
+                for (snapshot_index, snapshot) in report.snapshots.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!("      \"time\": {:.6},\n", snapshot.time));
+                    json.push_str("      \"spheres\": [\n");
+                    for (sphere_index, sphere) in snapshot.spheres.iter().enumerate() {
+                        json.push_str("        {\n");
+                        json.push_str(&format!(
+                            "          \"name\": \"{}\",\n",
+                            escape_json(&sphere.name)
+                        ));
+                        json.push_str(&format!(
+                            "          \"position\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                            sphere.position.x, sphere.position.y, sphere.position.z
+                        ));
+                        json.push_str(&format!(
+                            "          \"velocity\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }}\n",
+                            sphere.velocity.x, sphere.velocity.y, sphere.velocity.z
+                        ));
+                        json.push_str("        }");
+                        if sphere_index + 1 != snapshot.spheres.len() {
+                            json.push(',');
+                        }
+                        json.push('\n');
+                    }
+                    json.push_str("      ]\n");
+                    json.push_str("    }");
+                    if snapshot_index + 1 != report.snapshots.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ]\n");
+            }
+            None => {
+                json.push_str(&format!(
+                    "  \"error\": \"{}\",\n",
+                    escape_json(self.error.as_deref().unwrap_or("unknown error"))
+                ));
+                json.push_str("  \"constraints\": [],\n");
+                json.push_str("  \"snapshots\": []\n");
+            }
+        }
+        json.push('}');
+        json
+    }
+}
+
+#[derive(Debug)]
+pub enum SimulationError {
+    MissingSphere,
+    MissingPlane,
+    MissingPosition(String),
+    MissingVelocity(String),
+    InvalidRadius(String),
+    InvalidPlaneNormal,
+    InvalidConstraint(String),
+    MissingRegionBounds(String),
+    VelocityLimitExceeded { sphere: String, speed: f64, limit: f64 },
+    EnteredForbiddenRegion { sphere: String, region: String, time: f64 },
+    SphereNotFound(String),
+}
+
+impl fmt::Display for SimulationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingSphere => write!(f, "program requires at least one sphere"),
+            Self::MissingPlane => write!(f, "program requires exactly one plane"),
+            Self::MissingPosition(name) => write!(f, "missing position for entity `{name}`"),
+            Self::MissingVelocity(name) => write!(f, "missing velocity for entity `{name}`"),
+            Self::InvalidRadius(name) => write!(f, "missing or invalid radius for sphere `{name}`"),
+            Self::InvalidPlaneNormal => write!(f, "plane normal must be non-zero"),
+            Self::InvalidConstraint(message) => write!(f, "{message}"),
+            Self::MissingRegionBounds(name) => {
+                write!(f, "region `{name}` requires both min and max vectors")
+            }
+            Self::VelocityLimitExceeded {
+                sphere,
+                speed,
+                limit,
+            } => write!(
+                f,
+                "sphere `{sphere}` exceeded velocity limit: speed {speed:.3} > limit {limit:.3}"
+            ),
+            Self::EnteredForbiddenRegion { sphere, region, time } => write!(
+                f,
+                "sphere `{sphere}` entered forbidden region `{region}` at t={time:.3}"
+            ),
+            Self::SphereNotFound(name) => write!(f, "unknown sphere `{name}`"),
+        }
+    }
+}
+
+impl std::error::Error for SimulationError {}
+
+pub fn simulate_program(program: &Program) -> Result<SimulationReport, SimulationError> {
+    let mut world = World::from_program(program)?;
+    let mut snapshots = Vec::new();
+    let mut observation_times = program.observe_times.clone();
+    observation_times.sort_by(|a, b| a.total_cmp(b));
+
+    for time in observation_times {
+        world.advance_to(time)?;
+        let mut spheres = world
+            .spheres
+            .iter()
+            .map(|sphere| SphereSnapshot {
+                name: sphere.name.clone(),
+                position: sphere.position,
+                velocity: sphere.velocity,
+            })
+            .collect::<Vec<_>>();
+        spheres.sort_by(|a, b| a.name.cmp(&b.name));
+        snapshots.push(Snapshot { time, spheres });
+    }
+
+    Ok(SimulationReport {
+        constraints: world.constraint_summaries(),
+        snapshots,
+    })
+}
+
+impl World {
+    pub fn from_program(program: &Program) -> Result<Self, SimulationError> {
+        let sphere_decls = program
+            .entities
+            .iter()
+            .filter(|entity| entity.kind == "sphere")
+            .collect::<Vec<_>>();
+        if sphere_decls.is_empty() {
+            return Err(SimulationError::MissingSphere);
+        }
+
+        let plane_decl = program
+            .entities
+            .iter()
+            .find(|entity| entity.kind == "plane")
+            .ok_or(SimulationError::MissingPlane)?;
+        let region_decl = program.entities.iter().find(|entity| entity.kind == "region");
+
+        let mut spheres = Vec::new();
+        for sphere_decl in sphere_decls {
+            let sphere_name = sphere_decl.name.clone();
+            spheres.push(Sphere {
+                name: sphere_name.clone(),
+                position: program
+                    .vec3_property("position", &sphere_name)
+                    .ok_or_else(|| SimulationError::MissingPosition(sphere_name.clone()))?,
+                velocity: program
+                    .vec3_property("velocity", &sphere_name)
+                    .ok_or_else(|| SimulationError::MissingVelocity(sphere_name.clone()))?,
+                radius: program
+                    .number_property("radius", &sphere_name)
+                    .ok_or_else(|| SimulationError::InvalidRadius(sphere_name.clone()))?,
+                last_update_time: 0.0,
+            });
+        }
+
+        let plane_name = plane_decl.name.clone();
+        let plane = Plane {
+            name: plane_name.clone(),
+            normal: program
+                .vec3_property("normal", &plane_name)
+                .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
+                .normalized()?,
+            offset: program.number_property("offset", &plane_name).unwrap_or(0.0),
+        };
+
+        let region = match region_decl {
+            Some(region_decl) => {
+                let region_name = region_decl.name.clone();
+                Some(Region {
+                    name: region_name.clone(),
+                    min: program
+                        .vec3_property("min", &region_name)
+                        .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
+                    max: program
+                        .vec3_property("max", &region_name)
+                        .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
+                })
+            }
+            None => None,
+        };
+
+        let build_context = ConstraintBuildContext {
+            spheres: &spheres,
+            plane_name: &plane.name,
+            region_name: region.as_ref().map(|decl| decl.name.as_str()),
+        };
+        let mut constraints = Vec::new();
+        for constraint in &program.constraints {
+            constraints.push(Constraint::from_parts(constraint, &build_context)?);
+        }
+
+        Self {
+            spheres,
+            plane,
+            region,
+            constraints,
+            constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
+        }
+        .validated()
+    }
+
+    pub fn advance_to(&mut self, target_time: f64) -> Result<(), SimulationError> {
+        loop {
+            let current_time = self
+                .spheres
+                .iter()
+                .map(|sphere| sphere.last_update_time)
+                .fold(0.0, f64::max);
+            if target_time <= current_time + EPSILON {
+                break;
+            }
+
+            let max_dt = target_time - current_time;
+            let next_event = self.next_event(max_dt);
+            match next_event {
+                Some(event) => {
+                    self.advance_all_by(event.dt);
+                    self.handle_event(event)?;
+                }
+                None => {
+                    self.advance_all_by(max_dt);
+                    self.enforce_all_constraints()?;
+                    break;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validated(mut self) -> Result<Self, SimulationError> {
+        self.enforce_all_constraints()?;
+        Ok(self)
+    }
+
+    fn enforce_all_constraints(&mut self) -> Result<(), SimulationError> {
+        let constraints = self.constraints.clone();
+        for (index, constraint) in constraints.iter().enumerate() {
+            let repaired = constraint.enforce(self)?;
+            if repaired {
+                self.constraint_traces[index].repaired_count += 1;
+            }
+        }
+        Ok(())
+    }
+
+    fn next_event(&self, max_dt: f64) -> Option<Event> {
+        let mut best: Option<Event> = None;
+        for (constraint_index, constraint) in self.constraints.iter().enumerate() {
+            if let Some(candidate) = constraint.candidate_event(self, constraint_index) {
+                best = choose_earlier(best, candidate);
+            }
+        }
+
+        match best {
+            Some(event) if event.dt <= max_dt + EPSILON => Some(event),
+            _ => None,
+        }
+    }
+
+    fn advance_all_by(&mut self, dt: f64) {
+        if dt <= EPSILON {
+            return;
+        }
+
+        for sphere in &mut self.spheres {
+            sphere.position = sphere.position + sphere.velocity * dt;
+            sphere.last_update_time += dt;
+        }
+    }
+
+    fn handle_event(&mut self, event: Event) -> Result<(), SimulationError> {
+        self.constraint_traces[event.constraint_index].fired_count += 1;
+        event.kind.apply(self)?;
+        self.enforce_all_constraints()?;
+        Ok(())
+    }
+
+    fn apply_elastic_sphere_collision(
+        &mut self,
+        left_index: usize,
+        right_index: usize,
+    ) -> Result<(), SimulationError> {
+        let left = self.spheres[left_index].clone();
+        let right = self.spheres[right_index].clone();
+        let collision_normal = (left.position - right.position).normalized()?;
+        let relative = left.velocity - right.velocity;
+        let impulse = relative.dot(collision_normal);
+        if impulse >= 0.0 {
+            return Ok(());
+        }
+
+        self.spheres[left_index].velocity = left.velocity - collision_normal * impulse;
+        self.spheres[right_index].velocity = right.velocity + collision_normal * impulse;
+        Ok(())
+    }
+
+    fn constraint_summaries(&self) -> Vec<ConstraintSummary> {
+        self.constraints
+            .iter()
+            .enumerate()
+            .map(|(index, constraint)| constraint.summary(self, &self.constraint_traces[index]))
+            .collect()
+    }
+
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Event {
+    constraint_index: usize,
+    dt: f64,
+    kind: EventKind,
+}
+
+impl Event {
+    fn plane(constraint_index: usize, sphere_index: usize, dt: f64) -> Self {
+        Self {
+            constraint_index,
+            dt,
+            kind: EventKind::PlaneCollision { sphere_index },
+        }
+    }
+
+    fn region(constraint_index: usize, sphere_index: usize, dt: f64) -> Self {
+        Self {
+            constraint_index,
+            dt,
+            kind: EventKind::ForbiddenRegionEntry { sphere_index },
+        }
+    }
+
+    fn sphere_pair(
+        constraint_index: usize,
+        left_index: usize,
+        right_index: usize,
+        dt: f64,
+    ) -> Self {
+        Self {
+            constraint_index,
+            dt,
+            kind: EventKind::SphereCollision {
+                left_index,
+                right_index,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum EventKind {
+    PlaneCollision { sphere_index: usize },
+    ForbiddenRegionEntry { sphere_index: usize },
+    SphereCollision { left_index: usize, right_index: usize },
+}
+
+impl EventKind {
+    fn apply(self, world: &mut World) -> Result<(), SimulationError> {
+        match self {
+            Self::PlaneCollision { sphere_index } => {
+                let normal = world.plane.normal;
+                let sphere = &mut world.spheres[sphere_index];
+                let reflected = sphere.velocity - normal * (2.0 * sphere.velocity.dot(normal));
+                sphere.velocity = reflected;
+                Ok(())
+            }
+            Self::ForbiddenRegionEntry { sphere_index } => {
+                let _ = sphere_index;
+                Ok(())
+            }
+            Self::SphereCollision {
+                left_index,
+                right_index,
+            } => world.apply_elastic_sphere_collision(left_index, right_index),
+        }
+    }
+}
+
+struct ConstraintBuildContext<'a> {
+    spheres: &'a [Sphere],
+    plane_name: &'a str,
+    region_name: Option<&'a str>,
+}
+
+impl Constraint {
+    fn summary(&self, world: &World, trace: &ConstraintTrace) -> ConstraintSummary {
+        match self {
+            Self::ReflectOnCollision { sphere_index } => ConstraintSummary {
+                kind: "reflect_on_collision".to_string(),
+                targets: vec![
+                    world.spheres[*sphere_index].name.clone(),
+                    world.plane.name.clone(),
+                ],
+                policy: "implicit".to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+            },
+            Self::VelocityLimit {
+                sphere_index,
+                policy,
+                ..
+            } => ConstraintSummary {
+                kind: "velocity_limit".to_string(),
+                targets: vec![world.spheres[*sphere_index].name.clone()],
+                policy: policy.as_str().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+            },
+            Self::NotInside {
+                sphere_index,
+                policy,
+            } => ConstraintSummary {
+                kind: "not_inside".to_string(),
+                targets: vec![
+                    world.spheres[*sphere_index].name.clone(),
+                    world
+                        .region
+                        .as_ref()
+                        .map(|region| region.name.clone())
+                        .unwrap_or_else(|| "region".to_string()),
+                ],
+                policy: policy.as_str().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+            },
+            Self::ElasticCollision {
+                left_index,
+                right_index,
+            } => ConstraintSummary {
+                kind: "elastic_collision".to_string(),
+                targets: vec![
+                    world.spheres[*left_index].name.clone(),
+                    world.spheres[*right_index].name.clone(),
+                ],
+                policy: "implicit".to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+            },
+        }
+    }
+
+    fn from_parts(
+        parts: &[String],
+        context: &ConstraintBuildContext<'_>,
+    ) -> Result<Self, SimulationError> {
+        match parts {
+            [name, sphere_ref, plane_ref] if name == "reflect_on_collision" => {
+                if plane_ref != context.plane_name {
+                    return Err(SimulationError::InvalidConstraint(format!(
+                        "unknown plane in reflect_on_collision: {plane_ref}"
+                    )));
+                }
+                Ok(Self::ReflectOnCollision {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                })
+            }
+            [name, sphere_ref, limit] if name == "velocity_limit" => {
+                let max_speed = limit.parse::<f64>().map_err(|_| {
+                    SimulationError::InvalidConstraint(format!(
+                        "invalid velocity limit value: {limit}"
+                    ))
+                })?;
+                Ok(Self::VelocityLimit {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    max_speed,
+                    policy: RepairPolicy::Reject,
+                })
+            }
+            [name, sphere_ref, limit, policy] if name == "velocity_limit" => {
+                let max_speed = limit.parse::<f64>().map_err(|_| {
+                    SimulationError::InvalidConstraint(format!(
+                        "invalid velocity limit value: {limit}"
+                    ))
+                })?;
+                Ok(Self::VelocityLimit {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    max_speed,
+                    policy: parse_repair_policy(policy)?,
+                })
+            }
+            [name, sphere_ref, region_ref] if name == "not_inside" => {
+                let Some(region_name) = context.region_name else {
+                    return Err(SimulationError::InvalidConstraint(
+                        "not_inside requires a declared region".to_string(),
+                    ));
+                };
+                if region_ref != region_name {
+                    return Err(SimulationError::InvalidConstraint(format!(
+                        "unknown region in not_inside: {region_ref}"
+                    )));
+                }
+                Ok(Self::NotInside {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    policy: RepairPolicy::Reject,
+                })
+            }
+            [name, sphere_ref, region_ref, policy] if name == "not_inside" => {
+                let Some(region_name) = context.region_name else {
+                    return Err(SimulationError::InvalidConstraint(
+                        "not_inside requires a declared region".to_string(),
+                    ));
+                };
+                if region_ref != region_name {
+                    return Err(SimulationError::InvalidConstraint(format!(
+                        "unknown region in not_inside: {region_ref}"
+                    )));
+                }
+                Ok(Self::NotInside {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    policy: parse_repair_policy(policy)?,
+                })
+            }
+            [name, left, right] if name == "elastic_collision" => Ok(Self::ElasticCollision {
+                left_index: ensure_sphere_exists(context.spheres, left)?,
+                right_index: ensure_sphere_exists(context.spheres, right)?,
+            }),
+            _ => Err(SimulationError::InvalidConstraint(format!(
+                "unsupported constraint: {:?}",
+                parts
+            ))),
+        }
+    }
+
+    fn enforce(&self, world: &mut World) -> Result<bool, SimulationError> {
+        match self {
+            Self::ReflectOnCollision { .. } | Self::ElasticCollision { .. } => Ok(false),
+            Self::VelocityLimit {
+                sphere_index,
+                max_speed,
+                policy,
+            } => {
+                let sphere = &mut world.spheres[*sphere_index];
+                let speed = sphere.velocity.magnitude();
+                if speed > *max_speed + EPSILON {
+                    match policy {
+                        RepairPolicy::Reject => {
+                            return Err(SimulationError::VelocityLimitExceeded {
+                                sphere: sphere.name.clone(),
+                                speed,
+                                limit: *max_speed,
+                            });
+                        }
+                        RepairPolicy::Clamp => {
+                            let direction = sphere.velocity * (1.0 / speed);
+                            sphere.velocity = direction * *max_speed;
+                            return Ok(true);
+                        }
+                    }
+                }
+                Ok(false)
+            }
+            Self::NotInside {
+                sphere_index,
+                policy,
+            } => {
+                let Some(region) = world.region.as_ref() else {
+                    return Ok(false);
+                };
+                let region_min = region.min;
+                let region_max = region.max;
+                let region_name = region.name.clone();
+                let sphere = &mut world.spheres[*sphere_index];
+                if point_inside_box(sphere.position, region_min, region_max) {
+                    match policy {
+                        RepairPolicy::Reject => {
+                            return Err(SimulationError::EnteredForbiddenRegion {
+                                sphere: sphere.name.clone(),
+                                region: region_name,
+                                time: sphere.last_update_time,
+                            });
+                        }
+                        RepairPolicy::Clamp => {
+                            clamp_sphere_outside_box(sphere, region_min, region_max);
+                            return Ok(true);
+                        }
+                    }
+                }
+                Ok(false)
+            }
+        }
+    }
+
+    fn candidate_event(&self, world: &World, constraint_index: usize) -> Option<Event> {
+        match self {
+            Self::ReflectOnCollision { sphere_index } => {
+                let sphere = &world.spheres[*sphere_index];
+                time_to_plane_collision(sphere, &world.plane)
+                    .map(|dt| Event::plane(constraint_index, *sphere_index, dt))
+            }
+            Self::VelocityLimit { .. } => None,
+            Self::NotInside { sphere_index, .. } => {
+                let region = world.region.as_ref()?;
+                let sphere = &world.spheres[*sphere_index];
+                time_to_box_entry(sphere.position, sphere.velocity, region.min, region.max)
+                    .map(|dt| Event::region(constraint_index, *sphere_index, dt))
+            }
+            Self::ElasticCollision {
+                left_index,
+                right_index,
+            } => time_to_sphere_collision(&world.spheres[*left_index], &world.spheres[*right_index])
+                .map(|dt| Event::sphere_pair(constraint_index, *left_index, *right_index, dt)),
+        }
+    }
+}
+
+impl RepairPolicy {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Reject => "reject",
+            Self::Clamp => "clamp",
+        }
+    }
+}
+
+fn ensure_sphere_exists(spheres: &[Sphere], sphere_name: &str) -> Result<usize, SimulationError> {
+    spheres
+        .iter()
+        .position(|sphere| sphere.name == sphere_name)
+        .ok_or_else(|| SimulationError::SphereNotFound(sphere_name.to_string()))
+}
+
+fn parse_repair_policy(policy: &str) -> Result<RepairPolicy, SimulationError> {
+    match policy {
+        "reject" => Ok(RepairPolicy::Reject),
+        "clamp" => Ok(RepairPolicy::Clamp),
+        _ => Err(SimulationError::InvalidConstraint(format!(
+            "unknown repair policy: {policy}"
+        ))),
+    }
+}
+
+fn escape_json(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+}
+
+fn choose_earlier(current: Option<Event>, candidate: Event) -> Option<Event> {
+    if candidate.dt < 0.0 {
+        return current;
+    }
+
+    match current {
+        Some(existing) if existing.dt <= candidate.dt => Some(existing),
+        _ => Some(candidate),
+    }
+}
+
+fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
+    let signed_distance = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
+    let approach_speed = plane.normal.dot(sphere.velocity);
+
+    if signed_distance <= EPSILON || approach_speed >= -EPSILON {
+        return None;
+    }
+
+    let hit_dt = -signed_distance / approach_speed;
+    if hit_dt >= 0.0 { Some(hit_dt) } else { None }
+}
+
+fn time_to_sphere_collision(left: &Sphere, right: &Sphere) -> Option<f64> {
+    let delta_position = left.position - right.position;
+    let delta_velocity = left.velocity - right.velocity;
+    let combined_radius = left.radius + right.radius;
+
+    let a = delta_velocity.dot(delta_velocity);
+    if a <= EPSILON {
+        return None;
+    }
+
+    let b = 2.0 * delta_position.dot(delta_velocity);
+    let c = delta_position.dot(delta_position) - combined_radius * combined_radius;
+
+    if c <= EPSILON {
+        return None;
+    }
+
+    let discriminant = b * b - 4.0 * a * c;
+    if discriminant < 0.0 {
+        return None;
+    }
+
+    let sqrt_disc = discriminant.sqrt();
+    let t1 = (-b - sqrt_disc) / (2.0 * a);
+    let t2 = (-b + sqrt_disc) / (2.0 * a);
+    [t1, t2]
+        .into_iter()
+        .filter(|dt| *dt >= 0.0)
+        .min_by(|a, b| a.total_cmp(b))
+}
+
+fn point_inside_box(point: Vec3, min: Vec3, max: Vec3) -> bool {
+    point.x >= min.x
+        && point.x <= max.x
+        && point.y >= min.y
+        && point.y <= max.y
+        && point.z >= min.z
+        && point.z <= max.z
+}
+
+fn time_to_box_entry(position: Vec3, velocity: Vec3, min: Vec3, max: Vec3) -> Option<f64> {
+    if point_inside_box(position, min, max) {
+        return Some(0.0);
+    }
+
+    let mut t_min: f64 = 0.0;
+    let mut t_max = f64::INFINITY;
+
+    for (pos, vel, axis_min, axis_max) in [
+        (position.x, velocity.x, min.x, max.x),
+        (position.y, velocity.y, min.y, max.y),
+        (position.z, velocity.z, min.z, max.z),
+    ] {
+        if vel.abs() <= EPSILON {
+            if pos < axis_min || pos > axis_max {
+                return None;
+            }
+            continue;
+        }
+
+        let t1 = (axis_min - pos) / vel;
+        let t2 = (axis_max - pos) / vel;
+        let axis_entry = t1.min(t2);
+        let axis_exit = t1.max(t2);
+        t_min = t_min.max(axis_entry);
+        t_max = t_max.min(axis_exit);
+        if t_min > t_max {
+            return None;
+        }
+    }
+
+    if t_max < 0.0 {
+        None
+    } else if t_min <= 0.0 {
+        Some(0.0)
+    } else {
+        Some(t_min)
+    }
+}
+
+fn clamp_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
+    let distances = [
+        (sphere.position.x - min.x, 0usize, min.x - EPSILON),
+        (max.x - sphere.position.x, 0usize, max.x + EPSILON),
+        (sphere.position.y - min.y, 1usize, min.y - EPSILON),
+        (max.y - sphere.position.y, 1usize, max.y + EPSILON),
+        (sphere.position.z - min.z, 2usize, min.z - EPSILON),
+        (max.z - sphere.position.z, 2usize, max.z + EPSILON),
+    ];
+
+    let (_, axis, target) = distances
+        .into_iter()
+        .min_by(|left, right| left.0.total_cmp(&right.0))
+        .expect("box face distances are non-empty");
+
+    match axis {
+        0 => {
+            sphere.position.x = target;
+            sphere.velocity.x = 0.0;
+        }
+        1 => {
+            sphere.position.y = target;
+            sphere.velocity.y = 0.0;
+        }
+        2 => {
+            sphere.position.z = target;
+            sphere.velocity.z = 0.0;
+        }
+        _ => unreachable!("axis index is bounded above"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{SimulationEnvelope, parse_program, simulate_program};
+
+    #[test]
+    fn bounce_reflects_on_floor() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 10, 0)
+velocity(A) = (1, -3, 0)
+radius(A) = 1
+constraint:
+    reflect_on_collision(A, floor)
+observe:
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots[0].spheres[0].position.y, 1.0);
+        assert_eq!(report.snapshots[0].spheres[0].velocity.y, 3.0);
+    }
+
+    #[test]
+    fn elastic_collision_swaps_velocities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (-1, 0, 0)
+radius(B) = 1
+constraint:
+    elastic_collision(A, B)
+observe:
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let snapshot = &report.snapshots[0];
+        let a = snapshot
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "A")
+            .expect("sphere A exists");
+        let b = snapshot
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "B")
+            .expect("sphere B exists");
+        assert_eq!(a.velocity.x, -1.0);
+        assert_eq!(b.velocity.x, 1.0);
+    }
+
+    #[test]
+    fn velocity_limit_rejects_fast_sphere() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 10, 0)
+velocity(A) = (3, 4, 0)
+radius(A) = 1
+constraint:
+    velocity_limit(A, 4)
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        assert!(error.to_string().contains("velocity limit"));
+    }
+
+    #[test]
+    fn velocity_limit_can_clamp_speed() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 10, 0)
+velocity(A) = (6, 8, 0)
+radius(A) = 1
+constraint:
+    clamp speed(A) <= 5
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert!((sphere.velocity.magnitude() - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn forbidden_region_stops_world() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    not inside(A, zone)
+observe:
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        assert!(error.to_string().contains("forbidden region"));
+    }
+
+    #[test]
+    fn forbidden_region_can_clamp_to_boundary() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    clamp not inside(A, zone)
+observe:
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert!(sphere.position.x < 2.0 || sphere.position.x > 4.0);
+        assert_eq!(sphere.velocity.x, 0.0);
+    }
+
+    #[test]
+    fn report_serializes_to_json() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 1, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+constraint:
+    speed(A) <= 1
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let json = report.to_json("example.sk");
+        assert!(json.contains("\"source\": \"example.sk\""));
+        assert!(json.contains("\"constraints\""));
+        assert!(json.contains("\"velocity_limit\""));
+        assert!(json.contains("\"fired_count\""));
+        assert!(json.contains("\"repaired_count\""));
+        assert!(json.contains("\"snapshots\""));
+        assert!(json.contains("\"name\": \"A\""));
+    }
+
+    #[test]
+    fn envelope_serializes_error_json() {
+        let envelope = SimulationEnvelope::failure("bad.sk", "world contradiction");
+        let json = envelope.to_json();
+        assert!(json.contains("\"status\": \"error\""));
+        assert!(json.contains("\"error\": \"world contradiction\""));
+        assert!(json.contains("\"snapshots\": []"));
+    }
+}

@@ -1,0 +1,18 @@
+sphere A
+plane floor
+region zone
+
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+normal(floor) = (0, 1, 0)
+offset(floor) = -10
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+
+constraint:
+    clamp not inside(A, zone)
+
+observe:
+    snapshot at 1
+    snapshot at 3
