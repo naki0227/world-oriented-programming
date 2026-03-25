@@ -171,4 +171,18 @@ This format is intentionally small but useful for:
 ## Static Analysis
 
 `sekai analyze` uses the same constraint build path but stops before time evolution.
-It reports the declared law inventory and aggregated law analytics without simulation snapshots.
+It reports the declared law inventory, aggregated law analytics, and any Phase I candidate inventory without simulation snapshots.
+
+For example, a Phase I analyze result may additionally include:
+
+```json
+"candidate_inventory": [
+  {
+    "entity": "A",
+    "total_candidates": 2,
+    "labels": ["fast", "safe"],
+    "top_score": "5.000",
+    "top_labels": ["fast"]
+  }
+]
+```

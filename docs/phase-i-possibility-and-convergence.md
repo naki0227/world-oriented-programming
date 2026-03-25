@@ -194,6 +194,12 @@ constraint:
 
 In that case the runtime may still choose `fast`, provided the hard law layer repairs it into an admissible continuation.
 
+The static analysis path should also expose candidate inventory before simulation, so that underdetermined worlds can be inspected without executing convergence:
+
+- which entities carry candidates
+- how many candidates they declare
+- which labels are tied for the top soft score
+
 ## Definition Of Success
 
 Phase I is successful when:

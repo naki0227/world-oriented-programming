@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
 use crate::parser::{ActionCandidateDecl, Program};
 
@@ -144,6 +144,16 @@ pub struct SimulationReport {
 pub struct LawInventory {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub candidate_inventory: Vec<CandidateInventorySummary>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CandidateInventorySummary {
+    pub entity: String,
+    pub total_candidates: usize,
+    pub labels: Vec<String>,
+    pub top_score: String,
+    pub top_labels: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -491,6 +501,44 @@ impl LawInventory {
             ));
             json.push_str("    }");
             if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"candidate_inventory\": [\n");
+        for (index, candidate_inventory) in self.candidate_inventory.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&candidate_inventory.entity)
+            ));
+            json.push_str(&format!(
+                "      \"total_candidates\": {},\n",
+                candidate_inventory.total_candidates
+            ));
+            json.push_str("      \"labels\": [");
+            for (label_index, label) in candidate_inventory.labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_inventory.labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"top_score\": \"{}\",\n",
+                escape_json(&candidate_inventory.top_score)
+            ));
+            json.push_str("      \"top_labels\": [");
+            for (label_index, label) in candidate_inventory.top_labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_inventory.top_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("]\n");
+            json.push_str("    }");
+            if index + 1 != self.candidate_inventory.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -859,6 +907,7 @@ pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationErro
     Ok(LawInventory {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        candidate_inventory: candidate_inventory_from_program(program),
     })
 }
 
@@ -1764,6 +1813,47 @@ fn candidate_resolution_from_activities(
     })
 }
 
+fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
+    let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
+    for candidate in &program.action_candidates {
+        grouped
+            .entry(candidate.entity.clone())
+            .or_default()
+            .push(candidate.clone());
+    }
+
+    grouped
+        .into_iter()
+        .map(|(entity, mut candidates)| {
+            candidates.sort_by(|left, right| left.label.cmp(&right.label));
+            let top_score = candidates
+                .iter()
+                .map(|candidate| candidate.score)
+                .max_by(|left, right| left.total_cmp(right))
+                .unwrap_or(0.0);
+            let mut labels = candidates
+                .iter()
+                .map(|candidate| candidate.label.clone())
+                .collect::<Vec<_>>();
+            labels.sort();
+            let mut top_labels = candidates
+                .iter()
+                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+                .map(|candidate| candidate.label.clone())
+                .collect::<Vec<_>>();
+            top_labels.sort();
+
+            CandidateInventorySummary {
+                entity,
+                total_candidates: candidates.len(),
+                labels,
+                top_score: format!("{top_score:.3}"),
+                top_labels,
+            }
+        })
+        .collect()
+}
+
 fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
     let signed_distance = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
     let approach_speed = plane.normal.dot(sphere.velocity);
@@ -2154,7 +2244,34 @@ constraint:
         assert!(json.contains("\"total_constraints\": 1"));
         assert!(json.contains("\"policy\": \"reflect\""));
         assert!(json.contains("\"outcome\": \"idle\""));
+        assert!(json.contains("\"candidate_inventory\": ["));
+        assert!(!json.contains("\"entity\":"));
         assert!(!json.contains("\"snapshots\""));
+    }
+
+    #[test]
+    fn analyze_program_reports_candidate_inventory() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let inventory = analyze_program(&program).expect("analysis should succeed");
+        let json = inventory.to_json("candidate.sk");
+        assert!(json.contains("\"candidate_inventory\""));
+        assert!(json.contains("\"entity\": \"A\""));
+        assert!(json.contains("\"total_candidates\": 2"));
+        assert!(json.contains("\"labels\": [\"fast\", \"safe\"]"));
+        assert!(json.contains("\"top_score\": \"5.000\""));
+        assert!(json.contains("\"top_labels\": [\"fast\"]"));
     }
 
     #[test]
