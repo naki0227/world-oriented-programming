@@ -187,10 +187,11 @@ Failure reports may still include:
 Phase I reports may additionally include:
 
 - `convergence_analytics` for run-level totals over candidate-bearing entities
+- `preference_resolved_entities` inside `convergence_analytics` when a later preference trigger resolves a deferred tie
 - `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
 - `observation_timeline` for observation status at each recorded frontier
 - `candidate_resolutions` when initial action candidates were evaluated before observation
-- `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `tie_broken`, or `equivalent_tie`)
+- `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `resolved_after_preference`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)
 - `observation_labels` for the labels that still matter at the observation layer
 - `symbolically_underdetermined` and `observationally_underdetermined` for each candidate-bearing entity
@@ -202,6 +203,7 @@ Phase I reports may additionally include:
 - `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
 - `observed_while_deferred` and `deferred_past_initial_frontier` when a deferred entity remains unresolved across one or more observations
 - `resolved_from_deferred` and `resolved_at_observation_time` when a deferred entity later converges at an explicit frontier
+- `preferred_label` when a later preference trigger actively guided a deferred re-convergence
 
 ## Rationale
 

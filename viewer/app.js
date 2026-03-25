@@ -89,6 +89,7 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
   { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
+  { label: "prefer after defer", path: "./samples/candidate_velocity_preferred_resolve.json" },
   { label: "resolve after defer", path: "./samples/candidate_velocity_deferred_resolve.json" },
   { label: "partial deferred", path: "./samples/candidate_velocity_partial_deferred.json" },
   { label: "persistent deferred", path: "./samples/candidate_velocity_partial_deferred_persistent.json" },
@@ -1125,6 +1126,7 @@ function renderCandidateResolution() {
     <p class="muted">fallback = ${convergenceAnalytics.fallback_entities ?? 0}</p>
     <p class="muted">repaired = ${convergenceAnalytics.repaired_entities ?? 0}</p>
     <p class="muted">tie broken = ${convergenceAnalytics.tie_broken_entities ?? 0}</p>
+    <p class="muted">preference resolved = ${convergenceAnalytics.preference_resolved_entities ?? 0}</p>
     <p class="muted">equivalent tie = ${convergenceAnalytics.equivalent_tie_entities ?? 0}</p>
     <p class="muted">observation determinate = ${convergenceAnalytics.determinate_entities ?? 0}</p>
     <p class="muted">observation representative = ${convergenceAnalytics.representative_entities ?? 0}</p>
@@ -1157,6 +1159,7 @@ function renderCandidateResolution() {
       <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
       <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
       <p class="muted">resolved from deferred = ${candidateResolution.resolved_from_deferred ? "yes" : "no"}</p>
+      <p class="muted">preferred label = ${candidateResolution.preferred_label || "n/a"}</p>
       <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
     `;
     candidateResolutionList.appendChild(card);

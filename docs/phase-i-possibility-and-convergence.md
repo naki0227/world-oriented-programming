@@ -202,7 +202,7 @@ The static analysis path should also expose candidate inventory before simulatio
 - how many candidates they declare
 - which labels are tied for the top soft score
 - which entities explicitly request deferred handling for ambiguous top choices
-- which static resolution hint applies before runtime (`single_top_candidate`, `deterministic_tie_break`, or `deferred_on_ambiguous_top`)
+- which static resolution hint applies before runtime (`single_top_candidate`, `deterministic_tie_break`, `deferred_on_ambiguous_top`, or a deferred preference hint such as `defer_then_prefer_beta_at_1.000`)
 
 The runtime report should also expose a convergence summary after selection, so that underdetermined worlds are not reduced to a single opaque winner:
 
@@ -230,6 +230,9 @@ a deferred entity should be able to remain unresolved across more than one obser
 
 The next step after persistence is controlled re-convergence:
 the world should be able to defer a top-score ambiguity at one frontier and resolve it later when an explicit convergence trigger becomes active.
+
+The current prototype now also includes a small preference-triggered version of that step:
+`prefer_candidate_at(A, beta, 1)` makes a later frontier prefer `beta` among an otherwise tied top-score set, so the world can move from deferred ambiguity to a determinate branch for a semantic reason stronger than alphabetical tie-breaking.
 
 Once controlled re-convergence exists for one entity, the next useful case is staged world-level convergence:
 different entities may resolve at different frontiers, so observation status should be able to move from unresolved to determinate over time.

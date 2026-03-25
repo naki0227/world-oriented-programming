@@ -365,6 +365,7 @@ It can further distinguish ties whose top-scoring continuations are observationa
 The prototype can now also mix these modes within one world, so one entity may remain deferred while another converges after repair in the same run.
 The prototype can also now keep a deferred entity unresolved across more than one observed frontier while other entities continue to evolve.
 It can also resolve such a deferred tie at a later frontier when the scene explicitly requests a later convergence point.
+It can also let a newly active preference guide that later convergence, so a deferred tie may resolve for a semantic reason stronger than the prototype's default lexical tie-break.
 It can now also stagger such re-convergence across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
 The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, deferred, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still unresolved in a small executable stand-in for $Obs? = U$.
 

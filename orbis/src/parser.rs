@@ -26,7 +26,8 @@ pub struct ActionCandidateDecl {
 pub struct ActionDirectiveDecl {
     pub entity: String,
     pub kind: String,
-    pub argument: Option<f64>,
+    pub time_argument: Option<f64>,
+    pub label_argument: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -510,11 +511,47 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: entity.to_string(),
             kind: "defer_on_ambiguous_top".to_string(),
-            argument: None,
+            time_argument: None,
+            label_argument: None,
         });
     }
 
-    let Some(rest) = line.strip_prefix("resolve_deferred_at(") else {
+    if let Some(rest) = line.strip_prefix("resolve_deferred_at(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "resolve_deferred_at is missing `)`"))?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 2 {
+            return Err(ParseError::new(
+                line_no,
+                "resolve_deferred_at requires an entity and a time",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "resolve_deferred_at does not take trailing arguments",
+            ));
+        }
+        let time = args[1].parse::<f64>().map_err(|_| {
+            ParseError::new(
+                line_no,
+                format!("invalid resolve_deferred_at time `{}`", args[1]),
+            )
+        })?;
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "resolve_deferred_at".to_string(),
+            time_argument: Some(time),
+            label_argument: None,
+        });
+    }
+
+    let Some(rest) = line.strip_prefix("prefer_candidate_at(") else {
         return Err(ParseError::new(
             line_no,
             format!("invalid action statement `{line}`"),
@@ -522,33 +559,34 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
     };
     let close = rest
         .find(')')
-        .ok_or_else(|| ParseError::new(line_no, "resolve_deferred_at is missing `)`"))?;
+        .ok_or_else(|| ParseError::new(line_no, "prefer_candidate_at is missing `)`"))?;
     let args = rest[..close]
         .split(',')
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .collect::<Vec<_>>();
-    if args.len() != 2 {
+    if args.len() != 3 {
         return Err(ParseError::new(
             line_no,
-            "resolve_deferred_at requires an entity and a time",
+            "prefer_candidate_at requires an entity, a label, and a time",
         ));
     }
     if !rest[close + 1..].trim().is_empty() {
         return Err(ParseError::new(
             line_no,
-            "resolve_deferred_at does not take trailing arguments",
+            "prefer_candidate_at does not take trailing arguments",
         ));
     }
-    let time = args[1].parse::<f64>().map_err(|_| {
+    let time = args[2].parse::<f64>().map_err(|_| {
         ParseError::new(
             line_no,
-            format!("invalid resolve_deferred_at time `{}`", args[1]),
+            format!("invalid prefer_candidate_at time `{}`", args[2]),
         )
     })?;
     Ok(ActionDirectiveDecl {
         entity: args[0].to_string(),
-        kind: "resolve_deferred_at".to_string(),
-        argument: Some(time),
+        kind: "prefer_candidate_at".to_string(),
+        time_argument: Some(time),
+        label_argument: Some(args[1].to_string()),
     })
 }

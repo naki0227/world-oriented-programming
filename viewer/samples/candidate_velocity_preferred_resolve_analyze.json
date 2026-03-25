@@ -1,0 +1,44 @@
+{
+  "source": "examples/candidate_velocity_preferred_resolve.sk",
+  "analytics": {
+    "total_constraints": 0,
+    "invariant_constraints": 0,
+    "boundary_constraints": 0,
+    "interaction_constraints": 0,
+    "idle_constraints": 0,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+  ],
+  "candidate_inventory": [
+    {
+      "entity": "A",
+      "total_candidates": 2,
+      "labels": ["alpha", "beta"],
+      "top_score": "5.000",
+      "top_labels": ["alpha", "beta"],
+      "top_score_tied": true,
+      "defer_on_ambiguous_top": true,
+      "resolution_hint": "defer_then_prefer_beta_at_1.000"
+    }
+  ],
+  "action_directive_inventory": [
+    {
+      "entity": "A",
+      "kind": "defer_on_ambiguous_top",
+      "argument": null
+    },
+    {
+      "entity": "A",
+      "kind": "prefer_candidate_at",
+      "argument": "beta, 1.000"
+    },
+    {
+      "entity": "A",
+      "kind": "resolve_deferred_at",
+      "argument": "1.000"
+    }
+  ]
+}
