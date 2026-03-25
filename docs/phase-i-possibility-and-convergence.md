@@ -237,6 +237,9 @@ The current prototype now also includes a small preference-triggered version of 
 It now also includes a score-update version:
 `rescore_candidate_at(A, beta, 1, 1)` changes the soft ranking itself at a later frontier, making it possible for re-convergence to follow newly active information rather than only a fixed score table declared at time zero.
 
+It now also includes a law-update version:
+`update_speed_limit_at(A, 1, 6)` changes admissibility itself at a later frontier, so a branch that was previously blocked by a hard law can later become selectable without rewriting the whole scene imperatively.
+
 Once controlled re-convergence exists for one entity, the next useful case is staged world-level convergence:
 different entities may resolve at different frontiers, so observation status should be able to move from unresolved to determinate over time.
 

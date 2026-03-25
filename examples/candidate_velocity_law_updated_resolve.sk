@@ -1,0 +1,19 @@
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+action:
+    candidate_velocity(A, alpha) = (5, 0, 0) score 5
+    candidate_velocity(A, beta) = (3, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    update_speed_limit_at(A, 1, 6)
+
+constraint:
+    speed(A) <= 4
+
+observe:
+    snapshot at 0
+    snapshot at 1

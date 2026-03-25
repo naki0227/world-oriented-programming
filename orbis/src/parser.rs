@@ -29,6 +29,7 @@ pub struct ActionDirectiveDecl {
     pub time_argument: Option<f64>,
     pub label_argument: Option<String>,
     pub score_argument: Option<f64>,
+    pub value_argument: Option<f64>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -515,6 +516,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             time_argument: None,
             label_argument: None,
             score_argument: None,
+            value_argument: None,
         });
     }
 
@@ -551,6 +553,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             time_argument: Some(time),
             label_argument: None,
             score_argument: None,
+            value_argument: None,
         });
     }
 
@@ -587,6 +590,50 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             time_argument: Some(time),
             label_argument: Some(args[1].to_string()),
             score_argument: None,
+            value_argument: None,
+        });
+    }
+
+    if let Some(rest) = line.strip_prefix("update_speed_limit_at(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "update_speed_limit_at is missing `)`"))?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 3 {
+            return Err(ParseError::new(
+                line_no,
+                "update_speed_limit_at requires an entity, a time, and a limit",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "update_speed_limit_at does not take trailing arguments",
+            ));
+        }
+        let time = args[1].parse::<f64>().map_err(|_| {
+            ParseError::new(
+                line_no,
+                format!("invalid update_speed_limit_at time `{}`", args[1]),
+            )
+        })?;
+        let limit = args[2].parse::<f64>().map_err(|_| {
+            ParseError::new(
+                line_no,
+                format!("invalid update_speed_limit_at limit `{}`", args[2]),
+            )
+        })?;
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "update_speed_limit_at".to_string(),
+            time_argument: Some(time),
+            label_argument: None,
+            score_argument: None,
+            value_argument: Some(limit),
         });
     }
 
@@ -634,5 +681,6 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         time_argument: Some(time),
         label_argument: Some(args[1].to_string()),
         score_argument: Some(delta),
+        value_argument: None,
     })
 }

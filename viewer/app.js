@@ -89,6 +89,7 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
   { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
+  { label: "law update after defer", path: "./samples/candidate_velocity_law_updated_resolve.json" },
   { label: "prefer after defer", path: "./samples/candidate_velocity_preferred_resolve.json" },
   { label: "rescore after defer", path: "./samples/candidate_velocity_rescored_resolve.json" },
   { label: "resolve after defer", path: "./samples/candidate_velocity_deferred_resolve.json" },
@@ -1126,6 +1127,7 @@ function renderCandidateResolution() {
     <p class="muted">direct = ${convergenceAnalytics.direct_entities ?? 0}</p>
     <p class="muted">fallback = ${convergenceAnalytics.fallback_entities ?? 0}</p>
     <p class="muted">repaired = ${convergenceAnalytics.repaired_entities ?? 0}</p>
+    <p class="muted">law updated = ${convergenceAnalytics.law_updated_entities ?? 0}</p>
     <p class="muted">rescore resolved = ${convergenceAnalytics.rescore_resolved_entities ?? 0}</p>
     <p class="muted">tie broken = ${convergenceAnalytics.tie_broken_entities ?? 0}</p>
     <p class="muted">preference resolved = ${convergenceAnalytics.preference_resolved_entities ?? 0}</p>
@@ -1163,6 +1165,7 @@ function renderCandidateResolution() {
       <p class="muted">resolved from deferred = ${candidateResolution.resolved_from_deferred ? "yes" : "no"}</p>
       <p class="muted">preferred label = ${candidateResolution.preferred_label || "n/a"}</p>
       <p class="muted">score adjustments = ${(candidateResolution.active_score_adjustments || []).join(", ") || "none"}</p>
+      <p class="muted">law updates = ${(candidateResolution.active_law_updates || []).join(", ") || "none"}</p>
       <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
     `;
     candidateResolutionList.appendChild(card);
