@@ -105,6 +105,7 @@ pub enum Constraint {
 pub enum RepairPolicy {
     Reject,
     Clamp,
+    Reflect,
 }
 
 #[derive(Clone, Debug)]
@@ -1010,6 +1011,11 @@ impl Constraint {
                             sphere.velocity = direction * *max_speed;
                             return Ok(true);
                         }
+                        RepairPolicy::Reflect => {
+                            return Err(SimulationError::InvalidConstraint(
+                                "velocity_limit does not support reflect policy".to_string(),
+                            ));
+                        }
                     }
                 }
                 Ok(false)
@@ -1036,6 +1042,10 @@ impl Constraint {
                         }
                         RepairPolicy::Clamp => {
                             clamp_sphere_outside_box(sphere, region_min, region_max);
+                            return Ok(true);
+                        }
+                        RepairPolicy::Reflect => {
+                            reflect_sphere_outside_box(sphere, region_min, region_max);
                             return Ok(true);
                         }
                     }
@@ -1073,6 +1083,7 @@ impl RepairPolicy {
         match self {
             Self::Reject => "reject",
             Self::Clamp => "clamp",
+            Self::Reflect => "reflect",
         }
     }
 }
@@ -1088,6 +1099,7 @@ fn parse_repair_policy(policy: &str) -> Result<RepairPolicy, SimulationError> {
     match policy {
         "reject" => Ok(RepairPolicy::Reject),
         "clamp" => Ok(RepairPolicy::Clamp),
+        "reflect" => Ok(RepairPolicy::Reflect),
         _ => Err(SimulationError::InvalidConstraint(format!(
             "unknown repair policy: {policy}"
         ))),
@@ -1236,6 +1248,38 @@ fn clamp_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
     }
 }
 
+fn reflect_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
+    let distances = [
+        (sphere.position.x - min.x, 0usize, min.x - EPSILON, -1.0),
+        (max.x - sphere.position.x, 0usize, max.x + EPSILON, 1.0),
+        (sphere.position.y - min.y, 1usize, min.y - EPSILON, -1.0),
+        (max.y - sphere.position.y, 1usize, max.y + EPSILON, 1.0),
+        (sphere.position.z - min.z, 2usize, min.z - EPSILON, -1.0),
+        (max.z - sphere.position.z, 2usize, max.z + EPSILON, 1.0),
+    ];
+
+    let (_, axis, target, direction) = distances
+        .into_iter()
+        .min_by(|left, right| left.0.total_cmp(&right.0))
+        .expect("box face distances are non-empty");
+
+    match axis {
+        0 => {
+            sphere.position.x = target;
+            sphere.velocity.x = sphere.velocity.x.abs() * direction;
+        }
+        1 => {
+            sphere.position.y = target;
+            sphere.velocity.y = sphere.velocity.y.abs() * direction;
+        }
+        2 => {
+            sphere.position.z = target;
+            sphere.velocity.z = sphere.velocity.z.abs() * direction;
+        }
+        _ => unreachable!("axis index is bounded above"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{SimulationEnvelope, parse_program, simulate_program, simulate_program_envelope};
@@ -1370,6 +1414,29 @@ observe:
         let sphere = &report.snapshots[0].spheres[0];
         assert!(sphere.position.x < 2.0 || sphere.position.x > 4.0);
         assert_eq!(sphere.velocity.x, 0.0);
+    }
+
+    #[test]
+    fn forbidden_region_can_reflect_from_boundary() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    reflect not inside(A, zone)
+observe:
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert!(sphere.position.x < 2.0 || sphere.position.x > 4.0);
+        assert_eq!(sphere.velocity.x, -1.0);
     }
 
     #[test]

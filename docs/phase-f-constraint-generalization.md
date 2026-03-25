@@ -31,11 +31,11 @@ The new structure makes it easier to:
 - validation centralized per constraint kind
 - event discovery centralized per constraint kind
 - event application kept on a shared runtime path
-- first repair-policy hooks added for velocity-limit and region constraints through `reject` and `clamp`
+- first repair-policy hooks added for velocity-limit and region constraints through `reject`, `clamp`, and region-local `reflect`
 
 ## Next Steps
 
 1. classify constraints into invariant, event-triggered, and interaction constraints
-2. extend repair-policy support beyond velocity limits and region exclusion
+2. extend repair-policy support beyond the current velocity-limit and region-exclusion policies
 3. expose constraint-kind information in reports for debugging and research evaluation
 4. prepare richer constraint forms beyond the current four prototype laws
