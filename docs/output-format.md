@@ -58,6 +58,27 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 0
     }
   ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
+  },
+  "candidate_resolutions": [],
   "activities": [
     {
       "time": 1.0,
@@ -112,6 +133,27 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 1
     }
   ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
+  },
+  "candidate_resolutions": [],
   "activities": [
     {
       "time": 2.0,
@@ -142,6 +184,22 @@ Failure reports may still include:
 - recorded `activities`
 - partial `snapshots` produced before contradiction
 
+Phase I reports may additionally include:
+
+- `convergence_analytics` for run-level totals over candidate-bearing entities
+- `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
+- `candidate_resolutions` when initial action candidates were evaluated before observation
+- `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `tie_broken`, or `equivalent_tie`)
+- `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)
+- `observation_labels` for the labels that still matter at the observation layer
+- `symbolically_underdetermined` and `observationally_underdetermined` for each candidate-bearing entity
+- `selected_candidate` and `selected_score` for the chosen branch
+- `top_score` and `top_labels` for the highest-score frontier before deterministic tie-breaking
+- `skipped_candidates` when early selection prevents later candidates from being evaluated
+- `tie_broken` when multiple top-score candidates existed and deterministic ordering selected one
+- `equivalent_top_labels` and `observationally_equivalent_tie` when tied candidates collapse to the same observed result
+- `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
+
 ## Rationale
 
 This format is intentionally small but useful for:
@@ -157,8 +215,27 @@ This format is intentionally small but useful for:
 - exposing report-level totals so whole runs can be compared without manual counting
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
+- exposing candidate-action selection as activity-log entries during the initial convergence step
+- exposing a compact candidate-resolution summary for underdetermined-world runs
+- exposing whether a run remained symbolically or observationally underdetermined after convergence
+- exposing whether symbolic ties have already collapsed into a determinate or representative observation
+- exposing a minimal `Obs? = U` style status when observation is still unresolved
 
 ## Static Analysis
 
 `sekai analyze` uses the same constraint build path but stops before time evolution.
-It reports the declared law inventory and aggregated law analytics without simulation snapshots.
+It reports the declared law inventory, aggregated law analytics, and any Phase I candidate inventory without simulation snapshots.
+
+For example, a Phase I analyze result may additionally include:
+
+```json
+"candidate_inventory": [
+  {
+    "entity": "A",
+    "total_candidates": 2,
+    "labels": ["fast", "safe"],
+    "top_score": "5.000",
+    "top_labels": ["fast"]
+  }
+]
+```

@@ -1,6 +1,6 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
-use crate::parser::Program;
+use crate::parser::{ActionCandidateDecl, ActionDirectiveDecl, Program};
 
 const EPSILON: f64 = 1e-9;
 
@@ -115,6 +115,7 @@ pub struct World {
     pub region: Option<Region>,
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
+    pub candidate_resolutions: Vec<CandidateResolution>,
     pub activity_log: Vec<ActivityEntry>,
 }
 
@@ -135,6 +136,9 @@ pub struct Snapshot {
 pub struct SimulationReport {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub convergence_analytics: ConvergenceAnalytics,
+    pub observation_summary: ObservationSummary,
+    pub candidate_resolutions: Vec<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
 }
@@ -143,6 +147,62 @@ pub struct SimulationReport {
 pub struct LawInventory {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub candidate_inventory: Vec<CandidateInventorySummary>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CandidateInventorySummary {
+    pub entity: String,
+    pub total_candidates: usize,
+    pub labels: Vec<String>,
+    pub top_score: String,
+    pub top_labels: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CandidateResolution {
+    pub entity: String,
+    pub total_candidates: usize,
+    pub rejected_candidates: usize,
+    pub skipped_candidates: usize,
+    pub convergence_mode: String,
+    pub observation_mode: String,
+    pub observation_labels: Vec<String>,
+    pub symbolically_underdetermined: bool,
+    pub observationally_underdetermined: bool,
+    pub selected_candidate: Option<String>,
+    pub selected_score: Option<String>,
+    pub top_score: String,
+    pub top_labels: Vec<String>,
+    pub tie_broken: bool,
+    pub equivalent_top_labels: Vec<String>,
+    pub observationally_equivalent_tie: bool,
+    pub repaired_after_selection: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConvergenceAnalytics {
+    pub candidate_entities: usize,
+    pub direct_entities: usize,
+    pub fallback_entities: usize,
+    pub repaired_entities: usize,
+    pub deferred_entities: usize,
+    pub tie_broken_entities: usize,
+    pub equivalent_tie_entities: usize,
+    pub determinate_entities: usize,
+    pub representative_entities: usize,
+    pub ambiguous_entities: usize,
+    pub symbolically_underdetermined_entities: usize,
+    pub observationally_underdetermined_entities: usize,
+    pub rejected_candidates_total: usize,
+    pub skipped_candidates_total: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ObservationSummary {
+    pub status: String,
+    pub representative_entities: usize,
+    pub ambiguous_entities: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -276,6 +336,178 @@ impl SimulationReport {
             ));
             json.push_str("    }");
             if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"convergence_analytics\": {\n");
+        json.push_str(&format!(
+            "    \"candidate_entities\": {},\n",
+            self.convergence_analytics.candidate_entities
+        ));
+        json.push_str(&format!(
+            "    \"direct_entities\": {},\n",
+            self.convergence_analytics.direct_entities
+        ));
+        json.push_str(&format!(
+            "    \"fallback_entities\": {},\n",
+            self.convergence_analytics.fallback_entities
+        ));
+        json.push_str(&format!(
+            "    \"repaired_entities\": {},\n",
+            self.convergence_analytics.repaired_entities
+        ));
+        json.push_str(&format!(
+            "    \"deferred_entities\": {},\n",
+            self.convergence_analytics.deferred_entities
+        ));
+        json.push_str(&format!(
+            "    \"tie_broken_entities\": {},\n",
+            self.convergence_analytics.tie_broken_entities
+        ));
+        json.push_str(&format!(
+            "    \"equivalent_tie_entities\": {},\n",
+            self.convergence_analytics.equivalent_tie_entities
+        ));
+        json.push_str(&format!(
+            "    \"determinate_entities\": {},\n",
+            self.convergence_analytics.determinate_entities
+        ));
+        json.push_str(&format!(
+            "    \"representative_entities\": {},\n",
+            self.convergence_analytics.representative_entities
+        ));
+        json.push_str(&format!(
+            "    \"ambiguous_entities\": {},\n",
+            self.convergence_analytics.ambiguous_entities
+        ));
+        json.push_str(&format!(
+            "    \"symbolically_underdetermined_entities\": {},\n",
+            self.convergence_analytics.symbolically_underdetermined_entities
+        ));
+        json.push_str(&format!(
+            "    \"observationally_underdetermined_entities\": {},\n",
+            self.convergence_analytics.observationally_underdetermined_entities
+        ));
+        json.push_str(&format!(
+            "    \"rejected_candidates_total\": {},\n",
+            self.convergence_analytics.rejected_candidates_total
+        ));
+        json.push_str(&format!(
+            "    \"skipped_candidates_total\": {}\n",
+            self.convergence_analytics.skipped_candidates_total
+        ));
+        json.push_str("  },\n");
+        json.push_str("  \"observation_summary\": {\n");
+        json.push_str(&format!(
+            "    \"status\": \"{}\",\n",
+            escape_json(&self.observation_summary.status)
+        ));
+        json.push_str(&format!(
+            "    \"representative_entities\": {},\n",
+            self.observation_summary.representative_entities
+        ));
+        json.push_str(&format!(
+            "    \"ambiguous_entities\": {}\n",
+            self.observation_summary.ambiguous_entities
+        ));
+        json.push_str("  },\n");
+        json.push_str("  \"candidate_resolutions\": [\n");
+        for (index, candidate_resolution) in self.candidate_resolutions.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&candidate_resolution.entity)
+            ));
+            json.push_str(&format!(
+                "      \"total_candidates\": {},\n",
+                candidate_resolution.total_candidates
+            ));
+                json.push_str(&format!(
+                    "      \"rejected_candidates\": {},\n",
+                    candidate_resolution.rejected_candidates
+                ));
+            json.push_str(&format!(
+                "      \"skipped_candidates\": {},\n",
+                candidate_resolution.skipped_candidates
+            ));
+            json.push_str(&format!(
+                "      \"convergence_mode\": \"{}\",\n",
+                escape_json(&candidate_resolution.convergence_mode)
+            ));
+            json.push_str(&format!(
+                "      \"observation_mode\": \"{}\",\n",
+                escape_json(&candidate_resolution.observation_mode)
+            ));
+            json.push_str("      \"observation_labels\": [");
+            for (label_index, label) in candidate_resolution.observation_labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_resolution.observation_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"symbolically_underdetermined\": {},\n",
+                candidate_resolution.symbolically_underdetermined
+            ));
+            json.push_str(&format!(
+                "      \"observationally_underdetermined\": {},\n",
+                candidate_resolution.observationally_underdetermined
+            ));
+                match &candidate_resolution.selected_candidate {
+                    Some(selected_candidate) => json.push_str(&format!(
+                        "      \"selected_candidate\": \"{}\",\n",
+                    escape_json(selected_candidate)
+                )),
+                None => json.push_str("      \"selected_candidate\": null,\n"),
+            }
+                match &candidate_resolution.selected_score {
+                    Some(selected_score) => json.push_str(&format!(
+                        "      \"selected_score\": \"{}\",\n",
+                        escape_json(selected_score)
+                    )),
+                    None => json.push_str("      \"selected_score\": null,\n"),
+                }
+                json.push_str(&format!(
+                    "      \"top_score\": \"{}\",\n",
+                    escape_json(&candidate_resolution.top_score)
+                ));
+            json.push_str("      \"top_labels\": [");
+            for (label_index, label) in candidate_resolution.top_labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_resolution.top_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"tie_broken\": {},\n",
+                candidate_resolution.tie_broken
+            ));
+            json.push_str("      \"equivalent_top_labels\": [");
+            for (label_index, label) in candidate_resolution
+                .equivalent_top_labels
+                .iter()
+                .enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_resolution.equivalent_top_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"observationally_equivalent_tie\": {},\n",
+                candidate_resolution.observationally_equivalent_tie
+            ));
+            json.push_str(&format!(
+                "      \"repaired_after_selection\": {}\n",
+                candidate_resolution.repaired_after_selection
+            ));
+            json.push_str("    }");
+            if index + 1 != self.candidate_resolutions.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -447,6 +679,44 @@ impl LawInventory {
             }
             json.push('\n');
         }
+        json.push_str("  ],\n");
+        json.push_str("  \"candidate_inventory\": [\n");
+        for (index, candidate_inventory) in self.candidate_inventory.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&candidate_inventory.entity)
+            ));
+            json.push_str(&format!(
+                "      \"total_candidates\": {},\n",
+                candidate_inventory.total_candidates
+            ));
+            json.push_str("      \"labels\": [");
+            for (label_index, label) in candidate_inventory.labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_inventory.labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"top_score\": \"{}\",\n",
+                escape_json(&candidate_inventory.top_score)
+            ));
+            json.push_str("      \"top_labels\": [");
+            for (label_index, label) in candidate_inventory.top_labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_inventory.top_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("]\n");
+            json.push_str("    }");
+            if index + 1 != self.candidate_inventory.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
         json.push_str("  ]\n");
         json.push('}');
         json
@@ -597,6 +867,182 @@ impl SimulationEnvelope {
                     json.push('\n');
                 }
                 json.push_str("  ],\n");
+                json.push_str("  \"convergence_analytics\": {\n");
+                json.push_str(&format!(
+                    "    \"candidate_entities\": {},\n",
+                    report.convergence_analytics.candidate_entities
+                ));
+                json.push_str(&format!(
+                    "    \"direct_entities\": {},\n",
+                    report.convergence_analytics.direct_entities
+                ));
+                json.push_str(&format!(
+                    "    \"fallback_entities\": {},\n",
+                    report.convergence_analytics.fallback_entities
+                ));
+                json.push_str(&format!(
+                    "    \"repaired_entities\": {},\n",
+                    report.convergence_analytics.repaired_entities
+                ));
+                json.push_str(&format!(
+                    "    \"deferred_entities\": {},\n",
+                    report.convergence_analytics.deferred_entities
+                ));
+                json.push_str(&format!(
+                    "    \"tie_broken_entities\": {},\n",
+                    report.convergence_analytics.tie_broken_entities
+                ));
+                json.push_str(&format!(
+                    "    \"equivalent_tie_entities\": {},\n",
+                    report.convergence_analytics.equivalent_tie_entities
+                ));
+                json.push_str(&format!(
+                    "    \"determinate_entities\": {},\n",
+                    report.convergence_analytics.determinate_entities
+                ));
+                json.push_str(&format!(
+                    "    \"representative_entities\": {},\n",
+                    report.convergence_analytics.representative_entities
+                ));
+                json.push_str(&format!(
+                    "    \"ambiguous_entities\": {},\n",
+                    report.convergence_analytics.ambiguous_entities
+                ));
+                json.push_str(&format!(
+                    "    \"symbolically_underdetermined_entities\": {},\n",
+                    report.convergence_analytics.symbolically_underdetermined_entities
+                ));
+                json.push_str(&format!(
+                    "    \"observationally_underdetermined_entities\": {},\n",
+                    report.convergence_analytics.observationally_underdetermined_entities
+                ));
+                json.push_str(&format!(
+                    "    \"rejected_candidates_total\": {},\n",
+                    report.convergence_analytics.rejected_candidates_total
+                ));
+                json.push_str(&format!(
+                    "    \"skipped_candidates_total\": {}\n",
+                    report.convergence_analytics.skipped_candidates_total
+                ));
+                json.push_str("  },\n");
+                json.push_str("  \"observation_summary\": {\n");
+                json.push_str(&format!(
+                    "    \"status\": \"{}\",\n",
+                    escape_json(&report.observation_summary.status)
+                ));
+                json.push_str(&format!(
+                    "    \"representative_entities\": {},\n",
+                    report.observation_summary.representative_entities
+                ));
+                json.push_str(&format!(
+                    "    \"ambiguous_entities\": {}\n",
+                    report.observation_summary.ambiguous_entities
+                ));
+                json.push_str("  },\n");
+                json.push_str("  \"candidate_resolutions\": [\n");
+                for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
+                {
+                    json.push_str("    {\n");
+                    json.push_str(&format!(
+                        "      \"entity\": \"{}\",\n",
+                        escape_json(&candidate_resolution.entity)
+                    ));
+                    json.push_str(&format!(
+                        "      \"total_candidates\": {},\n",
+                        candidate_resolution.total_candidates
+                    ));
+                    json.push_str(&format!(
+                        "      \"rejected_candidates\": {},\n",
+                        candidate_resolution.rejected_candidates
+                    ));
+                    json.push_str(&format!(
+                        "      \"skipped_candidates\": {},\n",
+                        candidate_resolution.skipped_candidates
+                    ));
+                    json.push_str(&format!(
+                        "      \"convergence_mode\": \"{}\",\n",
+                        escape_json(&candidate_resolution.convergence_mode)
+                    ));
+                    json.push_str(&format!(
+                        "      \"observation_mode\": \"{}\",\n",
+                        escape_json(&candidate_resolution.observation_mode)
+                    ));
+                    json.push_str("      \"observation_labels\": [");
+                    for (label_index, label) in
+                        candidate_resolution.observation_labels.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(label)));
+                        if label_index + 1 != candidate_resolution.observation_labels.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"symbolically_underdetermined\": {},\n",
+                        candidate_resolution.symbolically_underdetermined
+                    ));
+                    json.push_str(&format!(
+                        "      \"observationally_underdetermined\": {},\n",
+                        candidate_resolution.observationally_underdetermined
+                    ));
+                    match &candidate_resolution.selected_candidate {
+                        Some(selected_candidate) => json.push_str(&format!(
+                            "      \"selected_candidate\": \"{}\",\n",
+                            escape_json(selected_candidate)
+                        )),
+                        None => json.push_str("      \"selected_candidate\": null,\n"),
+                    }
+                    match &candidate_resolution.selected_score {
+                        Some(selected_score) => json.push_str(&format!(
+                            "      \"selected_score\": \"{}\",\n",
+                            escape_json(selected_score)
+                        )),
+                        None => json.push_str("      \"selected_score\": null,\n"),
+                    }
+                    json.push_str(&format!(
+                        "      \"top_score\": \"{}\",\n",
+                        escape_json(&candidate_resolution.top_score)
+                    ));
+                    json.push_str("      \"top_labels\": [");
+                    for (label_index, label) in candidate_resolution.top_labels.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(label)));
+                        if label_index + 1 != candidate_resolution.top_labels.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"tie_broken\": {},\n",
+                        candidate_resolution.tie_broken
+                    ));
+                    json.push_str("      \"equivalent_top_labels\": [");
+                    for (label_index, label) in candidate_resolution
+                        .equivalent_top_labels
+                        .iter()
+                        .enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(label)));
+                        if label_index + 1 != candidate_resolution.equivalent_top_labels.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"observationally_equivalent_tie\": {},\n",
+                        candidate_resolution.observationally_equivalent_tie
+                    ));
+                    json.push_str(&format!(
+                        "      \"repaired_after_selection\": {}\n",
+                        candidate_resolution.repaired_after_selection
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.candidate_resolutions.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
                 json.push_str("  \"activities\": [\n");
                 for (index, activity) in report.activities.iter().enumerate() {
                     json.push_str("    {\n");
@@ -678,6 +1124,28 @@ impl SimulationEnvelope {
                 json.push_str("    \"contradicted_constraints\": 0\n");
                 json.push_str("  },\n");
                 json.push_str("  \"constraints\": [],\n");
+                json.push_str("  \"convergence_analytics\": {\n");
+                json.push_str("    \"candidate_entities\": 0,\n");
+                json.push_str("    \"direct_entities\": 0,\n");
+                json.push_str("    \"fallback_entities\": 0,\n");
+                json.push_str("    \"repaired_entities\": 0,\n");
+                json.push_str("    \"deferred_entities\": 0,\n");
+                json.push_str("    \"tie_broken_entities\": 0,\n");
+                json.push_str("    \"equivalent_tie_entities\": 0,\n");
+                json.push_str("    \"determinate_entities\": 0,\n");
+                json.push_str("    \"representative_entities\": 0,\n");
+                json.push_str("    \"ambiguous_entities\": 0,\n");
+                json.push_str("    \"symbolically_underdetermined_entities\": 0,\n");
+                json.push_str("    \"observationally_underdetermined_entities\": 0,\n");
+                json.push_str("    \"rejected_candidates_total\": 0,\n");
+                json.push_str("    \"skipped_candidates_total\": 0\n");
+                json.push_str("  },\n");
+                json.push_str("  \"observation_summary\": {\n");
+                json.push_str("    \"status\": \"determinate\",\n");
+                json.push_str("    \"representative_entities\": 0,\n");
+                json.push_str("    \"ambiguous_entities\": 0\n");
+                json.push_str("  },\n");
+                json.push_str("  \"candidate_resolutions\": [],\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
@@ -700,6 +1168,7 @@ pub enum SimulationError {
     VelocityLimitExceeded { sphere: String, speed: f64, limit: f64 },
     EnteredForbiddenRegion { sphere: String, region: String, time: f64 },
     SphereNotFound(String),
+    InvalidActionCandidate(String),
 }
 
 impl fmt::Display for SimulationError {
@@ -728,6 +1197,7 @@ impl fmt::Display for SimulationError {
                 "sphere `{sphere}` entered forbidden region `{region}` at t={time:.3}"
             ),
             Self::SphereNotFound(name) => write!(f, "unknown sphere `{name}`"),
+            Self::InvalidActionCandidate(message) => write!(f, "{message}"),
         }
     }
 }
@@ -759,6 +1229,13 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+            &world.candidate_resolutions,
+        ),
+        observation_summary: ObservationSummary::from_candidate_resolutions(
+            &world.candidate_resolutions,
+        ),
+        candidate_resolutions: world.candidate_resolutions.clone(),
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -770,6 +1247,7 @@ pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationErro
     Ok(LawInventory {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        candidate_inventory: candidate_inventory_from_program(program),
     })
 }
 
@@ -791,6 +1269,13 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
+                    convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                        &world.candidate_resolutions,
+                    ),
+                    observation_summary: ObservationSummary::from_candidate_resolutions(
+                        &world.candidate_resolutions,
+                    ),
+                    candidate_resolutions: world.candidate_resolutions.clone(),
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -815,6 +1300,13 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
+            convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                &world.candidate_resolutions,
+            ),
+            observation_summary: ObservationSummary::from_candidate_resolutions(
+                &world.candidate_resolutions,
+            ),
+            candidate_resolutions: world.candidate_resolutions.clone(),
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -893,15 +1385,21 @@ impl World {
             constraints.push(Constraint::from_parts(constraint, &build_context)?);
         }
 
-        Self {
+        let mut world = Self {
             spheres,
             plane,
             region,
             constraints,
-            constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
-            activity_log: Vec::new(),
-        }
-        .validated()
+                constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
+                candidate_resolutions: Vec::new(),
+                activity_log: Vec::new(),
+            };
+
+        world.resolve_initial_action_candidates(
+            &program.action_candidates,
+            &program.action_directives,
+        )?;
+        world.validated()
     }
 
     pub fn advance_to(&mut self, target_time: f64) -> Result<(), SimulationError> {
@@ -1026,6 +1524,212 @@ impl World {
             .iter()
             .map(|sphere| sphere.last_update_time)
             .fold(0.0, f64::max)
+    }
+
+    fn resolve_initial_action_candidates(
+        &mut self,
+        action_candidates: &[ActionCandidateDecl],
+        action_directives: &[ActionDirectiveDecl],
+    ) -> Result<(), SimulationError> {
+        if action_candidates.is_empty() {
+            return Ok(());
+        }
+
+        let deferred_entities = action_directives
+            .iter()
+            .filter(|directive| directive.kind == "defer_on_ambiguous_top")
+            .map(|directive| directive.entity.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+
+        let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
+        for candidate in action_candidates {
+            grouped
+                .entry(candidate.entity.clone())
+                .or_default()
+                .push(candidate.clone());
+        }
+
+        for (sphere_name, mut candidates) in grouped {
+            let sphere_index = ensure_sphere_exists(&self.spheres, &sphere_name)?;
+            candidates.sort_by(|left, right| {
+                right
+                    .score
+                    .total_cmp(&left.score)
+                    .then_with(|| left.label.cmp(&right.label))
+            });
+            let total_candidates = candidates.len();
+            let top_score = candidates
+                .first()
+                .map(|candidate| candidate.score)
+                .unwrap_or(0.0);
+            let top_labels = candidates
+                .iter()
+                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+                .map(|candidate| candidate.label.clone())
+                .collect::<Vec<_>>();
+            let top_candidate_specs = candidates
+                .iter()
+                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            let mut selected = false;
+            let mut rejected_candidates = 0usize;
+            let mut selected_candidate = None;
+            let mut selected_score = None;
+            let mut selected_score_value = None;
+            let mut repaired_after_selection = false;
+            let mut selected_signature = None;
+            let mut selected_spheres = None;
+            let mut selected_activity_log = Vec::new();
+            for candidate in candidates {
+                let mut probe = self.clone();
+                probe.activity_log.clear();
+                probe.spheres[sphere_index].velocity = candidate.velocity;
+
+                match probe.enforce_all_constraints() {
+                    Ok(_) => {
+                        let probe_signature = world_signature(&probe);
+                        let probe_repaired = probe
+                            .activity_log
+                            .iter()
+                            .any(|activity| activity.action == "repaired");
+                        selected_spheres = Some(probe.spheres);
+                        selected_activity_log = probe.activity_log;
+                        selected_candidate = Some(candidate.label.clone());
+                        selected_score = Some(format!("score={:.3}", candidate.score));
+                        selected_score_value = Some(candidate.score);
+                        selected_signature = Some(probe_signature);
+                        repaired_after_selection = probe_repaired;
+                        selected = true;
+                        break;
+                    }
+                    Err(_) => {
+                        rejected_candidates += 1;
+                        self.activity_log.push(candidate_activity_entry(
+                            self.current_time(),
+                            &sphere_name,
+                            &candidate.label,
+                            candidate.score,
+                            "rejected_by_hard_law",
+                        ));
+                    }
+                }
+            }
+
+            if !selected {
+                return Err(SimulationError::InvalidActionCandidate(format!(
+                    "all candidate actions for sphere `{}` were rejected by hard laws",
+                    sphere_name
+                )));
+            }
+
+            let mut equivalent_top_labels = Vec::new();
+            if let Some(selected_signature) = &selected_signature {
+                for candidate in &top_candidate_specs {
+                    let mut probe = self.clone();
+                    probe.activity_log.clear();
+                    probe.spheres[sphere_index].velocity = candidate.velocity;
+                    if probe.enforce_all_constraints().is_ok()
+                        && &world_signature(&probe) == selected_signature
+                    {
+                        equivalent_top_labels.push(candidate.label.clone());
+                    }
+                }
+                equivalent_top_labels.sort();
+            }
+
+            let tie_broken = top_labels.len() > 1;
+            let observationally_equivalent_tie = equivalent_top_labels.len() > 1;
+            let deferred = tie_broken
+                && !observationally_equivalent_tie
+                && deferred_entities.contains(&sphere_name);
+            if deferred {
+                self.activity_log.push(candidate_activity_entry(
+                    self.current_time(),
+                    &sphere_name,
+                    top_labels.first().map(String::as_str).unwrap_or(""),
+                    top_score,
+                    "deferred_due_to_tie",
+                ));
+                selected_candidate = None;
+                selected_score = None;
+                repaired_after_selection = false;
+            } else {
+                if let Some(spheres) = selected_spheres {
+                    self.spheres = spheres;
+                }
+                if let Some(label) = &selected_candidate {
+                    self.activity_log.push(candidate_activity_entry(
+                        self.current_time(),
+                        &sphere_name,
+                        label,
+                        selected_score_value.unwrap_or(top_score),
+                        "selected",
+                    ));
+                }
+                self.activity_log.extend(selected_activity_log);
+            }
+
+            let convergence_mode = if deferred {
+                "deferred"
+            } else if observationally_equivalent_tie {
+                "equivalent_tie"
+            } else if tie_broken {
+                "tie_broken"
+            } else if repaired_after_selection {
+                "repaired"
+            } else if rejected_candidates > 0 {
+                "fallback"
+            } else {
+                "direct"
+            };
+            let observation_mode = if deferred {
+                "ambiguous"
+            } else if observationally_equivalent_tie {
+                "representative"
+            } else if tie_broken {
+                "ambiguous"
+            } else {
+                "determinate"
+            };
+            let observation_labels = if observationally_equivalent_tie {
+                equivalent_top_labels.clone()
+            } else if tie_broken {
+                top_labels.clone()
+            } else {
+                selected_candidate
+                    .as_ref()
+                    .map(|label| vec![label.clone()])
+                    .unwrap_or_default()
+            };
+
+            self.candidate_resolutions.push(CandidateResolution {
+                entity: sphere_name,
+                total_candidates,
+                rejected_candidates,
+                skipped_candidates: if deferred {
+                    total_candidates.saturating_sub(rejected_candidates)
+                } else {
+                    total_candidates - rejected_candidates - 1
+                },
+                convergence_mode: convergence_mode.to_string(),
+                observation_mode: observation_mode.to_string(),
+                observation_labels,
+                symbolically_underdetermined: tie_broken,
+                observationally_underdetermined: tie_broken && !observationally_equivalent_tie,
+                selected_candidate,
+                selected_score,
+                top_score: format!("{top_score:.3}"),
+                tie_broken,
+                top_labels,
+                observationally_equivalent_tie,
+                equivalent_top_labels,
+                repaired_after_selection,
+            });
+        }
+
+        Ok(())
     }
 
 }
@@ -1478,6 +2182,82 @@ impl LawAnalytics {
     }
 }
 
+impl ConvergenceAnalytics {
+    pub fn from_candidate_resolutions(candidate_resolutions: &[CandidateResolution]) -> Self {
+        let mut analytics = Self {
+            candidate_entities: candidate_resolutions.len(),
+            direct_entities: 0,
+            fallback_entities: 0,
+            repaired_entities: 0,
+            deferred_entities: 0,
+            tie_broken_entities: 0,
+            equivalent_tie_entities: 0,
+            determinate_entities: 0,
+            representative_entities: 0,
+            ambiguous_entities: 0,
+            symbolically_underdetermined_entities: 0,
+            observationally_underdetermined_entities: 0,
+            rejected_candidates_total: 0,
+            skipped_candidates_total: 0,
+        };
+
+        for resolution in candidate_resolutions {
+            analytics.rejected_candidates_total += resolution.rejected_candidates;
+            analytics.skipped_candidates_total += resolution.skipped_candidates;
+            match resolution.convergence_mode.as_str() {
+                "direct" => analytics.direct_entities += 1,
+                "fallback" => analytics.fallback_entities += 1,
+                "repaired" => analytics.repaired_entities += 1,
+                "deferred" => analytics.deferred_entities += 1,
+                "tie_broken" => analytics.tie_broken_entities += 1,
+                "equivalent_tie" => analytics.equivalent_tie_entities += 1,
+                _ => {}
+            }
+            if resolution.symbolically_underdetermined {
+                analytics.symbolically_underdetermined_entities += 1;
+            }
+            if resolution.observationally_underdetermined {
+                analytics.observationally_underdetermined_entities += 1;
+            }
+            match resolution.observation_mode.as_str() {
+                "determinate" => analytics.determinate_entities += 1,
+                "representative" => analytics.representative_entities += 1,
+                "ambiguous" => analytics.ambiguous_entities += 1,
+                _ => {}
+            }
+        }
+
+        analytics
+    }
+}
+
+impl ObservationSummary {
+    pub fn from_candidate_resolutions(candidate_resolutions: &[CandidateResolution]) -> Self {
+        let representative_entities = candidate_resolutions
+            .iter()
+            .filter(|resolution| resolution.observation_mode == "representative")
+            .count();
+        let ambiguous_entities = candidate_resolutions
+            .iter()
+            .filter(|resolution| resolution.observation_mode == "ambiguous")
+            .count();
+
+        let status = if ambiguous_entities > 0 {
+            "unresolved"
+        } else if representative_entities > 0 {
+            "representative"
+        } else {
+            "determinate"
+        };
+
+        Self {
+            status: status.to_string(),
+            representative_entities,
+            ambiguous_entities,
+        }
+    }
+}
+
 impl RepairPolicy {
     fn as_str(self) -> &'static str {
         match self {
@@ -1545,6 +2325,84 @@ fn choose_earlier(current: Option<Event>, candidate: Event) -> Option<Event> {
         Some(existing) if existing.dt <= candidate.dt => Some(existing),
         _ => Some(candidate),
     }
+}
+
+fn candidate_activity_entry(
+    time: f64,
+    sphere_name: &str,
+    label: &str,
+    score: f64,
+    action: &str,
+) -> ActivityEntry {
+    ActivityEntry {
+        time,
+        kind: "candidate_velocity".to_string(),
+        targets: vec![sphere_name.to_string(), label.to_string()],
+        policy: format!("score={score:.3}"),
+        action: action.to_string(),
+    }
+}
+
+fn world_signature(world: &World) -> Vec<String> {
+    let mut entries = world
+        .spheres
+        .iter()
+        .map(|sphere| {
+            format!(
+                "{}|{:.6}|{:.6}|{:.6}|{:.6}|{:.6}|{:.6}",
+                sphere.name,
+                sphere.position.x,
+                sphere.position.y,
+                sphere.position.z,
+                sphere.velocity.x,
+                sphere.velocity.y,
+                sphere.velocity.z
+            )
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries
+}
+
+fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
+    let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
+    for candidate in &program.action_candidates {
+        grouped
+            .entry(candidate.entity.clone())
+            .or_default()
+            .push(candidate.clone());
+    }
+
+    grouped
+        .into_iter()
+        .map(|(entity, mut candidates)| {
+            candidates.sort_by(|left, right| left.label.cmp(&right.label));
+            let top_score = candidates
+                .iter()
+                .map(|candidate| candidate.score)
+                .max_by(|left, right| left.total_cmp(right))
+                .unwrap_or(0.0);
+            let mut labels = candidates
+                .iter()
+                .map(|candidate| candidate.label.clone())
+                .collect::<Vec<_>>();
+            labels.sort();
+            let mut top_labels = candidates
+                .iter()
+                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+                .map(|candidate| candidate.label.clone())
+                .collect::<Vec<_>>();
+            top_labels.sort();
+
+            CandidateInventorySummary {
+                entity,
+                total_candidates: candidates.len(),
+                labels,
+                top_score: format!("{top_score:.3}"),
+                top_labels,
+            }
+        })
+        .collect()
 }
 
 fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
@@ -1909,6 +2767,10 @@ observe:
         assert!(json.contains("\"outcome\": \"idle\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
+        assert!(json.contains("\"convergence_analytics\""));
+        assert!(json.contains("\"determinate_entities\""));
+        assert!(json.contains("\"observation_summary\""));
+        assert!(json.contains("\"candidate_resolutions\": ["));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
         assert!(json.contains("\"name\": \"A\""));
@@ -1936,7 +2798,34 @@ constraint:
         assert!(json.contains("\"total_constraints\": 1"));
         assert!(json.contains("\"policy\": \"reflect\""));
         assert!(json.contains("\"outcome\": \"idle\""));
+        assert!(json.contains("\"candidate_inventory\": ["));
+        assert!(!json.contains("\"entity\":"));
         assert!(!json.contains("\"snapshots\""));
+    }
+
+    #[test]
+    fn analyze_program_reports_candidate_inventory() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let inventory = analyze_program(&program).expect("analysis should succeed");
+        let json = inventory.to_json("candidate.sk");
+        assert!(json.contains("\"candidate_inventory\""));
+        assert!(json.contains("\"entity\": \"A\""));
+        assert!(json.contains("\"total_candidates\": 2"));
+        assert!(json.contains("\"labels\": [\"fast\", \"safe\"]"));
+        assert!(json.contains("\"top_score\": \"5.000\""));
+        assert!(json.contains("\"top_labels\": [\"fast\"]"));
     }
 
     #[test]
@@ -1947,6 +2836,8 @@ constraint:
         assert!(json.contains("\"error\": \"world contradiction\""));
         assert!(json.contains("\"analytics\": {"));
         assert!(json.contains("\"constraints\": []"));
+        assert!(json.contains("\"convergence_analytics\": {"));
+        assert!(json.contains("\"observation_summary\": {"));
         assert!(json.contains("\"activities\": []"));
         assert!(json.contains("\"snapshots\": []"));
     }
@@ -1981,5 +2872,347 @@ observe:
         assert!(json.contains("\"action\": \"contradicted\""));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"time\": 1.000000"));
+    }
+
+    #[test]
+    fn candidate_velocity_selects_best_admissible_option() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert_eq!(sphere.velocity.x, 3.0);
+        assert!(report
+            .activities
+            .iter()
+            .any(|entry| entry.kind == "candidate_velocity" && entry.action == "selected"));
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "rejected_by_hard_law"
+                && entry.targets.iter().any(|target| target == "fast")
+        }));
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert_eq!(candidate_resolution.entity, "A");
+        assert_eq!(candidate_resolution.total_candidates, 2);
+        assert_eq!(candidate_resolution.rejected_candidates, 1);
+        assert_eq!(candidate_resolution.skipped_candidates, 0);
+        assert_eq!(candidate_resolution.convergence_mode, "fallback");
+        assert_eq!(candidate_resolution.observation_mode, "determinate");
+        assert_eq!(candidate_resolution.observation_labels, vec!["safe".to_string()]);
+        assert!(!candidate_resolution.symbolically_underdetermined);
+        assert!(!candidate_resolution.observationally_underdetermined);
+        assert_eq!(
+            candidate_resolution.selected_candidate.as_deref(),
+            Some("safe")
+        );
+        assert_eq!(candidate_resolution.top_score, "5.000");
+        assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
+        assert!(!candidate_resolution.tie_broken);
+        assert!(candidate_resolution.equivalent_top_labels.is_empty());
+        assert!(!candidate_resolution.observationally_equivalent_tie);
+    }
+
+    #[test]
+    fn candidate_velocity_can_select_repaired_option() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+constraint:
+    clamp speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert_eq!(sphere.velocity.x, 4.0);
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "selected"
+                && entry.targets.iter().any(|target| target == "fast")
+        }));
+        assert!(report
+            .activities
+            .iter()
+            .any(|entry| entry.kind == "velocity_limit" && entry.action == "repaired"));
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert_eq!(
+            candidate_resolution.selected_candidate.as_deref(),
+            Some("fast")
+        );
+        assert_eq!(candidate_resolution.convergence_mode, "repaired");
+        assert_eq!(candidate_resolution.observation_mode, "determinate");
+        assert_eq!(candidate_resolution.observation_labels, vec!["fast".to_string()]);
+        assert_eq!(candidate_resolution.skipped_candidates, 1);
+        assert_eq!(candidate_resolution.top_score, "5.000");
+        assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
+        assert!(!candidate_resolution.tie_broken);
+        assert_eq!(
+            candidate_resolution.equivalent_top_labels,
+            vec!["fast".to_string()]
+        );
+        assert!(!candidate_resolution.observationally_equivalent_tie);
+        assert!(candidate_resolution.repaired_after_selection);
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_multiple_entities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (5, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+    candidate_velocity(B, sprint) = (5, 0, 0) score 4
+    candidate_velocity(B, coast) = (2, 0, 0) score 1
+constraint:
+    speed(A) <= 4
+    speed(B) <= 3
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .snapshots[0]
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "A")
+            .expect("sphere A exists");
+        let b = report
+            .snapshots[0]
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "B")
+            .expect("sphere B exists");
+        assert_eq!(a.velocity.x, 3.0);
+        assert_eq!(b.velocity.x, 2.0);
+        assert_eq!(report.candidate_resolutions.len(), 2);
+        assert!(report
+            .candidate_resolutions
+            .iter()
+            .any(|resolution| resolution.entity == "A"));
+        assert!(report
+            .candidate_resolutions
+            .iter()
+            .any(|resolution| resolution.entity == "B"));
+    }
+
+    #[test]
+    fn candidate_velocity_reports_top_score_ties() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert_eq!(candidate_resolution.selected_candidate.as_deref(), Some("alpha"));
+        assert_eq!(candidate_resolution.top_score, "5.000");
+        assert_eq!(
+            candidate_resolution.top_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+        assert_eq!(candidate_resolution.skipped_candidates, 1);
+        assert_eq!(candidate_resolution.convergence_mode, "tie_broken");
+        assert_eq!(candidate_resolution.observation_mode, "ambiguous");
+        assert_eq!(
+            candidate_resolution.observation_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+        assert!(candidate_resolution.symbolically_underdetermined);
+        assert!(candidate_resolution.observationally_underdetermined);
+        assert!(candidate_resolution.tie_broken);
+        assert_eq!(
+            candidate_resolution.equivalent_top_labels,
+            vec!["alpha".to_string()]
+        );
+        assert!(!candidate_resolution.observationally_equivalent_tie);
+    }
+
+    #[test]
+    fn candidate_velocity_can_report_observationally_equivalent_ties() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (3, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert!(candidate_resolution.tie_broken);
+        assert_eq!(candidate_resolution.convergence_mode, "equivalent_tie");
+        assert_eq!(candidate_resolution.observation_mode, "representative");
+        assert_eq!(
+            candidate_resolution.observation_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+        assert!(candidate_resolution.symbolically_underdetermined);
+        assert!(!candidate_resolution.observationally_underdetermined);
+        assert!(candidate_resolution.observationally_equivalent_tie);
+        assert_eq!(
+            candidate_resolution.equivalent_top_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+    }
+
+    #[test]
+    fn candidate_velocity_reports_convergence_analytics() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (3, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.convergence_analytics.candidate_entities, 1);
+        assert_eq!(report.convergence_analytics.equivalent_tie_entities, 1);
+        assert_eq!(report.convergence_analytics.direct_entities, 0);
+        assert_eq!(report.convergence_analytics.tie_broken_entities, 0);
+        assert_eq!(report.convergence_analytics.determinate_entities, 0);
+        assert_eq!(report.convergence_analytics.representative_entities, 1);
+        assert_eq!(report.convergence_analytics.ambiguous_entities, 0);
+        assert_eq!(report.observation_summary.status, "representative");
+        assert_eq!(report.observation_summary.representative_entities, 1);
+        assert_eq!(report.observation_summary.ambiguous_entities, 0);
+        assert_eq!(
+            report.convergence_analytics.symbolically_underdetermined_entities,
+            1
+        );
+        assert_eq!(
+            report
+                .convergence_analytics
+                .observationally_underdetermined_entities,
+            0
+        );
+    }
+
+    #[test]
+    fn candidate_velocity_can_surface_unresolved_observation() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.observation_summary.status, "unresolved");
+        assert_eq!(report.observation_summary.representative_entities, 0);
+        assert_eq!(report.observation_summary.ambiguous_entities, 1);
+    }
+
+    #[test]
+    fn candidate_velocity_can_defer_ambiguous_top_choice() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert_eq!(sphere.velocity.x, 0.0);
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert_eq!(candidate_resolution.convergence_mode, "deferred");
+        assert_eq!(candidate_resolution.observation_mode, "ambiguous");
+        assert_eq!(candidate_resolution.selected_candidate, None);
+        assert_eq!(candidate_resolution.skipped_candidates, 2);
+        assert_eq!(report.convergence_analytics.deferred_entities, 1);
+        assert_eq!(report.observation_summary.status, "unresolved");
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity" && entry.action == "deferred_due_to_tie"
+        }));
     }
 }

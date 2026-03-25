@@ -1,0 +1,24 @@
+sphere A
+sphere B
+plane floor
+
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+position(B) = (5, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+    candidate_velocity(B, sprint) = (5, 0, 0) score 4
+    candidate_velocity(B, coast) = (2, 0, 0) score 1
+
+constraint:
+    speed(A) <= 4
+    speed(B) <= 3
+
+observe:
+    snapshot at 0

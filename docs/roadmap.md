@@ -188,7 +188,8 @@ Definition of done:
 
 Status:
 
-- not started
+- in progress
+- initial semantics and research framing for underdetermined worlds now exist
 
 ## Phase 6. Optimization Layer
 

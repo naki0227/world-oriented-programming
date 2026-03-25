@@ -44,9 +44,12 @@ const timeLabel = document.getElementById("time-label");
 const sourceLabel = document.getElementById("source-label");
 const snapshotCount = document.getElementById("snapshot-count");
 const projectionLabel = document.getElementById("projection-label");
+const observationStatus = document.getElementById("observation-status");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
+const candidateResolutionList = document.getElementById("candidate-resolution-list");
+const candidateComparisonList = document.getElementById("candidate-comparison-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
@@ -79,6 +82,14 @@ const POLICY_COMPARISON_SAMPLES = [
   { label: "reject", path: "./samples/forbidden_region.json" },
   { label: "clamp", path: "./samples/clamped_region.json" },
   { label: "reflect", path: "./samples/reflected_region.json" },
+];
+
+const CANDIDATE_COMPARISON_SAMPLES = [
+  { label: "fallback", path: "./samples/candidate_velocity.json" },
+  { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
+  { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
+  { label: "tie", path: "./samples/candidate_velocity_tied.json" },
+  { label: "equivalent tie", path: "./samples/candidate_velocity_equivalent_tie.json" },
 ];
 
 fileInput.addEventListener("change", async (event) => {
@@ -286,6 +297,8 @@ function loadReport(report, sourceName) {
   stopPlayback();
   sourceLabel.textContent = sourceName || state.report.source || "Unknown source";
   snapshotCount.textContent = String(state.report.snapshots.length);
+  observationStatus.textContent =
+    state.report.observation_summary?.status || "determinate";
   timeSlider.max = String(Math.max(0, state.report.snapshots.length - 1));
   timeSlider.value = "0";
   state.colorMap = buildColorMap(state.report);
@@ -311,7 +324,11 @@ function normalizeReport(report) {
       status: report.status,
       error: report.error || null,
       analytics: report.analytics || defaultAnalytics(report.constraints || []),
+      observation_summary:
+        report.observation_summary ||
+        defaultObservationSummary(report.candidate_resolutions || []),
       constraints: report.constraints || [],
+      candidate_resolutions: report.candidate_resolutions || [],
       activities: report.activities || [],
       snapshots: report.snapshots || [],
     };
@@ -321,9 +338,32 @@ function normalizeReport(report) {
     status: "ok",
     error: null,
     analytics: report.analytics || defaultAnalytics(report.constraints || []),
+    observation_summary:
+      report.observation_summary ||
+      defaultObservationSummary(report.candidate_resolutions || []),
     constraints: report.constraints || [],
+    candidate_resolutions: report.candidate_resolutions || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
+  };
+}
+
+function defaultObservationSummary(candidateResolutions) {
+  const representativeEntities = candidateResolutions.filter(
+    (resolution) => resolution.observation_mode === "representative"
+  ).length;
+  const ambiguousEntities = candidateResolutions.filter(
+    (resolution) => resolution.observation_mode === "ambiguous"
+  ).length;
+  return {
+    status:
+      ambiguousEntities > 0
+        ? "unresolved"
+        : representativeEntities > 0
+          ? "representative"
+          : "determinate",
+    representative_entities: representativeEntities,
+    ambiguous_entities: ambiguousEntities,
   };
 }
 
@@ -847,6 +887,8 @@ function renderSidebar() {
     }
     renderConstraintList();
     renderAnalyticsList();
+    renderCandidateResolution();
+    renderCandidateComparison();
     renderActivityList();
     renderComparisonList();
     return;
@@ -870,6 +912,8 @@ function renderSidebar() {
 
   renderConstraintList();
   renderAnalyticsList();
+  renderCandidateResolution();
+  renderCandidateComparison();
   renderActivityList();
   renderComparisonList();
 }
@@ -962,6 +1006,137 @@ function renderActivityList() {
     card.appendChild(kind);
     card.appendChild(targets);
     activityList.appendChild(card);
+  });
+}
+
+function renderCandidateResolution() {
+  if (!state.report) {
+    candidateResolutionList.innerHTML =
+      '<p class="muted">Load a Phase I report to inspect candidate selection.</p>';
+    return;
+  }
+
+  const candidateResolutions = state.report.candidate_resolutions || [];
+  if (candidateResolutions.length === 0) {
+    candidateResolutionList.innerHTML =
+      '<p class="muted">This report has no candidate-resolution metadata.</p>';
+    return;
+  }
+
+  candidateResolutionList.innerHTML = "";
+  const convergenceAnalytics = state.report.convergence_analytics || {};
+  const summaryCard = document.createElement("article");
+  summaryCard.className = "sphere-card";
+  summaryCard.innerHTML = `
+    <h3>Run Summary</h3>
+    <p>candidate entities = ${convergenceAnalytics.candidate_entities ?? candidateResolutions.length}</p>
+    <p class="muted">direct = ${convergenceAnalytics.direct_entities ?? 0}</p>
+    <p class="muted">fallback = ${convergenceAnalytics.fallback_entities ?? 0}</p>
+    <p class="muted">repaired = ${convergenceAnalytics.repaired_entities ?? 0}</p>
+    <p class="muted">tie broken = ${convergenceAnalytics.tie_broken_entities ?? 0}</p>
+    <p class="muted">equivalent tie = ${convergenceAnalytics.equivalent_tie_entities ?? 0}</p>
+    <p class="muted">observation determinate = ${convergenceAnalytics.determinate_entities ?? 0}</p>
+    <p class="muted">observation representative = ${convergenceAnalytics.representative_entities ?? 0}</p>
+    <p class="muted">observation ambiguous = ${convergenceAnalytics.ambiguous_entities ?? 0}</p>
+    <p class="muted">symbolically underdetermined = ${convergenceAnalytics.symbolically_underdetermined_entities ?? 0}</p>
+    <p class="muted">observationally underdetermined = ${convergenceAnalytics.observationally_underdetermined_entities ?? 0}</p>
+  `;
+  candidateResolutionList.appendChild(summaryCard);
+  candidateResolutions.forEach((candidateResolution) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+    card.innerHTML = `
+      <h3>${candidateResolution.entity}</h3>
+      <p>candidates = ${candidateResolution.total_candidates}</p>
+      <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
+      <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
+      <p class="muted">mode = ${candidateResolution.convergence_mode || "direct"}</p>
+      <p class="muted">observation mode = ${candidateResolution.observation_mode || "determinate"}</p>
+      <p class="muted">observation labels = ${(candidateResolution.observation_labels || []).join(", ") || "none"}</p>
+      <p class="muted">symbolically underdetermined = ${candidateResolution.symbolically_underdetermined ? "yes" : "no"}</p>
+      <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
+      <p class="muted">selected = ${candidateResolution.selected_candidate || "none"}</p>
+      <p class="muted">score = ${candidateResolution.selected_score || "n/a"}</p>
+      <p class="muted">top score = ${candidateResolution.top_score || "n/a"}</p>
+      <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
+      <p class="muted">tie broken = ${candidateResolution.tie_broken ? "yes" : "no"}</p>
+      <p class="muted">equivalent top labels = ${(candidateResolution.equivalent_top_labels || []).join(", ") || "none"}</p>
+      <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
+      <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+    `;
+    candidateResolutionList.appendChild(card);
+  });
+}
+
+function renderCandidateComparison() {
+  if (!state.report) {
+    candidateComparisonList.innerHTML =
+      '<p class="muted">Load a Phase I report to compare fallback and repaired selection.</p>';
+    return;
+  }
+
+  const candidateResolutions = state.report.candidate_resolutions || [];
+  if (candidateResolutions.length === 0) {
+    candidateComparisonList.innerHTML =
+      '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
+    return;
+  }
+
+  candidateComparisonList.innerHTML = "";
+
+  const candidateResolution = candidateResolutions[0];
+  const summary = document.createElement("article");
+  summary.className = "sphere-card";
+  summary.innerHTML = `
+    <h3>Current Pattern</h3>
+    <p>mode = ${candidateResolution.convergence_mode || "direct"}</p>
+    <p class="muted">observation mode = ${candidateResolution.observation_mode || "determinate"}</p>
+    <p class="muted">observation labels = ${(candidateResolution.observation_labels || []).join(", ") || "none"}</p>
+    <p>selected = ${candidateResolution.selected_candidate || "none"}</p>
+    <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
+    <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
+    <p class="muted">top labels = ${(candidateResolution.top_labels || []).join(", ") || "none"}</p>
+    <p class="muted">tie broken = ${candidateResolution.tie_broken ? "yes" : "no"}</p>
+    <p class="muted">symbolically underdetermined = ${candidateResolution.symbolically_underdetermined ? "yes" : "no"}</p>
+    <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
+    <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
+    <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+  `;
+  candidateComparisonList.appendChild(summary);
+
+  CANDIDATE_COMPARISON_SAMPLES.forEach((sample) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = sample.label;
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      sample.label === "fallback"
+        ? "The highest-scoring candidate is rejected, so a lower-scoring admissible candidate is selected."
+        : sample.label === "repaired"
+          ? "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer."
+          : sample.label === "deferred"
+            ? "A top-score ambiguity is deferred explicitly, so the entity remains unresolved at the observation layer."
+          : sample.label === "tie"
+            ? "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped."
+            : "Two candidates share the top score and also collapse to the same observed result, exposing a small observational-equivalence case.";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sample.path === sampleSelect.value ? "Loaded" : `Load ${sample.label}`;
+    button.disabled = sample.path === sampleSelect.value;
+    button.addEventListener("click", async () => {
+      sampleSelect.value = sample.path;
+      await loadSample(sample.path);
+    });
+
+    card.appendChild(title);
+    card.appendChild(note);
+    card.appendChild(button);
+    candidateComparisonList.appendChild(card);
   });
 }
 

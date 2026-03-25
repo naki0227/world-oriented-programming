@@ -42,6 +42,12 @@
               <option value="./samples/bounce.json">bounce</option>
               <option value="./samples/clamped_speed.json">clamped_speed</option>
               <option value="./samples/clamped_region.json">clamped_region</option>
+              <option value="./samples/candidate_velocity.json">candidate_velocity</option>
+              <option value="./samples/candidate_velocity_clamped.json">candidate_velocity_clamped</option>
+              <option value="./samples/candidate_velocity_deferred.json">candidate_velocity_deferred</option>
+              <option value="./samples/candidate_velocity_equivalent_tie.json">candidate_velocity_equivalent_tie</option>
+              <option value="./samples/candidate_velocity_tied.json">candidate_velocity_tied</option>
+              <option value="./samples/candidate_velocity_two_entity.json">candidate_velocity_two_entity</option>
               <option value="./samples/reflected_region.json">reflected_region</option>
               <option value="./samples/two_body_collision.json">two_body_collision</option>
               <option value="./samples/forbidden_region.json">forbidden_region</option>
@@ -83,6 +89,8 @@
               <dd id="snapshot-count">0</dd>
               <dt>Projection</dt>
               <dd id="projection-label">XY</dd>
+              <dt>Observation</dt>
+              <dd id="observation-status">determinate</dd>
             </dl>
           </div>
 
@@ -104,6 +112,20 @@
             <h2>Law Analytics</h2>
             <div id="analytics-list" class="snapshot-list">
               <p class="muted">Load a report to inspect law totals and outcome distribution.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Candidate Resolution</h2>
+            <div id="candidate-resolution-list" class="snapshot-list">
+              <p class="muted">Load a Phase I report to inspect candidate selection.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Candidate Comparison</h2>
+            <div id="candidate-comparison-list" class="snapshot-list">
+              <p class="muted">Load a Phase I report to compare fallback and repaired selection.</p>
             </div>
           </div>
 

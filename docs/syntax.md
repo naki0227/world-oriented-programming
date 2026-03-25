@@ -76,6 +76,7 @@ program         = { top_level } ;
 
 top_level       = entity_decl
                 | property_assign
+                | action_block
                 | constraint_block
                 | observe_block ;
 
@@ -84,8 +85,12 @@ entity_kind     = "sphere" | "plane" | "region" ;
 
 property_assign = property_name "(" identifier ")" "=" expr ;
 
+action_block     = "action" ":" newline { indent action_expr newline } ;
 constraint_block = "constraint" ":" newline { indent constraint_expr newline } ;
 observe_block    = "observe" ":" newline { indent observe_expr newline } ;
+
+action_expr     = "candidate_velocity" "(" identifier "," identifier ")"
+                "=" vector "score" number ;
 
 constraint_expr = "not" "inside" "(" identifier "," identifier ")"
                 | "speed" "(" identifier ")" "<=" number
@@ -130,3 +135,14 @@ max(zone) = (x2, y2, z2)
 ```
 
 The current runtime also supports multiple spheres with explicit pairwise elastic collision constraints.
+
+The Phase I prototype adds a minimal action-candidate block:
+
+```text
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 1
+    candidate_velocity(A, move) = (3, 0, 0) score 5
+```
+
+For the current slice, candidate actions are resolved at the initial frontier.
+Hard laws may reject or repair a candidate, and the runtime chooses the highest-scoring admissible candidate with deterministic tie-breaking by label.

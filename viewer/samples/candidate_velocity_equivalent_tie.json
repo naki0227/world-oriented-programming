@@ -1,0 +1,91 @@
+{
+  "source": "examples/candidate_velocity_equivalent_tie.sk",
+  "status": "ok",
+  "error": null,
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 1,
+    "boundary_constraints": 0,
+    "interaction_constraints": 0,
+    "idle_constraints": 1,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["A"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    }
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 1,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "deferred_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 1,
+    "determinate_entities": 0,
+    "representative_entities": 1,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 1,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 1
+  },
+  "observation_summary": {
+    "status": "representative",
+    "representative_entities": 1,
+    "ambiguous_entities": 0
+  },
+  "candidate_resolutions": [
+    {
+      "entity": "A",
+      "total_candidates": 2,
+      "rejected_candidates": 0,
+      "skipped_candidates": 1,
+      "convergence_mode": "equivalent_tie",
+      "observation_mode": "representative",
+      "observation_labels": ["alpha", "beta"],
+      "symbolically_underdetermined": true,
+      "observationally_underdetermined": false,
+      "selected_candidate": "alpha",
+      "selected_score": "score=5.000",
+      "top_score": "5.000",
+      "top_labels": ["alpha", "beta"],
+      "tie_broken": true,
+      "equivalent_top_labels": ["alpha", "beta"],
+      "observationally_equivalent_tie": true,
+      "repaired_after_selection": false
+    }
+  ],
+  "activities": [
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["A", "alpha"],
+      "policy": "score=5.000",
+      "action": "selected"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 3.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}

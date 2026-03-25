@@ -1,0 +1,16 @@
+sphere A
+plane floor
+
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+
+constraint:
+    speed(A) <= 4
+
+observe:
+    snapshot at 0
