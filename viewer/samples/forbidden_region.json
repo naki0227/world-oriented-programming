@@ -5,8 +5,10 @@
   "constraints": [
     {
       "kind": "not_inside",
+      "category": "boundary",
       "targets": ["A", "zone"],
       "policy": "reject",
+      "supported_policies": ["reject", "clamp", "reflect"],
       "fired_count": 1,
       "repaired_count": 0
     }

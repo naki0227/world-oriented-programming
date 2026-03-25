@@ -2,6 +2,26 @@
   "source": "examples/two_body_collision.sk",
   "status": "ok",
   "error": null,
+  "constraints": [
+    {
+      "kind": "elastic_collision",
+      "category": "interaction",
+      "targets": ["A", "B"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "fired_count": 1,
+      "repaired_count": 0
+    }
+  ],
+  "activities": [
+    {
+      "time": 1.000000,
+      "kind": "elastic_collision",
+      "targets": ["A", "B"],
+      "policy": "implicit",
+      "action": "fired"
+    }
+  ],
   "snapshots": [
     {
       "time": 0.000000,

@@ -141,8 +141,10 @@ pub struct SimulationReport {
 #[derive(Clone, Debug)]
 pub struct ConstraintSummary {
     pub kind: String,
+    pub category: String,
     pub targets: Vec<String>,
     pub policy: String,
+    pub supported_policies: Vec<String>,
     pub fired_count: usize,
     pub repaired_count: usize,
 }
@@ -174,6 +176,10 @@ impl SimulationReport {
                 "      \"kind\": \"{}\",\n",
                 escape_json(&constraint.kind)
             ));
+            json.push_str(&format!(
+                "      \"category\": \"{}\",\n",
+                escape_json(&constraint.category)
+            ));
             json.push_str("      \"targets\": [");
             for (target_index, target) in constraint.targets.iter().enumerate() {
                 json.push_str(&format!("\"{}\"", escape_json(target)));
@@ -186,6 +192,16 @@ impl SimulationReport {
                 "      \"policy\": \"{}\",\n",
                 escape_json(&constraint.policy)
             ));
+            json.push_str("      \"supported_policies\": [");
+            for (policy_index, supported_policy) in
+                constraint.supported_policies.iter().enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
+                if policy_index + 1 != constraint.supported_policies.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
             json.push_str(&format!(
                 "      \"fired_count\": {},\n",
                 constraint.fired_count
@@ -335,6 +351,10 @@ impl SimulationEnvelope {
                         "      \"kind\": \"{}\",\n",
                         escape_json(&constraint.kind)
                     ));
+                    json.push_str(&format!(
+                        "      \"category\": \"{}\",\n",
+                        escape_json(&constraint.category)
+                    ));
                     json.push_str("      \"targets\": [");
                     for (target_index, target) in constraint.targets.iter().enumerate() {
                         json.push_str(&format!("\"{}\"", escape_json(target)));
@@ -347,6 +367,16 @@ impl SimulationEnvelope {
                         "      \"policy\": \"{}\",\n",
                         escape_json(&constraint.policy)
                     ));
+                    json.push_str("      \"supported_policies\": [");
+                    for (policy_index, supported_policy) in
+                        constraint.supported_policies.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
+                        if policy_index + 1 != constraint.supported_policies.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
                     json.push_str(&format!(
                         "      \"fired_count\": {},\n",
                         constraint.fired_count
@@ -837,6 +867,13 @@ struct ConstraintBuildContext<'a> {
     region_name: Option<&'a str>,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum ConstraintCategory {
+    Invariant,
+    Boundary,
+    Interaction,
+}
+
 impl Constraint {
     fn activity_entry(&self, world: &World, action: &str) -> ActivityEntry {
         let summary = self.summary(world, &ConstraintTrace::default());
@@ -853,11 +890,17 @@ impl Constraint {
         match self {
             Self::ReflectOnCollision { sphere_index } => ConstraintSummary {
                 kind: "reflect_on_collision".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*sphere_index].name.clone(),
                     world.plane.name.clone(),
                 ],
                 policy: "implicit".to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
             },
@@ -867,8 +910,14 @@ impl Constraint {
                 ..
             } => ConstraintSummary {
                 kind: "velocity_limit".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![world.spheres[*sphere_index].name.clone()],
                 policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
             },
@@ -877,6 +926,7 @@ impl Constraint {
                 policy,
             } => ConstraintSummary {
                 kind: "not_inside".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*sphere_index].name.clone(),
                     world
@@ -886,6 +936,11 @@ impl Constraint {
                         .unwrap_or_else(|| "region".to_string()),
                 ],
                 policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
             },
@@ -894,14 +949,38 @@ impl Constraint {
                 right_index,
             } => ConstraintSummary {
                 kind: "elastic_collision".to_string(),
+                category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*left_index].name.clone(),
                     world.spheres[*right_index].name.clone(),
                 ],
                 policy: "implicit".to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
                 fired_count: trace.fired_count,
                 repaired_count: trace.repaired_count,
             },
+        }
+    }
+
+    fn category(&self) -> ConstraintCategory {
+        match self {
+            Self::VelocityLimit { .. } => ConstraintCategory::Invariant,
+            Self::ReflectOnCollision { .. } | Self::NotInside { .. } => ConstraintCategory::Boundary,
+            Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
+        }
+    }
+
+    fn supported_policies(&self) -> Vec<RepairPolicy> {
+        match self {
+            Self::VelocityLimit { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
+            Self::NotInside { .. } => {
+                vec![RepairPolicy::Reject, RepairPolicy::Clamp, RepairPolicy::Reflect]
+            }
+            Self::ReflectOnCollision { .. } | Self::ElasticCollision { .. } => Vec::new(),
         }
     }
 
@@ -938,10 +1017,16 @@ impl Constraint {
                         "invalid velocity limit value: {limit}"
                     ))
                 })?;
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "velocity_limit",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
                 Ok(Self::VelocityLimit {
                     sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
                     max_speed,
-                    policy: parse_repair_policy(policy)?,
+                    policy,
                 })
             }
             [name, sphere_ref, region_ref] if name == "not_inside" => {
@@ -971,9 +1056,19 @@ impl Constraint {
                         "unknown region in not_inside: {region_ref}"
                     )));
                 }
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "not_inside",
+                    policy,
+                    &[
+                        RepairPolicy::Reject,
+                        RepairPolicy::Clamp,
+                        RepairPolicy::Reflect,
+                    ],
+                )?;
                 Ok(Self::NotInside {
                     sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
-                    policy: parse_repair_policy(policy)?,
+                    policy,
                 })
             }
             [name, left, right] if name == "elastic_collision" => Ok(Self::ElasticCollision {
@@ -1078,6 +1173,16 @@ impl Constraint {
     }
 }
 
+impl ConstraintCategory {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Invariant => "invariant",
+            Self::Boundary => "boundary",
+            Self::Interaction => "interaction",
+        }
+    }
+}
+
 impl RepairPolicy {
     fn as_str(self) -> &'static str {
         match self {
@@ -1104,6 +1209,29 @@ fn parse_repair_policy(policy: &str) -> Result<RepairPolicy, SimulationError> {
             "unknown repair policy: {policy}"
         ))),
     }
+}
+
+fn ensure_policy_supported(
+    constraint_name: &str,
+    selected_policy: RepairPolicy,
+    supported_policies: &[RepairPolicy],
+) -> Result<(), SimulationError> {
+    if supported_policies.contains(&selected_policy) {
+        return Ok(());
+    }
+
+    let supported = supported_policies
+        .iter()
+        .map(|policy| policy.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Err(SimulationError::InvalidConstraint(format!(
+        "{} does not support {}; supported policies: {}",
+        constraint_name,
+        selected_policy.as_str(),
+        supported
+    )))
 }
 
 fn escape_json(value: &str) -> String {
@@ -1373,6 +1501,24 @@ observe:
     }
 
     #[test]
+    fn velocity_limit_rejects_unsupported_reflect_policy_at_build_time() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 10, 0)
+velocity(A) = (6, 8, 0)
+radius(A) = 1
+constraint:
+    reflect speed(A) <= 5
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        assert!(error
+            .to_string()
+            .contains("velocity_limit does not support reflect"));
+    }
+
+    #[test]
     fn forbidden_region_stops_world() {
         let source = r#"
 sphere A
@@ -1458,6 +1604,8 @@ observe:
         assert!(json.contains("\"source\": \"example.sk\""));
         assert!(json.contains("\"constraints\""));
         assert!(json.contains("\"velocity_limit\""));
+        assert!(json.contains("\"category\": \"invariant\""));
+        assert!(json.contains("\"supported_policies\": [\"reject\", \"clamp\"]"));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
         assert!(json.contains("\"activities\""));

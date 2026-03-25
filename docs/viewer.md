@@ -22,7 +22,7 @@ and provides:
 - switching between `3d`, `xy`, and `xz`
 - per-snapshot inspection of object positions and velocities
 - contradiction display for failed worlds, including the last stable snapshot when available
-- display of active world laws and per-run law activity
+- display of active world laws, their categories, supported policies, and per-run law activity
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
 - automatic constraint candidate suggestion with user-controlled adoption

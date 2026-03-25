@@ -5,8 +5,10 @@
   "constraints": [
     {
       "kind": "velocity_limit",
+      "category": "invariant",
       "targets": ["A"],
       "policy": "clamp",
+      "supported_policies": ["reject", "clamp"],
       "fired_count": 0,
       "repaired_count": 1
     }

@@ -33,9 +33,19 @@ The new structure makes it easier to:
 - event application kept on a shared runtime path
 - first repair-policy hooks added for velocity-limit and region constraints through `reject`, `clamp`, and region-local `reflect`
 
+## Progress Since Start
+
+Phase F now covers more than raw law execution:
+
+- repair policies are explicit and per-law
+- region exclusion now supports `reject`, `clamp`, and `reflect`
+- reports expose law activity and partial failure context
+- reports classify each law as `invariant`, `boundary`, or `interaction`
+- reports expose which policies each law supports
+
 ## Next Steps
 
-1. classify constraints into invariant, event-triggered, and interaction constraints
-2. extend repair-policy support beyond the current velocity-limit and region-exclusion policies
-3. expose constraint-kind information in reports for debugging and research evaluation
-4. prepare richer constraint forms beyond the current four prototype laws
+1. extend repair-policy support beyond the current velocity-limit and region-exclusion policies
+2. enrich viewer and analysis tools around constraint category and policy comparison
+3. prepare richer constraint forms beyond the current four prototype laws
+4. connect this classification layer to later semantic work in Phase G

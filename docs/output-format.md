@@ -32,8 +32,10 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
   "constraints": [
     {
       "kind": "elastic_collision",
+      "category": "interaction",
       "targets": ["A", "B"],
       "policy": "implicit",
+      "supported_policies": [],
       "fired_count": 1,
       "repaired_count": 0
     }
@@ -72,8 +74,10 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
   "constraints": [
     {
       "kind": "not_inside",
+      "category": "boundary",
       "targets": ["A", "zone"],
       "policy": "reject",
+      "supported_policies": ["reject", "clamp", "reflect"],
       "fired_count": 1,
       "repaired_count": 0
     }
@@ -117,5 +121,7 @@ This format is intentionally small but useful for:
 - regression tests based on snapshot data
 - external analysis scripts
 - exposing which world laws and repair policies were active during execution
+- exposing whether each law is invariant, boundary-oriented, or interaction-oriented
+- exposing which repair policies are supported by each law
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution

@@ -854,9 +854,20 @@ function renderConstraintList() {
     const targets = document.createElement("p");
     targets.textContent = Array.isArray(constraint.targets) ? constraint.targets.join(", ") : "";
 
+    const category = document.createElement("p");
+    category.className = "muted";
+    category.textContent = `category: ${constraint.category || "unknown"}`;
+
     const policy = document.createElement("p");
     policy.className = "muted";
     policy.textContent = `policy: ${constraint.policy || "implicit"}`;
+
+    const supported = document.createElement("p");
+    supported.className = "muted";
+    const supportedPolicies = Array.isArray(constraint.supported_policies)
+      ? constraint.supported_policies.join(", ")
+      : "";
+    supported.textContent = `supports: ${supportedPolicies || "implicit-only"}`;
 
     const activity = document.createElement("p");
     activity.className = "muted";
@@ -864,7 +875,9 @@ function renderConstraintList() {
 
     card.appendChild(title);
     card.appendChild(targets);
+    card.appendChild(category);
     card.appendChild(policy);
+    card.appendChild(supported);
     card.appendChild(activity);
     constraintList.appendChild(card);
   });
