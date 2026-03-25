@@ -347,9 +347,24 @@ This gives the prototype its first end-to-end visual-logical cycle: arrangement,
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.9\textwidth]{../figures/viewer-03-roundtrip-result-paper.png}
-  \caption{Round-trip execution from diagram editing to world simulation. A draft scene is executed through \texttt{Run Draft}, after which the returned world report is displayed in the same interface.}
-  \label{fig:viewer-roundtrip}
+\caption{Round-trip execution from diagram editing to world simulation. A draft scene is executed through \texttt{Run Draft}, after which the returned world report is displayed in the same interface.}
+\label{fig:viewer-roundtrip}
 \end{figure*}
+
+\subsection{Early Underdetermined-World Convergence}
+
+The project has also now begun to cross the boundary from fully specified worlds to underdetermined ones.
+In a small Phase I extension, a scene can declare multiple candidate velocities for one entity together with soft scores, while the existing law layer still acts as a hard admissibility filter.
+This produces a useful first convergence model rather than a full search framework.
+
+Two minimal behaviors are already executable.
+In the first, the highest-scoring candidate is rejected by a hard law, so the runtime falls back to a lower-scoring admissible candidate.
+In the second, the highest-scoring candidate is selected but then repaired by a hard law into an admissible continuation.
+The structured report now exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier.
+
+These additions remain deliberately small, but they matter for the research trajectory.
+They show that World-Oriented Programming need not be limited to fully determined evolution.
+It can also begin to represent worlds whose next admissible development is chosen through a combination of hard laws and soft preference.
 
 \subsection{What These Results Do and Do Not Show}
 
@@ -361,9 +376,11 @@ It shows that declarative world description can drive execution, that admissibil
 The prototype remains intentionally narrow.
 Its object vocabulary is small.
 Region handling is simplified, simultaneous-event semantics are underspecified, and the visualization pipeline is still far from a mature editor.
+The new underdetermined-world slice is likewise intentionally narrow: it currently supports only single-entity candidate resolution with one simple scoring model.
 
 These limitations point directly to the next research steps.
 One path is implementation-driven: richer geometry, multiple surfaces, better simultaneous-event handling, and a stronger diagrammatic interface.
+Another path is semantics-driven: extending the current Phase I slice from candidate selection toward a fuller convergence model for underdetermined worlds.
 Another path is evaluation-driven: comparisons against imperative baselines, analysis of specification size and clarity, and studies of representational alignment for human users.
 
 \bibliographystyle{ACM-Reference-Format}
