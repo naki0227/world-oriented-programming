@@ -22,11 +22,18 @@ pub struct ActionCandidateDecl {
     pub score: f64,
 }
 
+#[derive(Clone, Debug)]
+pub struct ActionDirectiveDecl {
+    pub entity: String,
+    pub kind: String,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Program {
     pub entities: Vec<EntityDecl>,
     pub properties: HashMap<(String, String), Value>,
     pub action_candidates: Vec<ActionCandidateDecl>,
+    pub action_directives: Vec<ActionDirectiveDecl>,
     pub constraints: Vec<Vec<String>>,
     pub observe_times: Vec<f64>,
 }
@@ -190,9 +197,15 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                         format!("could not parse statement `{trimmed}` after action block"),
                     ));
                 }
+                if trimmed.starts_with("candidate_velocity(") {
+                    program
+                        .action_candidates
+                        .push(parse_action_candidate(trimmed, line_no)?);
+                    continue;
+                }
                 program
-                    .action_candidates
-                    .push(parse_action_candidate(trimmed, line_no)?);
+                    .action_directives
+                    .push(parse_action_directive(trimmed, line_no)?);
             }
         }
     }
@@ -472,5 +485,34 @@ fn parse_action_candidate(line: &str, line_no: usize) -> Result<ActionCandidateD
         label: args[1].to_string(),
         velocity,
         score,
+    })
+}
+
+fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveDecl, ParseError> {
+    let Some(rest) = line.strip_prefix("defer_on_ambiguous_top(") else {
+        return Err(ParseError::new(
+            line_no,
+            format!("invalid action statement `{line}`"),
+        ));
+    };
+    let close = rest
+        .find(')')
+        .ok_or_else(|| ParseError::new(line_no, "defer_on_ambiguous_top is missing `)`"))?;
+    let entity = rest[..close].trim();
+    if entity.is_empty() {
+        return Err(ParseError::new(
+            line_no,
+            "defer_on_ambiguous_top requires an entity",
+        ));
+    }
+    if !rest[close + 1..].trim().is_empty() {
+        return Err(ParseError::new(
+            line_no,
+            "defer_on_ambiguous_top does not take trailing arguments",
+        ));
+    }
+    Ok(ActionDirectiveDecl {
+        entity: entity.to_string(),
+        kind: "defer_on_ambiguous_top".to_string(),
     })
 }

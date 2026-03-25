@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt};
 
-use crate::parser::{ActionCandidateDecl, Program};
+use crate::parser::{ActionCandidateDecl, ActionDirectiveDecl, Program};
 
 const EPSILON: f64 = 1e-9;
 
@@ -186,6 +186,7 @@ pub struct ConvergenceAnalytics {
     pub direct_entities: usize,
     pub fallback_entities: usize,
     pub repaired_entities: usize,
+    pub deferred_entities: usize,
     pub tie_broken_entities: usize,
     pub equivalent_tie_entities: usize,
     pub determinate_entities: usize,
@@ -356,6 +357,10 @@ impl SimulationReport {
         json.push_str(&format!(
             "    \"repaired_entities\": {},\n",
             self.convergence_analytics.repaired_entities
+        ));
+        json.push_str(&format!(
+            "    \"deferred_entities\": {},\n",
+            self.convergence_analytics.deferred_entities
         ));
         json.push_str(&format!(
             "    \"tie_broken_entities\": {},\n",
@@ -880,6 +885,10 @@ impl SimulationEnvelope {
                     report.convergence_analytics.repaired_entities
                 ));
                 json.push_str(&format!(
+                    "    \"deferred_entities\": {},\n",
+                    report.convergence_analytics.deferred_entities
+                ));
+                json.push_str(&format!(
                     "    \"tie_broken_entities\": {},\n",
                     report.convergence_analytics.tie_broken_entities
                 ));
@@ -1120,6 +1129,7 @@ impl SimulationEnvelope {
                 json.push_str("    \"direct_entities\": 0,\n");
                 json.push_str("    \"fallback_entities\": 0,\n");
                 json.push_str("    \"repaired_entities\": 0,\n");
+                json.push_str("    \"deferred_entities\": 0,\n");
                 json.push_str("    \"tie_broken_entities\": 0,\n");
                 json.push_str("    \"equivalent_tie_entities\": 0,\n");
                 json.push_str("    \"determinate_entities\": 0,\n");
@@ -1385,7 +1395,10 @@ impl World {
                 activity_log: Vec::new(),
             };
 
-        world.resolve_initial_action_candidates(&program.action_candidates)?;
+        world.resolve_initial_action_candidates(
+            &program.action_candidates,
+            &program.action_directives,
+        )?;
         world.validated()
     }
 
@@ -1516,10 +1529,17 @@ impl World {
     fn resolve_initial_action_candidates(
         &mut self,
         action_candidates: &[ActionCandidateDecl],
+        action_directives: &[ActionDirectiveDecl],
     ) -> Result<(), SimulationError> {
         if action_candidates.is_empty() {
             return Ok(());
         }
+
+        let deferred_entities = action_directives
+            .iter()
+            .filter(|directive| directive.kind == "defer_on_ambiguous_top")
+            .map(|directive| directive.entity.clone())
+            .collect::<std::collections::BTreeSet<_>>();
 
         let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
         for candidate in action_candidates {
@@ -1557,8 +1577,11 @@ impl World {
             let mut rejected_candidates = 0usize;
             let mut selected_candidate = None;
             let mut selected_score = None;
+            let mut selected_score_value = None;
             let mut repaired_after_selection = false;
             let mut selected_signature = None;
+            let mut selected_spheres = None;
+            let mut selected_activity_log = Vec::new();
             for candidate in candidates {
                 let mut probe = self.clone();
                 probe.activity_log.clear();
@@ -1571,19 +1594,13 @@ impl World {
                             .activity_log
                             .iter()
                             .any(|activity| activity.action == "repaired");
-                        self.spheres = probe.spheres;
-                        self.activity_log.push(candidate_activity_entry(
-                            self.current_time(),
-                            &sphere_name,
-                            &candidate.label,
-                            candidate.score,
-                            "selected",
-                        ));
+                        selected_spheres = Some(probe.spheres);
+                        selected_activity_log = probe.activity_log;
                         selected_candidate = Some(candidate.label.clone());
                         selected_score = Some(format!("score={:.3}", candidate.score));
+                        selected_score_value = Some(candidate.score);
                         selected_signature = Some(probe_signature);
                         repaired_after_selection = probe_repaired;
-                        self.activity_log.extend(probe.activity_log);
                         selected = true;
                         break;
                     }
@@ -1624,7 +1641,39 @@ impl World {
 
             let tie_broken = top_labels.len() > 1;
             let observationally_equivalent_tie = equivalent_top_labels.len() > 1;
-            let convergence_mode = if observationally_equivalent_tie {
+            let deferred = tie_broken
+                && !observationally_equivalent_tie
+                && deferred_entities.contains(&sphere_name);
+            if deferred {
+                self.activity_log.push(candidate_activity_entry(
+                    self.current_time(),
+                    &sphere_name,
+                    top_labels.first().map(String::as_str).unwrap_or(""),
+                    top_score,
+                    "deferred_due_to_tie",
+                ));
+                selected_candidate = None;
+                selected_score = None;
+                repaired_after_selection = false;
+            } else {
+                if let Some(spheres) = selected_spheres {
+                    self.spheres = spheres;
+                }
+                if let Some(label) = &selected_candidate {
+                    self.activity_log.push(candidate_activity_entry(
+                        self.current_time(),
+                        &sphere_name,
+                        label,
+                        selected_score_value.unwrap_or(top_score),
+                        "selected",
+                    ));
+                }
+                self.activity_log.extend(selected_activity_log);
+            }
+
+            let convergence_mode = if deferred {
+                "deferred"
+            } else if observationally_equivalent_tie {
                 "equivalent_tie"
             } else if tie_broken {
                 "tie_broken"
@@ -1635,7 +1684,9 @@ impl World {
             } else {
                 "direct"
             };
-            let observation_mode = if observationally_equivalent_tie {
+            let observation_mode = if deferred {
+                "ambiguous"
+            } else if observationally_equivalent_tie {
                 "representative"
             } else if tie_broken {
                 "ambiguous"
@@ -1657,7 +1708,11 @@ impl World {
                 entity: sphere_name,
                 total_candidates,
                 rejected_candidates,
-                skipped_candidates: total_candidates - rejected_candidates - 1,
+                skipped_candidates: if deferred {
+                    total_candidates.saturating_sub(rejected_candidates)
+                } else {
+                    total_candidates - rejected_candidates - 1
+                },
                 convergence_mode: convergence_mode.to_string(),
                 observation_mode: observation_mode.to_string(),
                 observation_labels,
@@ -2134,6 +2189,7 @@ impl ConvergenceAnalytics {
             direct_entities: 0,
             fallback_entities: 0,
             repaired_entities: 0,
+            deferred_entities: 0,
             tie_broken_entities: 0,
             equivalent_tie_entities: 0,
             determinate_entities: 0,
@@ -2152,6 +2208,7 @@ impl ConvergenceAnalytics {
                 "direct" => analytics.direct_entities += 1,
                 "fallback" => analytics.fallback_entities += 1,
                 "repaired" => analytics.repaired_entities += 1,
+                "deferred" => analytics.deferred_entities += 1,
                 "tie_broken" => analytics.tie_broken_entities += 1,
                 "equivalent_tie" => analytics.equivalent_tie_entities += 1,
                 _ => {}
@@ -3120,5 +3177,42 @@ observe:
         assert_eq!(report.observation_summary.status, "unresolved");
         assert_eq!(report.observation_summary.representative_entities, 0);
         assert_eq!(report.observation_summary.ambiguous_entities, 1);
+    }
+
+    #[test]
+    fn candidate_velocity_can_defer_ambiguous_top_choice() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let sphere = &report.snapshots[0].spheres[0];
+        assert_eq!(sphere.velocity.x, 0.0);
+        let candidate_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be recorded");
+        assert_eq!(candidate_resolution.convergence_mode, "deferred");
+        assert_eq!(candidate_resolution.observation_mode, "ambiguous");
+        assert_eq!(candidate_resolution.selected_candidate, None);
+        assert_eq!(candidate_resolution.skipped_candidates, 2);
+        assert_eq!(report.convergence_analytics.deferred_entities, 1);
+        assert_eq!(report.observation_summary.status, "unresolved");
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity" && entry.action == "deferred_due_to_tie"
+        }));
     }
 }

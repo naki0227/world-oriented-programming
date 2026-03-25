@@ -217,6 +217,9 @@ In the current prototype this is also summarized at run level as:
 
 This is the first executable stand-in for `Obs?(W^?, t_obs) = U`.
 
+The current prototype can also defer an ambiguous top-score tie explicitly instead of choosing a representative branch immediately.
+This creates the first small executable case where the world remains unresolved at observation time by design.
+
 ## Definition Of Success
 
 Phase I is successful when:

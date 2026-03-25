@@ -87,6 +87,7 @@ const POLICY_COMPARISON_SAMPLES = [
 const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
+  { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
   { label: "tie", path: "./samples/candidate_velocity_tied.json" },
   { label: "equivalent tie", path: "./samples/candidate_velocity_equivalent_tie.json" },
 ];
@@ -1117,6 +1118,8 @@ function renderCandidateComparison() {
         ? "The highest-scoring candidate is rejected, so a lower-scoring admissible candidate is selected."
         : sample.label === "repaired"
           ? "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer."
+          : sample.label === "deferred"
+            ? "A top-score ambiguity is deferred explicitly, so the entity remains unresolved at the observation layer."
           : sample.label === "tie"
             ? "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped."
             : "Two candidates share the top score and also collapse to the same observed result, exposing a small observational-equivalence case.";

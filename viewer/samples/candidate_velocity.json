@@ -30,6 +30,7 @@
     "direct_entities": 0,
     "fallback_entities": 1,
     "repaired_entities": 0,
+    "deferred_entities": 0,
     "tie_broken_entities": 0,
     "equivalent_tie_entities": 0,
     "determinate_entities": 1,

@@ -1,5 +1,5 @@
 {
-  "source": "examples/candidate_velocity_equivalent_tie.sk",
+  "source": "examples/candidate_velocity_deferred.sk",
   "status": "ok",
   "error": null,
   "analytics": {
@@ -30,40 +30,40 @@
     "direct_entities": 0,
     "fallback_entities": 0,
     "repaired_entities": 0,
-    "deferred_entities": 0,
+    "deferred_entities": 1,
     "tie_broken_entities": 0,
-    "equivalent_tie_entities": 1,
+    "equivalent_tie_entities": 0,
     "determinate_entities": 0,
-    "representative_entities": 1,
-    "ambiguous_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 1,
     "symbolically_underdetermined_entities": 1,
-    "observationally_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 1,
     "rejected_candidates_total": 0,
-    "skipped_candidates_total": 1
+    "skipped_candidates_total": 2
   },
   "observation_summary": {
-    "status": "representative",
-    "representative_entities": 1,
-    "ambiguous_entities": 0
+    "status": "unresolved",
+    "representative_entities": 0,
+    "ambiguous_entities": 1
   },
   "candidate_resolutions": [
     {
       "entity": "A",
       "total_candidates": 2,
       "rejected_candidates": 0,
-      "skipped_candidates": 1,
-      "convergence_mode": "equivalent_tie",
-      "observation_mode": "representative",
+      "skipped_candidates": 2,
+      "convergence_mode": "deferred",
+      "observation_mode": "ambiguous",
       "observation_labels": ["alpha", "beta"],
       "symbolically_underdetermined": true,
-      "observationally_underdetermined": false,
-      "selected_candidate": "alpha",
-      "selected_score": "score=5.000",
+      "observationally_underdetermined": true,
+      "selected_candidate": null,
+      "selected_score": null,
       "top_score": "5.000",
       "top_labels": ["alpha", "beta"],
       "tie_broken": true,
-      "equivalent_top_labels": ["alpha", "beta"],
-      "observationally_equivalent_tie": true,
+      "equivalent_top_labels": ["alpha"],
+      "observationally_equivalent_tie": false,
       "repaired_after_selection": false
     }
   ],
@@ -73,7 +73,7 @@
       "kind": "candidate_velocity",
       "targets": ["A", "alpha"],
       "policy": "score=5.000",
-      "action": "selected"
+      "action": "deferred_due_to_tie"
     }
   ],
   "snapshots": [
@@ -83,7 +83,7 @@
         {
           "name": "A",
           "position": { "x": 0.000000, "y": 2.000000, "z": 0.000000 },
-          "velocity": { "x": 3.000000, "y": 0.000000, "z": 0.000000 }
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
         }
       ]
     }
