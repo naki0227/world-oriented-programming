@@ -20,3 +20,5 @@ The resulting report therefore shows:
 This is the first executable partial-convergence case in the project.
 
 The follow-up slice extends this one across two observation times, so deferred ambiguity is not only represented at the initial frontier but can also persist while other entities continue to move.
+
+The next follow-up adds a tiny controlled re-convergence case: a deferred entity may remain unresolved at the first frontier and then resolve deterministically at a later observation time declared in the action layer.

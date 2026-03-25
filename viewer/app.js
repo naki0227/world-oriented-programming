@@ -88,6 +88,7 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
   { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
+  { label: "resolve after defer", path: "./samples/candidate_velocity_deferred_resolve.json" },
   { label: "partial deferred", path: "./samples/candidate_velocity_partial_deferred.json" },
   { label: "persistent deferred", path: "./samples/candidate_velocity_partial_deferred_persistent.json" },
   { label: "tie", path: "./samples/candidate_velocity_tied.json" },
@@ -1044,7 +1045,9 @@ function renderCandidateResolution() {
     candidateInventory.forEach((inventory) => {
       const directives = actionDirectiveInventory
         .filter((directive) => directive.entity === inventory.entity)
-        .map((directive) => directive.kind);
+        .map((directive) =>
+          directive.argument ? `${directive.kind}(${directive.argument})` : directive.kind,
+        );
       const card = document.createElement("article");
       card.className = "sphere-card";
       card.innerHTML = `
@@ -1104,6 +1107,8 @@ function renderCandidateResolution() {
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
       <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
       <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
+      <p class="muted">resolved from deferred = ${candidateResolution.resolved_from_deferred ? "yes" : "no"}</p>
+      <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
     `;
     candidateResolutionList.appendChild(card);
   });
@@ -1150,6 +1155,8 @@ function renderCandidateComparison() {
     <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
     <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
     <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
+    <p class="muted">resolved from deferred = ${candidateResolution.resolved_from_deferred ? "yes" : "no"}</p>
+    <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
   `;
   candidateComparisonList.appendChild(summary);
 
@@ -1169,6 +1176,8 @@ function renderCandidateComparison() {
           ? "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer."
           : sample.label === "deferred"
             ? "A top-score ambiguity is deferred explicitly, so the entity remains unresolved at the observation layer."
+          : sample.label === "resolve after defer"
+            ? "An ambiguous top score is deferred at the initial frontier and then resolved deterministically at a later observation time."
           : sample.label === "partial deferred"
             ? "One entity remains unresolved by design while another still converges, exposing a mixed observation state in the same world."
           : sample.label === "persistent deferred"

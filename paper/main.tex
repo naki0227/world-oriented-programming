@@ -364,6 +364,7 @@ The prototype can now also expose top-score ties explicitly, together with the d
 It can further distinguish ties whose top-scoring continuations are observationally equivalent, making it explicit when deterministic branch selection chooses a representative continuation rather than an observably different one.
 The prototype can now also mix these modes within one world, so one entity may remain deferred while another converges after repair in the same run.
 The prototype can also now keep a deferred entity unresolved across more than one observed frontier while other entities continue to evolve.
+It can also resolve such a deferred tie at a later frontier when the scene explicitly requests a later convergence point.
 The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, deferred, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still unresolved in a small executable stand-in for $Obs? = U$.
 
 These additions remain deliberately small, but they matter for the research trajectory.

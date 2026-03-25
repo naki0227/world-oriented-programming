@@ -26,6 +26,7 @@ pub struct ActionCandidateDecl {
 pub struct ActionDirectiveDecl {
     pub entity: String,
     pub kind: String,
+    pub argument: Option<f64>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -489,7 +490,31 @@ fn parse_action_candidate(line: &str, line_no: usize) -> Result<ActionCandidateD
 }
 
 fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveDecl, ParseError> {
-    let Some(rest) = line.strip_prefix("defer_on_ambiguous_top(") else {
+    if let Some(rest) = line.strip_prefix("defer_on_ambiguous_top(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "defer_on_ambiguous_top is missing `)`"))?;
+        let entity = rest[..close].trim();
+        if entity.is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "defer_on_ambiguous_top requires an entity",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "defer_on_ambiguous_top does not take trailing arguments",
+            ));
+        }
+        return Ok(ActionDirectiveDecl {
+            entity: entity.to_string(),
+            kind: "defer_on_ambiguous_top".to_string(),
+            argument: None,
+        });
+    }
+
+    let Some(rest) = line.strip_prefix("resolve_deferred_at(") else {
         return Err(ParseError::new(
             line_no,
             format!("invalid action statement `{line}`"),
@@ -497,22 +522,33 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
     };
     let close = rest
         .find(')')
-        .ok_or_else(|| ParseError::new(line_no, "defer_on_ambiguous_top is missing `)`"))?;
-    let entity = rest[..close].trim();
-    if entity.is_empty() {
+        .ok_or_else(|| ParseError::new(line_no, "resolve_deferred_at is missing `)`"))?;
+    let args = rest[..close]
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if args.len() != 2 {
         return Err(ParseError::new(
             line_no,
-            "defer_on_ambiguous_top requires an entity",
+            "resolve_deferred_at requires an entity and a time",
         ));
     }
     if !rest[close + 1..].trim().is_empty() {
         return Err(ParseError::new(
             line_no,
-            "defer_on_ambiguous_top does not take trailing arguments",
+            "resolve_deferred_at does not take trailing arguments",
         ));
     }
+    let time = args[1].parse::<f64>().map_err(|_| {
+        ParseError::new(
+            line_no,
+            format!("invalid resolve_deferred_at time `{}`", args[1]),
+        )
+    })?;
     Ok(ActionDirectiveDecl {
-        entity: entity.to_string(),
-        kind: "defer_on_ambiguous_top".to_string(),
+        entity: args[0].to_string(),
+        kind: "resolve_deferred_at".to_string(),
+        argument: Some(time),
     })
 }

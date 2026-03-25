@@ -228,6 +228,9 @@ That makes partial convergence visible instead of forcing the whole world into a
 After that, the next important executable step is persistence across frontiers:
 a deferred entity should be able to remain unresolved across more than one observation while other entities continue to evolve.
 
+The next step after persistence is controlled re-convergence:
+the world should be able to defer a top-score ambiguity at one frontier and resolve it later when an explicit convergence trigger becomes active.
+
 ## Definition Of Success
 
 Phase I is successful when:

@@ -27,7 +27,7 @@ and provides:
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
 - display of static Phase I candidate inventories and action directives when reports come from `sekai analyze`
 - display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
-- quick comparison between candidate deferred, partial-deferred, persistent-deferred, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
+- quick comparison between candidate deferred, resolve-after-defer, partial-deferred, persistent-deferred, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
@@ -77,6 +77,7 @@ cargo run -p sekai-cli -- simulate-report examples/candidate_velocity.sk > viewe
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_clamped.sk > viewer/samples/candidate_velocity_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_deferred.sk > viewer/samples/candidate_velocity_deferred.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_equivalent_tie.sk > viewer/samples/candidate_velocity_equivalent_tie.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_deferred_resolve.sk > viewer/samples/candidate_velocity_deferred_resolve.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_partial_deferred.sk > viewer/samples/candidate_velocity_partial_deferred.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_partial_deferred_persistent.sk > viewer/samples/candidate_velocity_partial_deferred_persistent.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_tied.sk > viewer/samples/candidate_velocity_tied.json
@@ -122,6 +123,8 @@ When a report includes `candidate_resolutions`, the viewer now separates:
 - observational underdetermination
 
 This makes it easier to tell whether a world remained ambiguous only symbolically or also at the observation layer.
+
+The candidate cards also expose whether a deferred entity was later resolved and, if so, at which observation frontier that happened.
 
 The report header now also exposes a run-level observation status, so unresolved Phase I cases can be spotted without opening any entity card.
 
