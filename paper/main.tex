@@ -208,6 +208,10 @@ In the admissible case, the world continues after any required repair.
 In the inadmissible case, execution reaches contradiction at the same frontier instead of falling back to an out-of-band exception model.
 This framing gives a clean reading to the runtime's current activity labels: fired, repaired, and contradicted.
 
+The semantics draft can now also state these stages as compact rule blocks:
+\emph{Select}, \emph{Sync}, \emph{Fire}, \emph{Enforce}, \emph{Contradict}, and \emph{Observe}.
+That is still lighter than a full theorem-proof semantics, but it is already closer to an operational account than to a design metaphor.
+
 \subsection{Deterministic Snapshots Without Global Lockstep}
 
 This semantics direction lets the paper make a stronger claim than before:

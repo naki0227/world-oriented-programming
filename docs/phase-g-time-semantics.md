@@ -941,6 +941,79 @@ or, in the failing case:
 
 This is the first point in the project where the semantic flow can be written as a compact staged execution system rather than a descriptive narrative.
 
+### Structured Rule Blocks
+
+The next step toward a paper-facing operational semantics is to present the stages as compact rule blocks.
+
+`Select`
+
+Premises:
+
+- `Ev(W_t) != empty`
+- `ev = Next(W_t)`
+
+Conclusion:
+
+- `W_t =>select (W_t, ev)`
+
+`Sync`
+
+Premises:
+
+- `W_t =>select (W_t, ev)`
+- `Sync(ev)` is defined
+
+Conclusion:
+
+- `(W_t, ev) =>sync W_t^sync`
+
+`Fire`
+
+Premises:
+
+- `W_t^sync` is defined
+
+Conclusion:
+
+- `W_t^sync =>fire W_t^ev`
+
+`Enforce`
+
+Premises:
+
+- `W_t^ev` is defined
+- `not Adm(W_t^ev)`
+- some law policy in `L` restores admissibility
+
+Conclusion:
+
+- `W_t^ev =>enforce W_t'`
+
+`Contradict`
+
+Premises:
+
+- `W_t^ev` is defined
+- `not Adm(W_t^ev)`
+- no admissible continuation exists
+
+Conclusion:
+
+- `W_t^ev =>contradict W_t^X`
+
+`Observe`
+
+Premises:
+
+- every event frontier earlier than `t_obs` has been resolved
+- the observation carrier required at `t_obs` is coherent
+
+Conclusion:
+
+- `(W, t_obs) =>observe Obs(W, t_obs)`
+
+These blocks are still lightweight, but they are now close enough to an inference-rule style presentation that they can be turned into a formal semantics section with only moderate additional work.
+
 ### Snapshot Semantics
 
 G5 should also state the semantic meaning of observation.
