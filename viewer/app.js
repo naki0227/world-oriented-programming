@@ -91,6 +91,7 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "resolve after defer", path: "./samples/candidate_velocity_deferred_resolve.json" },
   { label: "partial deferred", path: "./samples/candidate_velocity_partial_deferred.json" },
   { label: "persistent deferred", path: "./samples/candidate_velocity_partial_deferred_persistent.json" },
+  { label: "staggered resolve", path: "./samples/candidate_velocity_staggered_resolve.json" },
   { label: "tie", path: "./samples/candidate_velocity_tied.json" },
   { label: "equivalent tie", path: "./samples/candidate_velocity_equivalent_tie.json" },
 ];
@@ -330,6 +331,7 @@ function normalizeReport(report) {
       observation_summary:
         report.observation_summary ||
         defaultObservationSummary(report.candidate_resolutions || []),
+      observation_timeline: report.observation_timeline || [],
       constraints: report.constraints || [],
       candidate_inventory: report.candidate_inventory || [],
       action_directive_inventory: report.action_directive_inventory || [],
@@ -346,6 +348,7 @@ function normalizeReport(report) {
     observation_summary:
       report.observation_summary ||
       defaultObservationSummary(report.candidate_resolutions || []),
+    observation_timeline: report.observation_timeline || [],
     constraints: report.constraints || [],
     candidate_inventory: report.candidate_inventory || [],
     action_directive_inventory: report.action_directive_inventory || [],
@@ -417,6 +420,15 @@ function activeSnapshot() {
   return state.report.snapshots[index];
 }
 
+function activeObservationCheckpoint() {
+  if (!state.report) return null;
+  const timeline = state.report.observation_timeline || [];
+  if (timeline.length === 0) return null;
+  const maxIndex = timeline.length - 1;
+  const index = Math.min(state.snapshotIndex, maxIndex);
+  return timeline[index];
+}
+
 function lastStableSnapshot() {
   if (!hasStableSnapshots()) return null;
   return state.report.snapshots[state.report.snapshots.length - 1];
@@ -443,6 +455,11 @@ function syncCameraLabels() {
 }
 
 function render() {
+  const activeObservation = activeObservationCheckpoint();
+  observationStatus.textContent =
+    activeObservation?.status ||
+    state.report?.observation_summary?.status ||
+    "determinate";
   renderCanvas();
   renderSidebar();
   renderConstraintCandidates();
@@ -1182,6 +1199,8 @@ function renderCandidateComparison() {
             ? "One entity remains unresolved by design while another still converges, exposing a mixed observation state in the same world."
           : sample.label === "persistent deferred"
             ? "A deferred entity remains unresolved across more than one observed frontier while another entity continues to evolve."
+          : sample.label === "staggered resolve"
+            ? "Multiple deferred entities resolve at different observed frontiers, so the world-level observation status changes over time."
           : sample.label === "tie"
             ? "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped."
             : "Two candidates share the top score and also collapse to the same observed result, exposing a small observational-equivalence case.";

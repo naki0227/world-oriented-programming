@@ -27,7 +27,7 @@ and provides:
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
 - display of static Phase I candidate inventories and action directives when reports come from `sekai analyze`
 - display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
-- quick comparison between candidate deferred, resolve-after-defer, partial-deferred, persistent-deferred, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
+- quick comparison between candidate deferred, resolve-after-defer, partial-deferred, persistent-deferred, staggered-resolve, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
@@ -80,6 +80,7 @@ cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_equivalent
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_deferred_resolve.sk > viewer/samples/candidate_velocity_deferred_resolve.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_partial_deferred.sk > viewer/samples/candidate_velocity_partial_deferred.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_partial_deferred_persistent.sk > viewer/samples/candidate_velocity_partial_deferred_persistent.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_staggered_resolve.sk > viewer/samples/candidate_velocity_staggered_resolve.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_tied.sk > viewer/samples/candidate_velocity_tied.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_two_entity.sk > viewer/samples/candidate_velocity_two_entity.json
 cargo run -p sekai-cli -- analyze examples/candidate_velocity_deferred.sk > viewer/samples/candidate_velocity_deferred_analyze.json

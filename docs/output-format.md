@@ -188,6 +188,7 @@ Phase I reports may additionally include:
 
 - `convergence_analytics` for run-level totals over candidate-bearing entities
 - `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
+- `observation_timeline` for observation status at each recorded frontier
 - `candidate_resolutions` when initial action candidates were evaluated before observation
 - `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)

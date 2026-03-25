@@ -140,9 +140,18 @@ pub struct SimulationReport {
     pub constraints: Vec<ConstraintSummary>,
     pub convergence_analytics: ConvergenceAnalytics,
     pub observation_summary: ObservationSummary,
+    pub observation_timeline: Vec<ObservationCheckpoint>,
     pub candidate_resolutions: Vec<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ObservationCheckpoint {
+    pub time: f64,
+    pub status: String,
+    pub representative_entities: usize,
+    pub ambiguous_entities: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -430,6 +439,29 @@ impl SimulationReport {
             self.observation_summary.ambiguous_entities
         ));
         json.push_str("  },\n");
+        json.push_str("  \"observation_timeline\": [\n");
+        for (index, checkpoint) in self.observation_timeline.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"time\": {:.6},\n", checkpoint.time));
+            json.push_str(&format!(
+                "      \"status\": \"{}\",\n",
+                escape_json(&checkpoint.status)
+            ));
+            json.push_str(&format!(
+                "      \"representative_entities\": {},\n",
+                checkpoint.representative_entities
+            ));
+            json.push_str(&format!(
+                "      \"ambiguous_entities\": {}\n",
+                checkpoint.ambiguous_entities
+            ));
+            json.push_str("    }");
+            if index + 1 != self.observation_timeline.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
         json.push_str("  \"candidate_resolutions\": [\n");
         for (index, candidate_resolution) in self.candidate_resolutions.iter().enumerate() {
             json.push_str("    {\n");
@@ -1012,6 +1044,29 @@ impl SimulationEnvelope {
                     report.observation_summary.ambiguous_entities
                 ));
                 json.push_str("  },\n");
+                json.push_str("  \"observation_timeline\": [\n");
+                for (index, checkpoint) in report.observation_timeline.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!("      \"time\": {:.6},\n", checkpoint.time));
+                    json.push_str(&format!(
+                        "      \"status\": \"{}\",\n",
+                        escape_json(&checkpoint.status)
+                    ));
+                    json.push_str(&format!(
+                        "      \"representative_entities\": {},\n",
+                        checkpoint.representative_entities
+                    ));
+                    json.push_str(&format!(
+                        "      \"ambiguous_entities\": {}\n",
+                        checkpoint.ambiguous_entities
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.observation_timeline.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
                 json.push_str("  \"candidate_resolutions\": [\n");
                 for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
                 {
@@ -1299,12 +1354,19 @@ impl std::error::Error for SimulationError {}
 pub fn simulate_program(program: &Program) -> Result<SimulationReport, SimulationError> {
     let mut world = World::from_program(program)?;
     let mut snapshots = Vec::new();
+    let mut observation_timeline = Vec::new();
     let mut observation_times = program.observe_times.clone();
     observation_times.sort_by(|a, b| a.total_cmp(b));
 
     for time in observation_times {
         world.advance_to(time)?;
         world.resolve_deferred_candidates_at(time)?;
+        let candidate_resolutions =
+            candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len() + 1);
+        observation_timeline.push(observation_checkpoint(
+            time,
+            &ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+        ));
         let mut spheres = world
             .spheres
             .iter()
@@ -1331,6 +1393,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         observation_summary: ObservationSummary::from_candidate_resolutions(
             &candidate_resolutions,
         ),
+        observation_timeline,
         candidate_resolutions,
         activities: world.activity_log.clone(),
         snapshots,
@@ -1354,6 +1417,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         Err(error) => return SimulationEnvelope::failure(source, error.to_string()),
     };
     let mut snapshots = Vec::new();
+    let mut observation_timeline = Vec::new();
     let mut observation_times = program.observe_times.clone();
     observation_times.sort_by(|a, b| a.total_cmp(b));
 
@@ -1374,6 +1438,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     observation_summary: ObservationSummary::from_candidate_resolutions(
                         &candidate_resolutions,
                     ),
+                    observation_timeline,
                     candidate_resolutions,
                     activities: world.activity_log.clone(),
                     snapshots,
@@ -1396,12 +1461,19 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     observation_summary: ObservationSummary::from_candidate_resolutions(
                         &candidate_resolutions,
                     ),
+                    observation_timeline,
                     candidate_resolutions,
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
             );
         }
+        let candidate_resolutions =
+            candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len() + 1);
+        observation_timeline.push(observation_checkpoint(
+            time,
+            &ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+        ));
         let mut spheres = world
             .spheres
             .iter()
@@ -1430,6 +1502,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             observation_summary: ObservationSummary::from_candidate_resolutions(
                 &candidate_resolutions,
             ),
+            observation_timeline,
             candidate_resolutions,
             activities: world.activity_log.clone(),
             snapshots,
@@ -2653,6 +2726,15 @@ fn candidate_resolutions_for_report(
         .collect()
 }
 
+fn observation_checkpoint(time: f64, summary: &ObservationSummary) -> ObservationCheckpoint {
+    ObservationCheckpoint {
+        time,
+        status: summary.status.clone(),
+        representative_entities: summary.representative_entities,
+        ambiguous_entities: summary.ambiguous_entities,
+    }
+}
+
 fn action_candidates_by_entity(program: &Program) -> BTreeMap<String, Vec<ActionCandidateDecl>> {
     let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
     for candidate in &program.action_candidates {
@@ -3677,5 +3759,58 @@ observe:
         assert!(report.activities.iter().any(|entry| {
             entry.kind == "candidate_velocity" && entry.action == "selected_after_defer"
         }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_stagger_resolution_across_entities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    candidate_velocity(B, gamma) = (1, 0, 0) score 5
+    candidate_velocity(B, delta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(B)
+    resolve_deferred_at(B, 2)
+constraint:
+    speed(A) <= 4
+    speed(B) <= 4
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots.len(), 3);
+        assert_eq!(report.observation_timeline.len(), 3);
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[1].status, "unresolved");
+        assert_eq!(report.observation_timeline[2].status, "determinate");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        let b = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "B")
+            .expect("B should have candidate resolution");
+        assert_eq!(a.convergence_mode, "resolved_after_defer");
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(b.convergence_mode, "resolved_after_defer");
+        assert_eq!(b.resolved_at_observation_time.as_deref(), Some("2.000"));
+        assert_eq!(report.observation_summary.status, "determinate");
     }
 }

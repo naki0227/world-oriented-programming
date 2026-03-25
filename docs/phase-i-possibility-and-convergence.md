@@ -231,6 +231,9 @@ a deferred entity should be able to remain unresolved across more than one obser
 The next step after persistence is controlled re-convergence:
 the world should be able to defer a top-score ambiguity at one frontier and resolve it later when an explicit convergence trigger becomes active.
 
+Once controlled re-convergence exists for one entity, the next useful case is staged world-level convergence:
+different entities may resolve at different frontiers, so observation status should be able to move from unresolved to determinate over time.
+
 ## Definition Of Success
 
 Phase I is successful when:
