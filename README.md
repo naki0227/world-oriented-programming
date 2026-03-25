@@ -78,6 +78,12 @@ Structured output example:
 cargo run -p sekai-cli -- simulate-json examples/two_body_collision.sk
 ```
 
+Static law analysis example:
+
+```text
+cargo run -p sekai-cli -- analyze examples/reflected_region.sk
+```
+
 Figure generation example:
 
 ```text

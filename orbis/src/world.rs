@@ -140,6 +140,12 @@ pub struct SimulationReport {
 }
 
 #[derive(Clone, Debug)]
+pub struct LawInventory {
+    pub analytics: LawAnalytics,
+    pub constraints: Vec<ConstraintSummary>,
+}
+
+#[derive(Clone, Debug)]
 pub struct LawAnalytics {
     pub total_constraints: usize,
     pub invariant_constraints: usize,
@@ -342,6 +348,105 @@ impl SimulationReport {
             json.push('\n');
         }
 
+        json.push_str("  ]\n");
+        json.push('}');
+        json
+    }
+}
+
+impl LawInventory {
+    pub fn to_json(&self, source: &str) -> String {
+        let mut json = String::new();
+        json.push_str("{\n");
+        json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(source)));
+        json.push_str("  \"analytics\": {\n");
+        json.push_str(&format!(
+            "    \"total_constraints\": {},\n",
+            self.analytics.total_constraints
+        ));
+        json.push_str(&format!(
+            "    \"invariant_constraints\": {},\n",
+            self.analytics.invariant_constraints
+        ));
+        json.push_str(&format!(
+            "    \"boundary_constraints\": {},\n",
+            self.analytics.boundary_constraints
+        ));
+        json.push_str(&format!(
+            "    \"interaction_constraints\": {},\n",
+            self.analytics.interaction_constraints
+        ));
+        json.push_str(&format!(
+            "    \"idle_constraints\": {},\n",
+            self.analytics.idle_constraints
+        ));
+        json.push_str(&format!(
+            "    \"fired_constraints\": {},\n",
+            self.analytics.fired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"repaired_constraints\": {},\n",
+            self.analytics.repaired_constraints
+        ));
+        json.push_str(&format!(
+            "    \"contradicted_constraints\": {}\n",
+            self.analytics.contradicted_constraints
+        ));
+        json.push_str("  },\n");
+        json.push_str("  \"constraints\": [\n");
+        for (index, constraint) in self.constraints.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"kind\": \"{}\",\n",
+                escape_json(&constraint.kind)
+            ));
+            json.push_str(&format!(
+                "      \"category\": \"{}\",\n",
+                escape_json(&constraint.category)
+            ));
+            json.push_str("      \"targets\": [");
+            for (target_index, target) in constraint.targets.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(target)));
+                if target_index + 1 != constraint.targets.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"policy\": \"{}\",\n",
+                escape_json(&constraint.policy)
+            ));
+            json.push_str("      \"supported_policies\": [");
+            for (policy_index, supported_policy) in constraint.supported_policies.iter().enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
+                if policy_index + 1 != constraint.supported_policies.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"outcome\": \"{}\",\n",
+                escape_json(&constraint.outcome)
+            ));
+            json.push_str(&format!(
+                "      \"fired_count\": {},\n",
+                constraint.fired_count
+            ));
+            json.push_str(&format!(
+                "      \"repaired_count\": {},\n",
+                constraint.repaired_count
+            ));
+            json.push_str(&format!(
+                "      \"contradicted_count\": {}\n",
+                constraint.contradicted_count
+            ));
+            json.push_str("    }");
+            if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
         json.push_str("  ]\n");
         json.push('}');
         json
@@ -656,6 +761,15 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         constraints,
         activities: world.activity_log.clone(),
         snapshots,
+    })
+}
+
+pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationError> {
+    let world = World::from_program(program)?;
+    let constraints = world.constraint_summaries();
+    Ok(LawInventory {
+        analytics: LawAnalytics::from_constraints(&constraints),
+        constraints,
     })
 }
 
@@ -1591,7 +1705,10 @@ fn reflect_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{SimulationEnvelope, parse_program, simulate_program, simulate_program_envelope};
+    use crate::{
+        SimulationEnvelope, analyze_program, parse_program, simulate_program,
+        simulate_program_envelope,
+    };
 
     #[test]
     fn bounce_reflects_on_floor() {
@@ -1795,6 +1912,31 @@ observe:
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
         assert!(json.contains("\"name\": \"A\""));
+    }
+
+    #[test]
+    fn analyze_program_summarizes_declared_laws_without_simulating() {
+        let source = r#"
+sphere A
+plane floor
+region zone
+position(A) = (0, 0, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 1
+min(zone) = (2, -1, -1)
+max(zone) = (4, 1, 1)
+constraint:
+    reflect not inside(A, zone)
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let inventory = analyze_program(&program).expect("analysis should succeed");
+        let json = inventory.to_json("analyze.sk");
+        assert!(json.contains("\"source\": \"analyze.sk\""));
+        assert!(json.contains("\"analytics\""));
+        assert!(json.contains("\"total_constraints\": 1"));
+        assert!(json.contains("\"policy\": \"reflect\""));
+        assert!(json.contains("\"outcome\": \"idle\""));
+        assert!(!json.contains("\"snapshots\""));
     }
 
     #[test]

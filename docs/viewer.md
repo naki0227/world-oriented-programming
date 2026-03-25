@@ -31,6 +31,12 @@ and provides:
 - optional forbidden-region drafting for `not inside(...)` candidates
 - local `Run Draft` round-trip execution through the `sekai` runtime
 
+Static inspection can also be produced from:
+
+```text
+cargo run -p sekai-cli -- analyze <scene.sk>
+```
+
 ## Files
 
 - `viewer/index.html`

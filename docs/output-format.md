@@ -24,6 +24,12 @@ Structured report output:
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk
 ```
 
+Static law analysis:
+
+```text
+cargo run -p sekai-cli -- analyze examples/reflected_region.sk
+```
+
 ## JSON Shape
 
 ```json
@@ -151,3 +157,8 @@ This format is intentionally small but useful for:
 - exposing report-level totals so whole runs can be compared without manual counting
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
+
+## Static Analysis
+
+`sekai analyze` uses the same constraint build path but stops before time evolution.
+It reports the declared law inventory and aggregated law analytics without simulation snapshots.
