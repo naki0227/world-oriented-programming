@@ -360,7 +360,8 @@ This produces a useful first convergence model rather than a full search framewo
 Two minimal behaviors are already executable.
 In the first, the highest-scoring candidate is rejected by a hard law, so the runtime falls back to a lower-scoring admissible candidate.
 In the second, the highest-scoring candidate is selected but then repaired by a hard law into an admissible continuation.
-The structured report now exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier.
+The prototype can now also expose top-score ties explicitly, together with the deterministic tie-break that selects one admissible continuation while recording the remaining tied labels as skipped candidates.
+The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier.
 
 These additions remain deliberately small, but they matter for the research trajectory.
 They show that World-Oriented Programming need not be limited to fully determined evolution.
