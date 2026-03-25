@@ -138,26 +138,53 @@ They only need synchronized interpretation when the world's semantics require it
 In the current prototype, this idea appears in a simple but meaningful form.
 Worlds are observed through snapshots at requested times, while multi-object interaction is only resolved when a declared interaction constraint becomes relevant.
 
-\subsection{Toward an Operational Semantics}
+\section{Toward an Operational Semantics}
 
-The semantics work now underway sharpens this prototype intuition into an explicit staged model.
-The current formulation distinguishes five semantic layers:
+The semantics work now underway sharpens the prototype intuition into an explicit staged model.
+The current formulation distinguishes five layers:
 time frontier and observation structure, event ordering, local synchronization scope, event versus enforcement transition, and final semantic consolidation.
+The present paper does not yet attempt a theorem-level development.
+It does, however, now have enough structure to present a genuine semantics trajectory rather than only an execution metaphor.
+
+\subsection{Time Frontiers and Observation}
 
 The working time model treats the world at a semantic frontier $t$ rather than as a sequence of user-authored frame updates.
-Candidate events are selected from that frontier by an ordering rule that combines earliest-time selection with a semantic priority and a deterministic tie-breaker.
+Observation is expressed as a request for a coherent snapshot at some time $t_{obs}$.
+This matters because it shifts temporal meaning away from a frame loop and toward a frontier-based interpretation of world state.
+
+In this view, the runtime is not repeatedly asked to ``run the next update.''
+It is asked to provide an admissible world at a requested semantic frontier, resolving whatever earlier event frontiers must be settled first.
+
+\subsection{Event Ordering and Local Synchronization}
+
+Candidate events are selected from the current frontier by an ordering rule that combines earliest-time selection with a semantic priority and a deterministic tie-breaker.
+The point of this rule is not only determinism.
+It is to preserve causal meaning when several events become simultaneously relevant.
+
 Once an event is selected, only its minimal synchronization carrier needs to be brought to a common frontier.
+That carrier includes the event participants and the smallest dependency context needed to interpret the event correctly.
 This is the semantic core of the claim ``global asynchrony with local synchronization.''
 
-The next transition is then factored into event firing and admissibility enforcement.
-In the admissible case, the world continues after any required repair.
-In the inadmissible case, execution reaches contradiction at the same semantic frontier instead of falling back to an out-of-band exception model.
-This framing also gives a clean reading to the runtime's current activity labels: fired, repaired, and contradicted.
+\subsection{Event, Enforcement, and Contradiction}
 
-Most importantly, it lets the paper state a stronger semantic claim than before:
+The next transition is factored into event firing and admissibility enforcement.
+An event first produces a post-event world at the same semantic frontier.
+The law set is then used to determine whether that frontier admits a valid continuation.
+
+In the admissible case, the world continues after any required repair.
+In the inadmissible case, execution reaches contradiction at the same frontier instead of falling back to an out-of-band exception model.
+This framing gives a clean reading to the runtime's current activity labels: fired, repaired, and contradicted.
+
+\subsection{Deterministic Snapshots Without Global Lockstep}
+
+This semantics direction lets the paper make a stronger claim than before:
 deterministic snapshots need not come from mandatory global lockstep execution.
 They can instead arise from deterministic event selection plus coherent local synchronization and admissibility handling.
-The present prototype does not yet provide a theorem-level development, but it now has the structure needed for a real semantics section rather than only an execution metaphor.
+
+That claim is still only partially formalized.
+Even so, it marks an important shift in the project.
+\emph{sekai} is no longer described only as an implementation experiment.
+It is beginning to take the shape of a language with an operational semantics.
 
 \section{Prototype Architecture}
 
