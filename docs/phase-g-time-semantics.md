@@ -763,6 +763,52 @@ The consolidated semantics should reuse a compact set of symbols:
 This notation is intentionally small.
 The semantics should be readable without forcing the reader to constantly switch vocabularies between G1, G2, G3, and G4.
 
+### Minimal Semantic Objects
+
+The current G5 draft can already name the minimal objects of the semantics.
+
+Write a world at frontier `t` as:
+
+`W_t = (E, G, L, tau, sigma, t)`
+
+where:
+
+- `E` is the set of dynamic entities
+- `G` is the static geometric context
+- `L` is the declared law set
+- `tau : E -> T` gives object-local progress
+- `sigma` is the current state assignment for dynamic entities
+- `t` is the current semantic frontier
+
+An event is treated as a semantic object:
+
+`ev = (k, p, t_ev)`
+
+where:
+
+- `k` is the event kind
+- `p` is the participant set
+- `t_ev` is the frontier at which the event becomes semantically relevant
+
+A law is treated as:
+
+`ell = (k_ell, pol_ell, pred_ell, act_ell)`
+
+where:
+
+- `k_ell` is the law kind
+- `pol_ell` is its selected policy
+- `pred_ell` is its admissibility predicate
+- `act_ell` is its event or enforcement action
+
+Observation is treated as an operator:
+
+`Obs : W x T -> S union {X}`
+
+returning either a stable snapshot `S` or contradiction `X`.
+
+This block is still lightweight, but it moves the semantics from prose concepts toward explicit semantic objects.
+
 ### Operational-Step Schema
 
 The intended one-step operational schema is:
@@ -866,6 +912,23 @@ if every event frontier strictly earlier than `t_obs` has been resolved and the 
 This compact draft is intentionally lightweight.
 It is close enough to operational semantics to guide the paper, but not yet frozen into a theorem-proof style notation.
 
+### Admissibility Predicate
+
+The current semantics can also name admissibility explicitly.
+
+Write:
+
+`Adm(W_t)`
+
+to mean that the world at frontier `t` satisfies every declared law in `L` under the current state assignment and geometric context.
+
+Then the enforcement transition can be restated as:
+
+- if `not Adm(W_t^ev)` and some policy in `L` repairs the violation, then `W_t^ev =>enforce W_t'`
+- if `not Adm(W_t^ev)` and no admissible continuation exists, then `W_t^ev =>contradict W_t^X`
+
+This makes contradiction a semantic consequence of failed admissibility, not an external execution accident.
+
 ### Rule Composition
 
 The intended composite execution rule is now readable as:
@@ -877,6 +940,79 @@ or, in the failing case:
 `W_t =>select (W_t, ev) =>sync W_t^sync =>fire W_t^ev =>contradict W_t^X`
 
 This is the first point in the project where the semantic flow can be written as a compact staged execution system rather than a descriptive narrative.
+
+### Structured Rule Blocks
+
+The next step toward a paper-facing operational semantics is to present the stages as compact rule blocks.
+
+`Select`
+
+Premises:
+
+- `Ev(W_t) != empty`
+- `ev = Next(W_t)`
+
+Conclusion:
+
+- `W_t =>select (W_t, ev)`
+
+`Sync`
+
+Premises:
+
+- `W_t =>select (W_t, ev)`
+- `Sync(ev)` is defined
+
+Conclusion:
+
+- `(W_t, ev) =>sync W_t^sync`
+
+`Fire`
+
+Premises:
+
+- `W_t^sync` is defined
+
+Conclusion:
+
+- `W_t^sync =>fire W_t^ev`
+
+`Enforce`
+
+Premises:
+
+- `W_t^ev` is defined
+- `not Adm(W_t^ev)`
+- some law policy in `L` restores admissibility
+
+Conclusion:
+
+- `W_t^ev =>enforce W_t'`
+
+`Contradict`
+
+Premises:
+
+- `W_t^ev` is defined
+- `not Adm(W_t^ev)`
+- no admissible continuation exists
+
+Conclusion:
+
+- `W_t^ev =>contradict W_t^X`
+
+`Observe`
+
+Premises:
+
+- every event frontier earlier than `t_obs` has been resolved
+- the observation carrier required at `t_obs` is coherent
+
+Conclusion:
+
+- `(W, t_obs) =>observe Obs(W, t_obs)`
+
+These blocks are still lightweight, but they are now close enough to an inference-rule style presentation that they can be turned into a formal semantics section with only moderate additional work.
 
 ### Snapshot Semantics
 
@@ -932,6 +1068,25 @@ The current semantics draft depends on a prototype-level determinism assumption:
 
 Later work may refine the numeric model or expose more explicit proofs.
 For now, G5 only needs to make the assumption visible and consistent across the semantics section.
+
+### Proof Obligations
+
+The next theory-oriented step should make the main proof obligations explicit.
+
+At the current stage, the most important ones are:
+
+- `snapshot determinism`:
+  under fixed ordering and synchronization rules, `Obs(W, t_obs)` should be unique whenever no contradiction is reached before `t_obs`
+- `causality preservation`:
+  the selected event order should not invert semantic dependence between events
+- `repair termination`:
+  supported enforcement policies should not introduce nonterminating local repair loops
+
+These obligations are not yet discharged.
+However, naming them already improves the semantics story because it separates:
+
+- what the prototype demonstrates now, from
+- what the later formal theory should prove
 
 ### G5 Deliverable
 

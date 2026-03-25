@@ -146,6 +146,10 @@ time frontier and observation structure, event ordering, local synchronization s
 The present paper does not yet attempt a theorem-level development.
 It does, however, now have enough structure to present a genuine semantics trajectory rather than only an execution metaphor.
 
+At the current level of formalization, a world at frontier $t$ can already be read as a tuple containing dynamic entities, static geometry, declared laws, an object-local progress function, a current state assignment, and the frontier itself.
+Events and laws can likewise be treated as explicit semantic objects rather than implementation accidents, while admissibility can be stated as a predicate over the world at a given frontier.
+This is still a lightweight formalization, but it is enough to move the discussion from conceptual vocabulary toward a reusable operational core.
+
 \begin{figure}[t]
   \centering
   \small
@@ -163,7 +167,7 @@ It does, however, now have enough structure to present a genuine semantics traje
     $\Rightarrow$ &
     \fbox{\parbox[c][2.8em][c]{0.16\columnwidth}{\centering admissible\\ $W_t'$}} &
     \multicolumn{1}{c}{or} &
-    \fbox{\parbox[c][2.8em][c]{0.14\columnwidth}{\centering contradiction\\ $W_t^{X}$}} &
+    \fbox{\parbox[c][2.8em][c]{0.14\columnwidth}{\centering failure\\ $W_t^{X}$}} &
     \\
   \end{tabular}
 
@@ -204,11 +208,21 @@ In the admissible case, the world continues after any required repair.
 In the inadmissible case, execution reaches contradiction at the same frontier instead of falling back to an out-of-band exception model.
 This framing gives a clean reading to the runtime's current activity labels: fired, repaired, and contradicted.
 
+The semantics draft can now also state these stages as compact rule blocks:
+\emph{Select}, \emph{Sync}, \emph{Fire}, \emph{Enforce}, \emph{Contradict}, and \emph{Observe}.
+That is still lighter than a full theorem-proof semantics, but it is already closer to an operational account than to a design metaphor.
+
 \subsection{Deterministic Snapshots Without Global Lockstep}
 
 This semantics direction lets the paper make a stronger claim than before:
 deterministic snapshots need not come from mandatory global lockstep execution.
 They can instead arise from deterministic event selection plus coherent local synchronization and admissibility handling.
+
+The right next step is therefore not to over-claim finished theory, but to name the proof obligations that now matter most.
+At least three are already visible:
+snapshot determinism, causality preservation, and repair termination.
+The present prototype does not yet prove them.
+It does, however, make them explicit enough to become targets of the next semantics paper rather than vague future aspirations.
 
 That claim is still only partially formalized.
 Even so, it marks an important shift in the project.

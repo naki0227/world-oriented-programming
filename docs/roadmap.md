@@ -42,6 +42,12 @@ This means the project is currently in a hybrid stage:
 - implementation-wise: prototype validation and semantic strengthening
 - paper-wise: beyond a pure vision paper, but not yet a full formal-semantics paper
 
+The next research inflection points are now clearer than in the original version of the roadmap:
+
+- Phase G is the semantic core of the language
+- Phase I is no longer a distant add-on; it is a central follow-up to the current semantics work
+- Phase K should evaluate not only behavior, but also representational complexity and cognitive load
+
 ## Phase 0. Philosophy Lock-In
 
 Target: 1 to 2 weeks
@@ -210,6 +216,7 @@ Outputs:
 - deterministic event ordering rule
 - separation between event firing, enforcement, and contradiction
 - semantics draft usable in the paper
+- explicit proof obligations for later theory work
 
 Definition of done:
 
@@ -217,11 +224,18 @@ Definition of done:
 - simultaneous or competing events have an explicit resolution rule
 - local synchronization has a formal scope
 - snapshot and failure semantics are stated precisely enough for a semantics section
+- the paper can name at least the main proof obligations, even if they are not yet proven
 
 Status:
 
 - in progress
 - already advanced enough to support a dedicated semantics section in the paper
+
+Future proof obligations:
+
+- snapshot determinism
+- causality preservation
+- repair termination
 
 ### Phase G1. Time Model
 
@@ -329,6 +343,11 @@ Status:
 
 Research stage
 
+Rationale:
+
+- this phase is now considered a central follow-up to Phase G rather than a distant optional extension
+- underdetermined worlds and convergence behavior are part of the core intellectual identity of `sekai`
+
 Outputs:
 
 - candidate-state or candidate-action representation
@@ -367,6 +386,9 @@ Research stage
 
 Outputs:
 
+- specification complexity metrics
+- cognitive load hypotheses
+- declarative density measures
 - comparisons against imperative baselines
 - specification-size comparisons
 - qualitative evaluation or user-study planning
