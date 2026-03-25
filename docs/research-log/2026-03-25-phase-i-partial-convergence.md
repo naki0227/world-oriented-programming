@@ -18,3 +18,5 @@ The resulting report therefore shows:
 - an unresolved world-level observation summary
 
 This is the first executable partial-convergence case in the project.
+
+The follow-up slice extends this one across two observation times, so deferred ambiguity is not only represented at the initial frontier but can also persist while other entities continue to move.

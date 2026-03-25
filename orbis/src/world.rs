@@ -188,6 +188,8 @@ pub struct CandidateResolution {
     pub equivalent_top_labels: Vec<String>,
     pub observationally_equivalent_tie: bool,
     pub repaired_after_selection: bool,
+    pub observed_while_deferred: usize,
+    pub deferred_past_initial_frontier: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -513,8 +515,16 @@ impl SimulationReport {
                 candidate_resolution.observationally_equivalent_tie
             ));
             json.push_str(&format!(
-                "      \"repaired_after_selection\": {}\n",
+                "      \"repaired_after_selection\": {},\n",
                 candidate_resolution.repaired_after_selection
+            ));
+            json.push_str(&format!(
+                "      \"observed_while_deferred\": {},\n",
+                candidate_resolution.observed_while_deferred
+            ));
+            json.push_str(&format!(
+                "      \"deferred_past_initial_frontier\": {}\n",
+                candidate_resolution.deferred_past_initial_frontier
             ));
             json.push_str("    }");
             if index + 1 != self.candidate_resolutions.len() {
@@ -1073,8 +1083,16 @@ impl SimulationEnvelope {
                         candidate_resolution.observationally_equivalent_tie
                     ));
                     json.push_str(&format!(
-                        "      \"repaired_after_selection\": {}\n",
+                        "      \"repaired_after_selection\": {},\n",
                         candidate_resolution.repaired_after_selection
+                    ));
+                    json.push_str(&format!(
+                        "      \"observed_while_deferred\": {},\n",
+                        candidate_resolution.observed_while_deferred
+                    ));
+                    json.push_str(&format!(
+                        "      \"deferred_past_initial_frontier\": {}\n",
+                        candidate_resolution.deferred_past_initial_frontier
                     ));
                     json.push_str("    }");
                     if index + 1 != report.candidate_resolutions.len() {
@@ -1266,16 +1284,19 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     }
 
     let constraints = world.constraint_summaries();
+    let candidate_resolutions =
+        candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
         convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
-            &world.candidate_resolutions,
+            &candidate_resolutions,
         ),
         observation_summary: ObservationSummary::from_candidate_resolutions(
-            &world.candidate_resolutions,
+            &candidate_resolutions,
         ),
-        candidate_resolutions: world.candidate_resolutions.clone(),
+        candidate_resolutions,
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -1304,6 +1325,8 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
     for time in observation_times {
         if let Err(error) = world.advance_to(time) {
             let constraints = world.constraint_summaries();
+            let candidate_resolutions =
+                candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
@@ -1311,12 +1334,12 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
-                        &world.candidate_resolutions,
+                        &candidate_resolutions,
                     ),
                     observation_summary: ObservationSummary::from_candidate_resolutions(
-                        &world.candidate_resolutions,
+                        &candidate_resolutions,
                     ),
-                    candidate_resolutions: world.candidate_resolutions.clone(),
+                    candidate_resolutions,
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -1336,18 +1359,21 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
     }
 
     let constraints = world.constraint_summaries();
+    let candidate_resolutions =
+        candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+
     SimulationEnvelope::success(
         source,
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
             convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
-                &world.candidate_resolutions,
+                &candidate_resolutions,
             ),
             observation_summary: ObservationSummary::from_candidate_resolutions(
-                &world.candidate_resolutions,
+                &candidate_resolutions,
             ),
-            candidate_resolutions: world.candidate_resolutions.clone(),
+            candidate_resolutions,
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1767,6 +1793,8 @@ impl World {
                 observationally_equivalent_tie,
                 equivalent_top_labels,
                 repaired_after_selection,
+                observed_while_deferred: 0,
+                deferred_past_initial_frontier: false,
             });
         }
 
@@ -2460,6 +2488,23 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 defer_on_ambiguous_top,
                 resolution_hint: resolution_hint.to_string(),
             }
+        })
+        .collect()
+}
+
+fn candidate_resolutions_for_report(
+    candidate_resolutions: &[CandidateResolution],
+    observation_count: usize,
+) -> Vec<CandidateResolution> {
+    candidate_resolutions
+        .iter()
+        .cloned()
+        .map(|mut resolution| {
+            if resolution.convergence_mode == "deferred" {
+                resolution.observed_while_deferred = observation_count;
+                resolution.deferred_past_initial_frontier = observation_count > 1;
+            }
+            resolution
         })
         .collect()
 }
@@ -3370,5 +3415,50 @@ observe:
         assert_eq!(report.observation_summary.status, "unresolved");
         assert_eq!(report.observation_summary.ambiguous_entities, 1);
         assert_eq!(report.observation_summary.representative_entities, 0);
+    }
+
+    #[test]
+    fn candidate_velocity_can_keep_deferred_entity_across_observations() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    candidate_velocity(B, sprint) = (6, 0, 0) score 6
+    candidate_velocity(B, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+    clamp speed(B) <= 4
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots.len(), 2);
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        let b = report.snapshots[1]
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "B")
+            .expect("B should exist");
+        assert_eq!(a.convergence_mode, "deferred");
+        assert_eq!(a.observed_while_deferred, 2);
+        assert!(a.deferred_past_initial_frontier);
+        assert_eq!(b.position.x, 8.0);
+        assert_eq!(report.observation_summary.status, "unresolved");
     }
 }

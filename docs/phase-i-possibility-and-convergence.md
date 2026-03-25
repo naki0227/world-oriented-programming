@@ -225,6 +225,9 @@ This creates the first small executable case where the world remains unresolved 
 The next useful case is a mixed world where one entity stays deferred while another still converges.
 That makes partial convergence visible instead of forcing the whole world into a fully determinate or fully unresolved reading.
 
+After that, the next important executable step is persistence across frontiers:
+a deferred entity should be able to remain unresolved across more than one observation while other entities continue to evolve.
+
 ## Definition Of Success
 
 Phase I is successful when:

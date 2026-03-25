@@ -89,6 +89,7 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
   { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
   { label: "partial deferred", path: "./samples/candidate_velocity_partial_deferred.json" },
+  { label: "persistent deferred", path: "./samples/candidate_velocity_partial_deferred_persistent.json" },
   { label: "tie", path: "./samples/candidate_velocity_tied.json" },
   { label: "equivalent tie", path: "./samples/candidate_velocity_equivalent_tie.json" },
 ];
@@ -1101,6 +1102,8 @@ function renderCandidateResolution() {
       <p class="muted">equivalent top labels = ${(candidateResolution.equivalent_top_labels || []).join(", ") || "none"}</p>
       <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+      <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
+      <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
     `;
     candidateResolutionList.appendChild(card);
   });
@@ -1145,6 +1148,8 @@ function renderCandidateComparison() {
     <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
     <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
     <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+    <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
+    <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
   `;
   candidateComparisonList.appendChild(summary);
 
@@ -1166,6 +1171,8 @@ function renderCandidateComparison() {
             ? "A top-score ambiguity is deferred explicitly, so the entity remains unresolved at the observation layer."
           : sample.label === "partial deferred"
             ? "One entity remains unresolved by design while another still converges, exposing a mixed observation state in the same world."
+          : sample.label === "persistent deferred"
+            ? "A deferred entity remains unresolved across more than one observed frontier while another entity continues to evolve."
           : sample.label === "tie"
             ? "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped."
             : "Two candidates share the top score and also collapse to the same observed result, exposing a small observational-equivalence case.";

@@ -1,0 +1,159 @@
+{
+  "source": "examples/candidate_velocity_partial_deferred_persistent.sk",
+  "status": "ok",
+  "error": null,
+  "analytics": {
+    "total_constraints": 2,
+    "invariant_constraints": 2,
+    "boundary_constraints": 0,
+    "interaction_constraints": 0,
+    "idle_constraints": 2,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["A"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["B"],
+      "policy": "clamp",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    }
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 2,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 1,
+    "deferred_entities": 1,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 1,
+    "representative_entities": 0,
+    "ambiguous_entities": 1,
+    "symbolically_underdetermined_entities": 1,
+    "observationally_underdetermined_entities": 1,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 3
+  },
+  "observation_summary": {
+    "status": "unresolved",
+    "representative_entities": 0,
+    "ambiguous_entities": 1
+  },
+  "candidate_resolutions": [
+    {
+      "entity": "A",
+      "total_candidates": 2,
+      "rejected_candidates": 0,
+      "skipped_candidates": 2,
+      "convergence_mode": "deferred",
+      "observation_mode": "ambiguous",
+      "observation_labels": ["alpha", "beta"],
+      "symbolically_underdetermined": true,
+      "observationally_underdetermined": true,
+      "selected_candidate": null,
+      "selected_score": null,
+      "top_score": "5.000",
+      "top_labels": ["alpha", "beta"],
+      "tie_broken": true,
+      "equivalent_top_labels": ["alpha"],
+      "observationally_equivalent_tie": false,
+      "repaired_after_selection": false,
+      "observed_while_deferred": 2,
+      "deferred_past_initial_frontier": true
+    },
+    {
+      "entity": "B",
+      "total_candidates": 2,
+      "rejected_candidates": 0,
+      "skipped_candidates": 1,
+      "convergence_mode": "repaired",
+      "observation_mode": "determinate",
+      "observation_labels": ["sprint"],
+      "symbolically_underdetermined": false,
+      "observationally_underdetermined": false,
+      "selected_candidate": "sprint",
+      "selected_score": "score=6.000",
+      "top_score": "6.000",
+      "top_labels": ["sprint"],
+      "tie_broken": false,
+      "equivalent_top_labels": ["sprint"],
+      "observationally_equivalent_tie": false,
+      "repaired_after_selection": true,
+      "observed_while_deferred": 0,
+      "deferred_past_initial_frontier": false
+    }
+  ],
+  "activities": [
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["A", "alpha"],
+      "policy": "score=5.000",
+      "action": "deferred_due_to_tie"
+    },
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["B", "sprint"],
+      "policy": "score=6.000",
+      "action": "selected"
+    },
+    {
+      "time": 0.000000,
+      "kind": "velocity_limit",
+      "targets": ["B"],
+      "policy": "clamp",
+      "action": "repaired"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        },
+        {
+          "name": "B",
+          "position": { "x": 4.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 4.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 1.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        },
+        {
+          "name": "B",
+          "position": { "x": 8.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 4.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}
