@@ -723,3 +723,96 @@ global asynchrony with local synchronization.
 
 Without G3, that claim remains philosophical.
 With G3, it becomes a bounded semantic operation over a minimal consistency set.
+
+## Phase G5 Semantic Consolidation
+
+G5 consolidates the outputs of G1 through G4 into a semantics section that can anchor the next paper draft.
+
+The goal is not to introduce new runtime mechanisms.
+It is to restate the existing semantic pieces as a coherent execution model.
+
+### Semantic Layers To Consolidate
+
+The intended semantics section should explicitly separate:
+
+- time semantics
+- event-ordering semantics
+- local-synchronization semantics
+- event / enforcement / contradiction semantics
+- observation semantics
+- failure semantics
+
+These layers are already partially specified in earlier G phases.
+G5 gives them a single presentation and a shared notation.
+
+### Operational-Step Schema
+
+The intended one-step operational schema is:
+
+1. construct the candidate event set `Ev(W_t)`
+2. select `ev = Next(W_t)`
+3. construct the synchronization carrier `Sync(ev)`
+4. materialize that carrier at `time(ev)`
+5. apply the event transition
+6. apply enforcement
+7. produce either:
+   - an admissible continuation, or
+   - contradiction at the same frontier
+
+In compact form:
+
+`W_t ->select ev ->sync W_t^sync ->event W_t^ev ->enforce W_t'`
+
+or
+
+`W_t ->select ev ->sync W_t^sync ->event W_t^ev ->contradiction W_t^X`
+
+This schema is the operational bridge between runtime traces and the intended formal semantics.
+
+### Snapshot Semantics
+
+G5 should also state the semantic meaning of observation.
+
+For a requested observation time `t_obs`, `Obs(W, t_obs)` is valid only if:
+
+- every event with time strictly earlier than `t_obs` has been resolved under G2 and G4
+- every entity required by the observation frontier has been materialized consistently
+- no unresolved contradiction exists at or before `t_obs`
+
+This yields the intended claim:
+
+snapshot determinism depends on deterministic event selection and coherent local synchronization.
+
+### Failure Semantics
+
+Failure must be given a semantic, not merely implementation-level, interpretation.
+
+The intended failure statement is:
+
+if enforcement after `Next(W_t)` cannot produce an admissible continuation, then the world reaches contradiction at the selected frontier.
+
+This is written:
+
+`W_t ->select ev ->event W_t^ev ->contradiction W_t^X`
+
+where `time(W_t^X) = time(ev)`.
+
+This explains why the prototype can legitimately report:
+
+- failure time
+- partial stable snapshots before failure
+- law activity marked as `contradicted`
+
+without treating contradiction as an out-of-band exception.
+
+### G5 Deliverable
+
+The concrete output of G5 should be a semantics section with:
+
+- a shared notation block
+- one-step operational rules
+- snapshot admissibility rules
+- failure rules
+- a short note on determinism assumptions for the prototype
+
+At that point, `sekai` has a reusable semantics core for both implementation discussion and the next paper revision.
