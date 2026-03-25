@@ -58,6 +58,7 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 0
     }
   ],
+  "candidate_resolution": null,
   "activities": [
     {
       "time": 1.0,
@@ -112,6 +113,7 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 1
     }
   ],
+  "candidate_resolution": null,
   "activities": [
     {
       "time": 2.0,
@@ -142,6 +144,12 @@ Failure reports may still include:
 - recorded `activities`
 - partial `snapshots` produced before contradiction
 
+Phase I reports may additionally include:
+
+- `candidate_resolution` when initial action candidates were evaluated before observation
+- `selected_candidate` and `selected_score` for the chosen branch
+- `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
+
 ## Rationale
 
 This format is intentionally small but useful for:
@@ -158,6 +166,7 @@ This format is intentionally small but useful for:
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
 - exposing candidate-action selection as activity-log entries during the initial convergence step
+- exposing a compact candidate-resolution summary for underdetermined-world runs
 
 ## Static Analysis
 

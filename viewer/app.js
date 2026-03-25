@@ -47,6 +47,7 @@ const projectionLabel = document.getElementById("projection-label");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
+const candidateResolutionList = document.getElementById("candidate-resolution-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
@@ -312,6 +313,7 @@ function normalizeReport(report) {
       error: report.error || null,
       analytics: report.analytics || defaultAnalytics(report.constraints || []),
       constraints: report.constraints || [],
+      candidate_resolution: report.candidate_resolution || null,
       activities: report.activities || [],
       snapshots: report.snapshots || [],
     };
@@ -322,6 +324,7 @@ function normalizeReport(report) {
     error: null,
     analytics: report.analytics || defaultAnalytics(report.constraints || []),
     constraints: report.constraints || [],
+    candidate_resolution: report.candidate_resolution || null,
     activities: report.activities || [],
     snapshots: report.snapshots || [],
   };
@@ -847,6 +850,7 @@ function renderSidebar() {
     }
     renderConstraintList();
     renderAnalyticsList();
+    renderCandidateResolution();
     renderActivityList();
     renderComparisonList();
     return;
@@ -870,6 +874,7 @@ function renderSidebar() {
 
   renderConstraintList();
   renderAnalyticsList();
+  renderCandidateResolution();
   renderActivityList();
   renderComparisonList();
 }
@@ -963,6 +968,32 @@ function renderActivityList() {
     card.appendChild(targets);
     activityList.appendChild(card);
   });
+}
+
+function renderCandidateResolution() {
+  if (!state.report) {
+    candidateResolutionList.innerHTML =
+      '<p class="muted">Load a Phase I report to inspect candidate selection.</p>';
+    return;
+  }
+
+  const candidateResolution = state.report.candidate_resolution;
+  if (!candidateResolution) {
+    candidateResolutionList.innerHTML =
+      '<p class="muted">This report has no candidate-resolution metadata.</p>';
+    return;
+  }
+
+  candidateResolutionList.innerHTML = `
+    <article class="sphere-card">
+      <h3>${candidateResolution.entity}</h3>
+      <p>candidates = ${candidateResolution.total_candidates}</p>
+      <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
+      <p class="muted">selected = ${candidateResolution.selected_candidate || "none"}</p>
+      <p class="muted">score = ${candidateResolution.selected_score || "n/a"}</p>
+      <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+    </article>
+  `;
 }
 
 function renderAnalyticsList() {

@@ -135,6 +135,7 @@ pub struct Snapshot {
 pub struct SimulationReport {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub candidate_resolution: Option<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
 }
@@ -143,6 +144,16 @@ pub struct SimulationReport {
 pub struct LawInventory {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CandidateResolution {
+    pub entity: String,
+    pub total_candidates: usize,
+    pub rejected_candidates: usize,
+    pub selected_candidate: Option<String>,
+    pub selected_score: Option<String>,
+    pub repaired_after_selection: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -281,6 +292,43 @@ impl SimulationReport {
             json.push('\n');
         }
         json.push_str("  ],\n");
+        match &self.candidate_resolution {
+            Some(candidate_resolution) => {
+                json.push_str("  \"candidate_resolution\": {\n");
+                json.push_str(&format!(
+                    "    \"entity\": \"{}\",\n",
+                    escape_json(&candidate_resolution.entity)
+                ));
+                json.push_str(&format!(
+                    "    \"total_candidates\": {},\n",
+                    candidate_resolution.total_candidates
+                ));
+                json.push_str(&format!(
+                    "    \"rejected_candidates\": {},\n",
+                    candidate_resolution.rejected_candidates
+                ));
+                match &candidate_resolution.selected_candidate {
+                    Some(selected_candidate) => json.push_str(&format!(
+                        "    \"selected_candidate\": \"{}\",\n",
+                        escape_json(selected_candidate)
+                    )),
+                    None => json.push_str("    \"selected_candidate\": null,\n"),
+                }
+                match &candidate_resolution.selected_score {
+                    Some(selected_score) => json.push_str(&format!(
+                        "    \"selected_score\": \"{}\",\n",
+                        escape_json(selected_score)
+                    )),
+                    None => json.push_str("    \"selected_score\": null,\n"),
+                }
+                json.push_str(&format!(
+                    "    \"repaired_after_selection\": {}\n",
+                    candidate_resolution.repaired_after_selection
+                ));
+                json.push_str("  },\n");
+            }
+            None => json.push_str("  \"candidate_resolution\": null,\n"),
+        }
         json.push_str("  \"activities\": [\n");
         for (index, activity) in self.activities.iter().enumerate() {
             json.push_str("    {\n");
@@ -597,6 +645,43 @@ impl SimulationEnvelope {
                     json.push('\n');
                 }
                 json.push_str("  ],\n");
+                match &report.candidate_resolution {
+                    Some(candidate_resolution) => {
+                        json.push_str("  \"candidate_resolution\": {\n");
+                        json.push_str(&format!(
+                            "    \"entity\": \"{}\",\n",
+                            escape_json(&candidate_resolution.entity)
+                        ));
+                        json.push_str(&format!(
+                            "    \"total_candidates\": {},\n",
+                            candidate_resolution.total_candidates
+                        ));
+                        json.push_str(&format!(
+                            "    \"rejected_candidates\": {},\n",
+                            candidate_resolution.rejected_candidates
+                        ));
+                        match &candidate_resolution.selected_candidate {
+                            Some(selected_candidate) => json.push_str(&format!(
+                                "    \"selected_candidate\": \"{}\",\n",
+                                escape_json(selected_candidate)
+                            )),
+                            None => json.push_str("    \"selected_candidate\": null,\n"),
+                        }
+                        match &candidate_resolution.selected_score {
+                            Some(selected_score) => json.push_str(&format!(
+                                "    \"selected_score\": \"{}\",\n",
+                                escape_json(selected_score)
+                            )),
+                            None => json.push_str("    \"selected_score\": null,\n"),
+                        }
+                        json.push_str(&format!(
+                            "    \"repaired_after_selection\": {}\n",
+                            candidate_resolution.repaired_after_selection
+                        ));
+                        json.push_str("  },\n");
+                    }
+                    None => json.push_str("  \"candidate_resolution\": null,\n"),
+                }
                 json.push_str("  \"activities\": [\n");
                 for (index, activity) in report.activities.iter().enumerate() {
                     json.push_str("    {\n");
@@ -678,6 +763,7 @@ impl SimulationEnvelope {
                 json.push_str("    \"contradicted_constraints\": 0\n");
                 json.push_str("  },\n");
                 json.push_str("  \"constraints\": [],\n");
+                json.push_str("  \"candidate_resolution\": null,\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
@@ -761,6 +847,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        candidate_resolution: candidate_resolution_from_activities(&world.activity_log),
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -793,6 +880,9 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
+                    candidate_resolution: candidate_resolution_from_activities(
+                        &world.activity_log,
+                    ),
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -817,6 +907,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
+            candidate_resolution: candidate_resolution_from_activities(&world.activity_log),
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1634,6 +1725,45 @@ fn candidate_activity_entry(
     }
 }
 
+fn candidate_resolution_from_activities(
+    activities: &[ActivityEntry],
+) -> Option<CandidateResolution> {
+    let candidate_activities = activities
+        .iter()
+        .filter(|activity| activity.kind == "candidate_velocity")
+        .collect::<Vec<_>>();
+    if candidate_activities.is_empty() {
+        return None;
+    }
+
+    let entity = candidate_activities[0].targets.first()?.clone();
+    let selected = candidate_activities
+        .iter()
+        .find(|activity| activity.action == "selected");
+
+    Some(CandidateResolution {
+        entity,
+        total_candidates: candidate_activities.len(),
+        rejected_candidates: candidate_activities
+            .iter()
+            .filter(|activity| activity.action == "rejected_by_hard_law")
+            .count(),
+        selected_candidate: selected
+            .and_then(|activity| activity.targets.get(1))
+            .cloned(),
+        selected_score: selected.map(|activity| activity.policy.clone()),
+        repaired_after_selection: selected
+            .map(|selected_activity| {
+                activities.iter().any(|activity| {
+                    activity.kind != "candidate_velocity"
+                        && activity.time == selected_activity.time
+                        && activity.action == "repaired"
+                })
+            })
+            .unwrap_or(false),
+    })
+}
+
 fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
     let signed_distance = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
     let approach_speed = plane.normal.dot(sphere.velocity);
@@ -1996,6 +2126,7 @@ observe:
         assert!(json.contains("\"outcome\": \"idle\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
+        assert!(json.contains("\"candidate_resolution\": null"));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
         assert!(json.contains("\"name\": \"A\""));
@@ -2099,6 +2230,17 @@ observe:
                 && entry.action == "rejected_by_hard_law"
                 && entry.targets.iter().any(|target| target == "fast")
         }));
+        let candidate_resolution = report
+            .candidate_resolution
+            .as_ref()
+            .expect("candidate resolution should be recorded");
+        assert_eq!(candidate_resolution.entity, "A");
+        assert_eq!(candidate_resolution.total_candidates, 2);
+        assert_eq!(candidate_resolution.rejected_candidates, 1);
+        assert_eq!(
+            candidate_resolution.selected_candidate.as_deref(),
+            Some("safe")
+        );
     }
 
     #[test]
@@ -2130,5 +2272,14 @@ observe:
             .activities
             .iter()
             .any(|entry| entry.kind == "velocity_limit" && entry.action == "repaired"));
+        let candidate_resolution = report
+            .candidate_resolution
+            .as_ref()
+            .expect("candidate resolution should be recorded");
+        assert_eq!(
+            candidate_resolution.selected_candidate.as_deref(),
+            Some("fast")
+        );
+        assert!(candidate_resolution.repaired_after_selection);
     }
 }

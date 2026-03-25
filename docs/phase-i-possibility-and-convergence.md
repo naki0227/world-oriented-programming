@@ -179,6 +179,7 @@ where the runtime:
 - keeps repaired candidates if they remain admissible
 - chooses the highest-scoring admissible continuation
 - logs which candidates were rejected and which one was selected
+- exposes a compact candidate-resolution summary in the structured report
 
 ## Definition Of Success
 

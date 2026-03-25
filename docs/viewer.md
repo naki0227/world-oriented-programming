@@ -24,6 +24,7 @@ and provides:
 - contradiction display for failed worlds, including the last stable snapshot when available
 - display of active world laws, their categories, supported policies, and per-run law activity
 - display of report-level law analytics for category and outcome totals
+- display of Phase I candidate resolution summaries when reports include action-candidate metadata
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
@@ -68,6 +69,7 @@ Sample JSON files can be generated with:
 cargo run -p sekai-cli -- simulate-report examples/bounce.sk > viewer/samples/bounce.json
 cargo run -p sekai-cli -- simulate-report examples/clamped_speed.sk > viewer/samples/clamped_speed.json
 cargo run -p sekai-cli -- simulate-report examples/clamped_region.sk > viewer/samples/clamped_region.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity.sk > viewer/samples/candidate_velocity.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
