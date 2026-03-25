@@ -9,6 +9,11 @@ The report now distinguishes:
 - tie-broken resolution
 - observationally equivalent ties
 
+It also now distinguishes observation-level statuses:
+- `determinate`
+- `representative`
+- `ambiguous`
+
 Each entity-level candidate resolution now also says whether the world remained symbolically underdetermined and whether that underdetermination was still visible at the observation layer.
 
 This pushes Phase I closer to a real convergence model instead of a set of isolated candidate-selection examples.

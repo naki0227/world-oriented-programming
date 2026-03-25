@@ -173,6 +173,8 @@ Phase I reports may additionally include:
 - `convergence_analytics` for run-level totals over candidate-bearing entities
 - `candidate_resolutions` when initial action candidates were evaluated before observation
 - `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `tie_broken`, or `equivalent_tie`)
+- `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)
+- `observation_labels` for the labels that still matter at the observation layer
 - `symbolically_underdetermined` and `observationally_underdetermined` for each candidate-bearing entity
 - `selected_candidate` and `selected_score` for the chosen branch
 - `top_score` and `top_labels` for the highest-score frontier before deterministic tie-breaking
@@ -199,6 +201,7 @@ This format is intentionally small but useful for:
 - exposing candidate-action selection as activity-log entries during the initial convergence step
 - exposing a compact candidate-resolution summary for underdetermined-world runs
 - exposing whether a run remained symbolically or observationally underdetermined after convergence
+- exposing whether symbolic ties have already collapsed into a determinate or representative observation
 
 ## Static Analysis
 

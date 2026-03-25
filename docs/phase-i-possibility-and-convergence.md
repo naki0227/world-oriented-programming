@@ -207,6 +207,7 @@ The runtime report should also expose a convergence summary after selection, so 
 - whether a branch was chosen directly, by fallback, or after repair
 - whether symbolic underdetermination remained after score ordering
 - whether any remaining underdetermination was still visible at the observation layer
+- whether the observation should be read as determinate, representative, or still ambiguous
 - aggregate totals across all candidate-bearing entities in the run
 
 ## Definition Of Success

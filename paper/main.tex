@@ -362,7 +362,7 @@ In the first, the highest-scoring candidate is rejected by a hard law, so the ru
 In the second, the highest-scoring candidate is selected but then repaired by a hard law into an admissible continuation.
 The prototype can now also expose top-score ties explicitly, together with the deterministic tie-break that selects one admissible continuation while recording the remaining tied labels as skipped candidates.
 It can further distinguish ties whose top-scoring continuations are observationally equivalent, making it explicit when deterministic branch selection chooses a representative continuation rather than an observably different one.
-The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, and observationally equivalent outcomes.
+The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still ambiguous.
 
 These additions remain deliberately small, but they matter for the research trajectory.
 They show that World-Oriented Programming need not be limited to fully determined evolution.

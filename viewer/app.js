@@ -1006,6 +1006,9 @@ function renderCandidateResolution() {
     <p class="muted">repaired = ${convergenceAnalytics.repaired_entities ?? 0}</p>
     <p class="muted">tie broken = ${convergenceAnalytics.tie_broken_entities ?? 0}</p>
     <p class="muted">equivalent tie = ${convergenceAnalytics.equivalent_tie_entities ?? 0}</p>
+    <p class="muted">observation determinate = ${convergenceAnalytics.determinate_entities ?? 0}</p>
+    <p class="muted">observation representative = ${convergenceAnalytics.representative_entities ?? 0}</p>
+    <p class="muted">observation ambiguous = ${convergenceAnalytics.ambiguous_entities ?? 0}</p>
     <p class="muted">symbolically underdetermined = ${convergenceAnalytics.symbolically_underdetermined_entities ?? 0}</p>
     <p class="muted">observationally underdetermined = ${convergenceAnalytics.observationally_underdetermined_entities ?? 0}</p>
   `;
@@ -1019,6 +1022,8 @@ function renderCandidateResolution() {
       <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
       <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
       <p class="muted">mode = ${candidateResolution.convergence_mode || "direct"}</p>
+      <p class="muted">observation mode = ${candidateResolution.observation_mode || "determinate"}</p>
+      <p class="muted">observation labels = ${(candidateResolution.observation_labels || []).join(", ") || "none"}</p>
       <p class="muted">symbolically underdetermined = ${candidateResolution.symbolically_underdetermined ? "yes" : "no"}</p>
       <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
       <p class="muted">selected = ${candidateResolution.selected_candidate || "none"}</p>
@@ -1056,6 +1061,8 @@ function renderCandidateComparison() {
   summary.innerHTML = `
     <h3>Current Pattern</h3>
     <p>mode = ${candidateResolution.convergence_mode || "direct"}</p>
+    <p class="muted">observation mode = ${candidateResolution.observation_mode || "determinate"}</p>
+    <p class="muted">observation labels = ${(candidateResolution.observation_labels || []).join(", ") || "none"}</p>
     <p>selected = ${candidateResolution.selected_candidate || "none"}</p>
     <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
     <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>

@@ -112,6 +112,7 @@ When a report includes `candidate_resolutions`, the viewer now separates:
 
 - run-level convergence totals
 - per-entity convergence mode
+- per-entity observation mode
 - symbolic underdetermination
 - observational underdetermination
 

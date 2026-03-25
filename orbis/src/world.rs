@@ -165,6 +165,8 @@ pub struct CandidateResolution {
     pub rejected_candidates: usize,
     pub skipped_candidates: usize,
     pub convergence_mode: String,
+    pub observation_mode: String,
+    pub observation_labels: Vec<String>,
     pub symbolically_underdetermined: bool,
     pub observationally_underdetermined: bool,
     pub selected_candidate: Option<String>,
@@ -185,6 +187,9 @@ pub struct ConvergenceAnalytics {
     pub repaired_entities: usize,
     pub tie_broken_entities: usize,
     pub equivalent_tie_entities: usize,
+    pub determinate_entities: usize,
+    pub representative_entities: usize,
+    pub ambiguous_entities: usize,
     pub symbolically_underdetermined_entities: usize,
     pub observationally_underdetermined_entities: usize,
     pub rejected_candidates_total: usize,
@@ -353,6 +358,18 @@ impl SimulationReport {
             self.convergence_analytics.equivalent_tie_entities
         ));
         json.push_str(&format!(
+            "    \"determinate_entities\": {},\n",
+            self.convergence_analytics.determinate_entities
+        ));
+        json.push_str(&format!(
+            "    \"representative_entities\": {},\n",
+            self.convergence_analytics.representative_entities
+        ));
+        json.push_str(&format!(
+            "    \"ambiguous_entities\": {},\n",
+            self.convergence_analytics.ambiguous_entities
+        ));
+        json.push_str(&format!(
             "    \"symbolically_underdetermined_entities\": {},\n",
             self.convergence_analytics.symbolically_underdetermined_entities
         ));
@@ -392,6 +409,18 @@ impl SimulationReport {
                 "      \"convergence_mode\": \"{}\",\n",
                 escape_json(&candidate_resolution.convergence_mode)
             ));
+            json.push_str(&format!(
+                "      \"observation_mode\": \"{}\",\n",
+                escape_json(&candidate_resolution.observation_mode)
+            ));
+            json.push_str("      \"observation_labels\": [");
+            for (label_index, label) in candidate_resolution.observation_labels.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(label)));
+                if label_index + 1 != candidate_resolution.observation_labels.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
             json.push_str(&format!(
                 "      \"symbolically_underdetermined\": {},\n",
                 candidate_resolution.symbolically_underdetermined
@@ -837,6 +866,18 @@ impl SimulationEnvelope {
                     report.convergence_analytics.equivalent_tie_entities
                 ));
                 json.push_str(&format!(
+                    "    \"determinate_entities\": {},\n",
+                    report.convergence_analytics.determinate_entities
+                ));
+                json.push_str(&format!(
+                    "    \"representative_entities\": {},\n",
+                    report.convergence_analytics.representative_entities
+                ));
+                json.push_str(&format!(
+                    "    \"ambiguous_entities\": {},\n",
+                    report.convergence_analytics.ambiguous_entities
+                ));
+                json.push_str(&format!(
                     "    \"symbolically_underdetermined_entities\": {},\n",
                     report.convergence_analytics.symbolically_underdetermined_entities
                 ));
@@ -877,6 +918,20 @@ impl SimulationEnvelope {
                         "      \"convergence_mode\": \"{}\",\n",
                         escape_json(&candidate_resolution.convergence_mode)
                     ));
+                    json.push_str(&format!(
+                        "      \"observation_mode\": \"{}\",\n",
+                        escape_json(&candidate_resolution.observation_mode)
+                    ));
+                    json.push_str("      \"observation_labels\": [");
+                    for (label_index, label) in
+                        candidate_resolution.observation_labels.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(label)));
+                        if label_index + 1 != candidate_resolution.observation_labels.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
                     json.push_str(&format!(
                         "      \"symbolically_underdetermined\": {},\n",
                         candidate_resolution.symbolically_underdetermined
@@ -1031,6 +1086,9 @@ impl SimulationEnvelope {
                 json.push_str("    \"repaired_entities\": 0,\n");
                 json.push_str("    \"tie_broken_entities\": 0,\n");
                 json.push_str("    \"equivalent_tie_entities\": 0,\n");
+                json.push_str("    \"determinate_entities\": 0,\n");
+                json.push_str("    \"representative_entities\": 0,\n");
+                json.push_str("    \"ambiguous_entities\": 0,\n");
                 json.push_str("    \"symbolically_underdetermined_entities\": 0,\n");
                 json.push_str("    \"observationally_underdetermined_entities\": 0,\n");
                 json.push_str("    \"rejected_candidates_total\": 0,\n");
@@ -1527,6 +1585,23 @@ impl World {
             } else {
                 "direct"
             };
+            let observation_mode = if observationally_equivalent_tie {
+                "representative"
+            } else if tie_broken {
+                "ambiguous"
+            } else {
+                "determinate"
+            };
+            let observation_labels = if observationally_equivalent_tie {
+                equivalent_top_labels.clone()
+            } else if tie_broken {
+                top_labels.clone()
+            } else {
+                selected_candidate
+                    .as_ref()
+                    .map(|label| vec![label.clone()])
+                    .unwrap_or_default()
+            };
 
             self.candidate_resolutions.push(CandidateResolution {
                 entity: sphere_name,
@@ -1534,6 +1609,8 @@ impl World {
                 rejected_candidates,
                 skipped_candidates: total_candidates - rejected_candidates - 1,
                 convergence_mode: convergence_mode.to_string(),
+                observation_mode: observation_mode.to_string(),
+                observation_labels,
                 symbolically_underdetermined: tie_broken,
                 observationally_underdetermined: tie_broken && !observationally_equivalent_tie,
                 selected_candidate,
@@ -2009,6 +2086,9 @@ impl ConvergenceAnalytics {
             repaired_entities: 0,
             tie_broken_entities: 0,
             equivalent_tie_entities: 0,
+            determinate_entities: 0,
+            representative_entities: 0,
+            ambiguous_entities: 0,
             symbolically_underdetermined_entities: 0,
             observationally_underdetermined_entities: 0,
             rejected_candidates_total: 0,
@@ -2031,6 +2111,12 @@ impl ConvergenceAnalytics {
             }
             if resolution.observationally_underdetermined {
                 analytics.observationally_underdetermined_entities += 1;
+            }
+            match resolution.observation_mode.as_str() {
+                "determinate" => analytics.determinate_entities += 1,
+                "representative" => analytics.representative_entities += 1,
+                "ambiguous" => analytics.ambiguous_entities += 1,
+                _ => {}
             }
         }
 
@@ -2548,6 +2634,7 @@ observe:
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
         assert!(json.contains("\"convergence_analytics\""));
+        assert!(json.contains("\"determinate_entities\""));
         assert!(json.contains("\"candidate_resolutions\": ["));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
@@ -2690,6 +2777,8 @@ observe:
         assert_eq!(candidate_resolution.rejected_candidates, 1);
         assert_eq!(candidate_resolution.skipped_candidates, 0);
         assert_eq!(candidate_resolution.convergence_mode, "fallback");
+        assert_eq!(candidate_resolution.observation_mode, "determinate");
+        assert_eq!(candidate_resolution.observation_labels, vec!["safe".to_string()]);
         assert!(!candidate_resolution.symbolically_underdetermined);
         assert!(!candidate_resolution.observationally_underdetermined);
         assert_eq!(
@@ -2742,6 +2831,8 @@ observe:
             Some("fast")
         );
         assert_eq!(candidate_resolution.convergence_mode, "repaired");
+        assert_eq!(candidate_resolution.observation_mode, "determinate");
+        assert_eq!(candidate_resolution.observation_labels, vec!["fast".to_string()]);
         assert_eq!(candidate_resolution.skipped_candidates, 1);
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
@@ -2835,6 +2926,11 @@ observe:
         );
         assert_eq!(candidate_resolution.skipped_candidates, 1);
         assert_eq!(candidate_resolution.convergence_mode, "tie_broken");
+        assert_eq!(candidate_resolution.observation_mode, "ambiguous");
+        assert_eq!(
+            candidate_resolution.observation_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
         assert!(candidate_resolution.symbolically_underdetermined);
         assert!(candidate_resolution.observationally_underdetermined);
         assert!(candidate_resolution.tie_broken);
@@ -2870,6 +2966,11 @@ observe:
             .expect("candidate resolution should be recorded");
         assert!(candidate_resolution.tie_broken);
         assert_eq!(candidate_resolution.convergence_mode, "equivalent_tie");
+        assert_eq!(candidate_resolution.observation_mode, "representative");
+        assert_eq!(
+            candidate_resolution.observation_labels,
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
         assert!(candidate_resolution.symbolically_underdetermined);
         assert!(!candidate_resolution.observationally_underdetermined);
         assert!(candidate_resolution.observationally_equivalent_tie);
@@ -2901,6 +3002,9 @@ observe:
         assert_eq!(report.convergence_analytics.equivalent_tie_entities, 1);
         assert_eq!(report.convergence_analytics.direct_entities, 0);
         assert_eq!(report.convergence_analytics.tie_broken_entities, 0);
+        assert_eq!(report.convergence_analytics.determinate_entities, 0);
+        assert_eq!(report.convergence_analytics.representative_entities, 1);
+        assert_eq!(report.convergence_analytics.ambiguous_entities, 0);
         assert_eq!(
             report.convergence_analytics.symbolically_underdetermined_entities,
             1
