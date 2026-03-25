@@ -301,7 +301,6 @@ These definitions are the basis for:
 - G4 transition semantics
 - G5 semantic consolidation
 
-<<<<<<< feature/phase-g-local-synchronization
 ## Phase G2 Event Ordering
 
 G2 defines how candidate events are selected when several are simultaneously or nearly simultaneously eligible.
@@ -598,7 +597,7 @@ Without `Next(W_t)`, one cannot define:
 - which enforcement step is semantically downstream
 
 So G2 gives the selection rule and G4 gives the transition rule that consumes it.
-=======
+
 ## Phase G3 Local Synchronization
 
 G3 defines which part of the world must be synchronized when an event or admissibility boundary becomes semantically relevant.
@@ -724,4 +723,3 @@ global asynchrony with local synchronization.
 
 Without G3, that claim remains philosophical.
 With G3, it becomes a bounded semantic operation over a minimal consistency set.
->>>>>>> local
