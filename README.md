@@ -42,6 +42,7 @@ The long-term goal is a programming environment where:
 - `docs/venue-strategy.md`: provisional submission target strategy
 - `docs/paper-submission-checklist.md`: remaining tasks before submission
 - `docs/viewer.md`: minimal interactive viewer workflow
+- `docs/git-workflow.md`: branch and commit workflow for research-safe development
 - `docs/research-log/`: dated research logs
 - `docs/decisions/`: architectural and conceptual decision records
 - `docs/templates/`: reusable templates for future logs and papers
@@ -96,3 +97,16 @@ Every substantial step should be recorded in:
 1. a dated research log entry
 2. a decision record if a design choice becomes stable
 3. a spec update if the project definition changes
+
+## Git Workflow
+
+- `main` is the stable research baseline
+- before new work starts, create a branch first
+- branch names should reflect the research topic, not just the file being edited
+- use commits that explain the milestone in research terms as well as implementation terms
+
+Examples:
+
+- `feature/phase-g-time-semantics`
+- `feature/constraint-repair-policies`
+- `feature/viewer-fired-laws`
