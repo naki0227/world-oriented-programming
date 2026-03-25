@@ -1,0 +1,27 @@
+sphere A
+sphere B
+plane floor
+
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+
+    candidate_velocity(B, sprint) = (6, 0, 0) score 6
+    candidate_velocity(B, safe) = (3, 0, 0) score 2
+
+constraint:
+    speed(A) <= 4
+    clamp speed(B) <= 4
+
+observe:
+    snapshot at 0
+    snapshot at 1

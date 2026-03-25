@@ -117,6 +117,11 @@ pub struct World {
     pub constraint_traces: Vec<ConstraintTrace>,
     pub candidate_resolutions: Vec<CandidateResolution>,
     pub activity_log: Vec<ActivityEntry>,
+    pub action_candidates_by_entity: BTreeMap<String, Vec<ActionCandidateDecl>>,
+    pub deferred_resolution_times: BTreeMap<String, f64>,
+    pub deferred_preference_triggers: BTreeMap<String, DeferredPreferenceTrigger>,
+    pub deferred_score_adjustments: BTreeMap<String, Vec<DeferredScoreAdjustment>>,
+    pub deferred_speed_limit_updates: BTreeMap<String, DeferredSpeedLimitUpdate>,
 }
 
 #[derive(Clone, Debug)]
@@ -138,9 +143,18 @@ pub struct SimulationReport {
     pub constraints: Vec<ConstraintSummary>,
     pub convergence_analytics: ConvergenceAnalytics,
     pub observation_summary: ObservationSummary,
+    pub observation_timeline: Vec<ObservationCheckpoint>,
     pub candidate_resolutions: Vec<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ObservationCheckpoint {
+    pub time: f64,
+    pub status: String,
+    pub representative_entities: usize,
+    pub ambiguous_entities: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -148,6 +162,7 @@ pub struct LawInventory {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
     pub candidate_inventory: Vec<CandidateInventorySummary>,
+    pub action_directive_inventory: Vec<ActionDirectiveSummary>,
 }
 
 #[derive(Clone, Debug)]
@@ -157,6 +172,35 @@ pub struct CandidateInventorySummary {
     pub labels: Vec<String>,
     pub top_score: String,
     pub top_labels: Vec<String>,
+    pub top_score_tied: bool,
+    pub defer_on_ambiguous_top: bool,
+    pub resolution_hint: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct ActionDirectiveSummary {
+    pub entity: String,
+    pub kind: String,
+    pub argument: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeferredPreferenceTrigger {
+    pub label: String,
+    pub time: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeferredScoreAdjustment {
+    pub label: String,
+    pub time: f64,
+    pub delta: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeferredSpeedLimitUpdate {
+    pub time: f64,
+    pub limit: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -178,6 +222,13 @@ pub struct CandidateResolution {
     pub equivalent_top_labels: Vec<String>,
     pub observationally_equivalent_tie: bool,
     pub repaired_after_selection: bool,
+    pub observed_while_deferred: usize,
+    pub deferred_past_initial_frontier: bool,
+    pub resolved_from_deferred: bool,
+    pub resolved_at_observation_time: Option<String>,
+    pub preferred_label: Option<String>,
+    pub active_score_adjustments: Vec<String>,
+    pub active_law_updates: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -187,6 +238,9 @@ pub struct ConvergenceAnalytics {
     pub fallback_entities: usize,
     pub repaired_entities: usize,
     pub deferred_entities: usize,
+    pub preference_resolved_entities: usize,
+    pub rescore_resolved_entities: usize,
+    pub law_updated_entities: usize,
     pub tie_broken_entities: usize,
     pub equivalent_tie_entities: usize,
     pub determinate_entities: usize,
@@ -363,6 +417,18 @@ impl SimulationReport {
             self.convergence_analytics.deferred_entities
         ));
         json.push_str(&format!(
+            "    \"preference_resolved_entities\": {},\n",
+            self.convergence_analytics.preference_resolved_entities
+        ));
+        json.push_str(&format!(
+            "    \"law_updated_entities\": {},\n",
+            self.convergence_analytics.law_updated_entities
+        ));
+        json.push_str(&format!(
+            "    \"rescore_resolved_entities\": {},\n",
+            self.convergence_analytics.rescore_resolved_entities
+        ));
+        json.push_str(&format!(
             "    \"tie_broken_entities\": {},\n",
             self.convergence_analytics.tie_broken_entities
         ));
@@ -413,6 +479,29 @@ impl SimulationReport {
             self.observation_summary.ambiguous_entities
         ));
         json.push_str("  },\n");
+        json.push_str("  \"observation_timeline\": [\n");
+        for (index, checkpoint) in self.observation_timeline.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"time\": {:.6},\n", checkpoint.time));
+            json.push_str(&format!(
+                "      \"status\": \"{}\",\n",
+                escape_json(&checkpoint.status)
+            ));
+            json.push_str(&format!(
+                "      \"representative_entities\": {},\n",
+                checkpoint.representative_entities
+            ));
+            json.push_str(&format!(
+                "      \"ambiguous_entities\": {}\n",
+                checkpoint.ambiguous_entities
+            ));
+            json.push_str("    }");
+            if index + 1 != self.observation_timeline.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
         json.push_str("  \"candidate_resolutions\": [\n");
         for (index, candidate_resolution) in self.candidate_resolutions.iter().enumerate() {
             json.push_str("    {\n");
@@ -503,9 +592,55 @@ impl SimulationReport {
                 candidate_resolution.observationally_equivalent_tie
             ));
             json.push_str(&format!(
-                "      \"repaired_after_selection\": {}\n",
+                "      \"repaired_after_selection\": {},\n",
                 candidate_resolution.repaired_after_selection
             ));
+            json.push_str(&format!(
+                "      \"observed_while_deferred\": {},\n",
+                candidate_resolution.observed_while_deferred
+            ));
+            json.push_str(&format!(
+                "      \"deferred_past_initial_frontier\": {},\n",
+                candidate_resolution.deferred_past_initial_frontier
+            ));
+            json.push_str(&format!(
+                "      \"resolved_from_deferred\": {},\n",
+                candidate_resolution.resolved_from_deferred
+            ));
+            match &candidate_resolution.preferred_label {
+                Some(label) => json.push_str(&format!(
+                    "      \"preferred_label\": \"{}\",\n",
+                    escape_json(label)
+                )),
+                None => json.push_str("      \"preferred_label\": null,\n"),
+            }
+            json.push_str("      \"active_score_adjustments\": [");
+            for (adjustment_index, adjustment) in candidate_resolution
+                .active_score_adjustments
+                .iter()
+                .enumerate()
+            {
+                json.push_str(&format!("\"{}\"", escape_json(adjustment)));
+                if adjustment_index + 1 != candidate_resolution.active_score_adjustments.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str("      \"active_law_updates\": [");
+            for (update_index, update) in candidate_resolution.active_law_updates.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(update)));
+                if update_index + 1 != candidate_resolution.active_law_updates.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            match &candidate_resolution.resolved_at_observation_time {
+                Some(time) => json.push_str(&format!(
+                    "      \"resolved_at_observation_time\": \"{}\"\n",
+                    escape_json(time)
+                )),
+                None => json.push_str("      \"resolved_at_observation_time\": null\n"),
+            }
             json.push_str("    }");
             if index + 1 != self.candidate_resolutions.len() {
                 json.push(',');
@@ -710,9 +845,46 @@ impl LawInventory {
                     json.push_str(", ");
                 }
             }
-            json.push_str("]\n");
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"top_score_tied\": {},\n",
+                candidate_inventory.top_score_tied
+            ));
+            json.push_str(&format!(
+                "      \"defer_on_ambiguous_top\": {},\n",
+                candidate_inventory.defer_on_ambiguous_top
+            ));
+            json.push_str(&format!(
+                "      \"resolution_hint\": \"{}\"\n",
+                escape_json(&candidate_inventory.resolution_hint)
+            ));
             json.push_str("    }");
             if index + 1 != self.candidate_inventory.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"action_directive_inventory\": [\n");
+        for (index, directive) in self.action_directive_inventory.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&directive.entity)
+            ));
+            json.push_str(&format!(
+                "      \"kind\": \"{}\",\n",
+                escape_json(&directive.kind)
+            ));
+            match &directive.argument {
+                Some(argument) => json.push_str(&format!(
+                    "      \"argument\": \"{}\"\n",
+                    escape_json(argument)
+                )),
+                None => json.push_str("      \"argument\": null\n"),
+            }
+            json.push_str("    }");
+            if index + 1 != self.action_directive_inventory.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -889,6 +1061,18 @@ impl SimulationEnvelope {
                     report.convergence_analytics.deferred_entities
                 ));
                 json.push_str(&format!(
+                    "    \"preference_resolved_entities\": {},\n",
+                    report.convergence_analytics.preference_resolved_entities
+                ));
+                json.push_str(&format!(
+                    "    \"law_updated_entities\": {},\n",
+                    report.convergence_analytics.law_updated_entities
+                ));
+                json.push_str(&format!(
+                    "    \"rescore_resolved_entities\": {},\n",
+                    report.convergence_analytics.rescore_resolved_entities
+                ));
+                json.push_str(&format!(
                     "    \"tie_broken_entities\": {},\n",
                     report.convergence_analytics.tie_broken_entities
                 ));
@@ -939,6 +1123,29 @@ impl SimulationEnvelope {
                     report.observation_summary.ambiguous_entities
                 ));
                 json.push_str("  },\n");
+                json.push_str("  \"observation_timeline\": [\n");
+                for (index, checkpoint) in report.observation_timeline.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!("      \"time\": {:.6},\n", checkpoint.time));
+                    json.push_str(&format!(
+                        "      \"status\": \"{}\",\n",
+                        escape_json(&checkpoint.status)
+                    ));
+                    json.push_str(&format!(
+                        "      \"representative_entities\": {},\n",
+                        checkpoint.representative_entities
+                    ));
+                    json.push_str(&format!(
+                        "      \"ambiguous_entities\": {}\n",
+                        checkpoint.ambiguous_entities
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.observation_timeline.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
                 json.push_str("  \"candidate_resolutions\": [\n");
                 for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
                 {
@@ -1033,9 +1240,57 @@ impl SimulationEnvelope {
                         candidate_resolution.observationally_equivalent_tie
                     ));
                     json.push_str(&format!(
-                        "      \"repaired_after_selection\": {}\n",
+                        "      \"repaired_after_selection\": {},\n",
                         candidate_resolution.repaired_after_selection
                     ));
+                    json.push_str(&format!(
+                        "      \"observed_while_deferred\": {},\n",
+                        candidate_resolution.observed_while_deferred
+                    ));
+                    json.push_str(&format!(
+                        "      \"deferred_past_initial_frontier\": {},\n",
+                        candidate_resolution.deferred_past_initial_frontier
+                    ));
+                    json.push_str(&format!(
+                        "      \"resolved_from_deferred\": {},\n",
+                        candidate_resolution.resolved_from_deferred
+                    ));
+                    match &candidate_resolution.preferred_label {
+                        Some(label) => json.push_str(&format!(
+                            "      \"preferred_label\": \"{}\",\n",
+                            escape_json(label)
+                        )),
+                        None => json.push_str("      \"preferred_label\": null,\n"),
+                    }
+                    json.push_str("      \"active_score_adjustments\": [");
+                    for (adjustment_index, adjustment) in candidate_resolution
+                        .active_score_adjustments
+                        .iter()
+                        .enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(adjustment)));
+                        if adjustment_index + 1 != candidate_resolution.active_score_adjustments.len()
+                        {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str("      \"active_law_updates\": [");
+                    for (update_index, update) in candidate_resolution.active_law_updates.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(update)));
+                        if update_index + 1 != candidate_resolution.active_law_updates.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    match &candidate_resolution.resolved_at_observation_time {
+                        Some(time) => json.push_str(&format!(
+                            "      \"resolved_at_observation_time\": \"{}\"\n",
+                            escape_json(time)
+                        )),
+                        None => json.push_str("      \"resolved_at_observation_time\": null\n"),
+                    }
                     json.push_str("    }");
                     if index + 1 != report.candidate_resolutions.len() {
                         json.push(',');
@@ -1130,6 +1385,9 @@ impl SimulationEnvelope {
                 json.push_str("    \"fallback_entities\": 0,\n");
                 json.push_str("    \"repaired_entities\": 0,\n");
                 json.push_str("    \"deferred_entities\": 0,\n");
+                json.push_str("    \"preference_resolved_entities\": 0,\n");
+                json.push_str("    \"law_updated_entities\": 0,\n");
+                json.push_str("    \"rescore_resolved_entities\": 0,\n");
                 json.push_str("    \"tie_broken_entities\": 0,\n");
                 json.push_str("    \"equivalent_tie_entities\": 0,\n");
                 json.push_str("    \"determinate_entities\": 0,\n");
@@ -1207,11 +1465,19 @@ impl std::error::Error for SimulationError {}
 pub fn simulate_program(program: &Program) -> Result<SimulationReport, SimulationError> {
     let mut world = World::from_program(program)?;
     let mut snapshots = Vec::new();
+    let mut observation_timeline = Vec::new();
     let mut observation_times = program.observe_times.clone();
     observation_times.sort_by(|a, b| a.total_cmp(b));
 
     for time in observation_times {
         world.advance_to(time)?;
+        world.resolve_deferred_candidates_at(time)?;
+        let candidate_resolutions =
+            candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len() + 1);
+        observation_timeline.push(observation_checkpoint(
+            time,
+            &ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+        ));
         let mut spheres = world
             .spheres
             .iter()
@@ -1226,16 +1492,20 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     }
 
     let constraints = world.constraint_summaries();
+    let candidate_resolutions =
+        candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
         convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
-            &world.candidate_resolutions,
+            &candidate_resolutions,
         ),
         observation_summary: ObservationSummary::from_candidate_resolutions(
-            &world.candidate_resolutions,
+            &candidate_resolutions,
         ),
-        candidate_resolutions: world.candidate_resolutions.clone(),
+        observation_timeline,
+        candidate_resolutions,
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -1248,6 +1518,7 @@ pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationErro
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
         candidate_inventory: candidate_inventory_from_program(program),
+        action_directive_inventory: action_directive_inventory_from_program(program),
     })
 }
 
@@ -1257,12 +1528,15 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         Err(error) => return SimulationEnvelope::failure(source, error.to_string()),
     };
     let mut snapshots = Vec::new();
+    let mut observation_timeline = Vec::new();
     let mut observation_times = program.observe_times.clone();
     observation_times.sort_by(|a, b| a.total_cmp(b));
 
     for time in observation_times {
         if let Err(error) = world.advance_to(time) {
             let constraints = world.constraint_summaries();
+            let candidate_resolutions =
+                candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
@@ -1270,17 +1544,47 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
-                        &world.candidate_resolutions,
+                        &candidate_resolutions,
                     ),
                     observation_summary: ObservationSummary::from_candidate_resolutions(
-                        &world.candidate_resolutions,
+                        &candidate_resolutions,
                     ),
-                    candidate_resolutions: world.candidate_resolutions.clone(),
+                    observation_timeline,
+                    candidate_resolutions,
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
             );
         }
+        if let Err(error) = world.resolve_deferred_candidates_at(time) {
+            let constraints = world.constraint_summaries();
+            let candidate_resolutions =
+                candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+            return SimulationEnvelope::failure_with_report(
+                source,
+                error.to_string(),
+                SimulationReport {
+                    analytics: LawAnalytics::from_constraints(&constraints),
+                    constraints,
+                    convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                        &candidate_resolutions,
+                    ),
+                    observation_summary: ObservationSummary::from_candidate_resolutions(
+                        &candidate_resolutions,
+                    ),
+                    observation_timeline,
+                    candidate_resolutions,
+                    activities: world.activity_log.clone(),
+                    snapshots,
+                },
+            );
+        }
+        let candidate_resolutions =
+            candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len() + 1);
+        observation_timeline.push(observation_checkpoint(
+            time,
+            &ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+        ));
         let mut spheres = world
             .spheres
             .iter()
@@ -1295,18 +1599,22 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
     }
 
     let constraints = world.constraint_summaries();
+    let candidate_resolutions =
+        candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+
     SimulationEnvelope::success(
         source,
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
             convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
-                &world.candidate_resolutions,
+                &candidate_resolutions,
             ),
             observation_summary: ObservationSummary::from_candidate_resolutions(
-                &world.candidate_resolutions,
+                &candidate_resolutions,
             ),
-            candidate_resolutions: world.candidate_resolutions.clone(),
+            observation_timeline,
+            candidate_resolutions,
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1390,10 +1698,23 @@ impl World {
             plane,
             region,
             constraints,
-                constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
-                candidate_resolutions: Vec::new(),
-                activity_log: Vec::new(),
-            };
+            constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
+            candidate_resolutions: Vec::new(),
+            activity_log: Vec::new(),
+            action_candidates_by_entity: action_candidates_by_entity(program),
+            deferred_resolution_times: deferred_resolution_times_from_action_directives(
+                &program.action_directives,
+            ),
+            deferred_preference_triggers: deferred_preference_triggers_from_action_directives(
+                &program.action_directives,
+            ),
+            deferred_score_adjustments: deferred_score_adjustments_from_action_directives(
+                &program.action_directives,
+            ),
+            deferred_speed_limit_updates: deferred_speed_limit_updates_from_action_directives(
+                &program.action_directives,
+            ),
+        };
 
         world.resolve_initial_action_candidates(
             &program.action_candidates,
@@ -1549,187 +1870,369 @@ impl World {
                 .push(candidate.clone());
         }
 
-        for (sphere_name, mut candidates) in grouped {
-            let sphere_index = ensure_sphere_exists(&self.spheres, &sphere_name)?;
-            candidates.sort_by(|left, right| {
-                right
-                    .score
-                    .total_cmp(&left.score)
-                    .then_with(|| left.label.cmp(&right.label))
-            });
-            let total_candidates = candidates.len();
-            let top_score = candidates
-                .first()
-                .map(|candidate| candidate.score)
-                .unwrap_or(0.0);
-            let top_labels = candidates
-                .iter()
-                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
-                .map(|candidate| candidate.label.clone())
-                .collect::<Vec<_>>();
-            let top_candidate_specs = candidates
-                .iter()
-                .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
-                .cloned()
-                .collect::<Vec<_>>();
-
-            let mut selected = false;
-            let mut rejected_candidates = 0usize;
-            let mut selected_candidate = None;
-            let mut selected_score = None;
-            let mut selected_score_value = None;
-            let mut repaired_after_selection = false;
-            let mut selected_signature = None;
-            let mut selected_spheres = None;
-            let mut selected_activity_log = Vec::new();
-            for candidate in candidates {
-                let mut probe = self.clone();
-                probe.activity_log.clear();
-                probe.spheres[sphere_index].velocity = candidate.velocity;
-
-                match probe.enforce_all_constraints() {
-                    Ok(_) => {
-                        let probe_signature = world_signature(&probe);
-                        let probe_repaired = probe
-                            .activity_log
-                            .iter()
-                            .any(|activity| activity.action == "repaired");
-                        selected_spheres = Some(probe.spheres);
-                        selected_activity_log = probe.activity_log;
-                        selected_candidate = Some(candidate.label.clone());
-                        selected_score = Some(format!("score={:.3}", candidate.score));
-                        selected_score_value = Some(candidate.score);
-                        selected_signature = Some(probe_signature);
-                        repaired_after_selection = probe_repaired;
-                        selected = true;
-                        break;
-                    }
-                    Err(_) => {
-                        rejected_candidates += 1;
-                        self.activity_log.push(candidate_activity_entry(
-                            self.current_time(),
-                            &sphere_name,
-                            &candidate.label,
-                            candidate.score,
-                            "rejected_by_hard_law",
-                        ));
-                    }
-                }
-            }
-
-            if !selected {
-                return Err(SimulationError::InvalidActionCandidate(format!(
-                    "all candidate actions for sphere `{}` were rejected by hard laws",
-                    sphere_name
-                )));
-            }
-
-            let mut equivalent_top_labels = Vec::new();
-            if let Some(selected_signature) = &selected_signature {
-                for candidate in &top_candidate_specs {
-                    let mut probe = self.clone();
-                    probe.activity_log.clear();
-                    probe.spheres[sphere_index].velocity = candidate.velocity;
-                    if probe.enforce_all_constraints().is_ok()
-                        && &world_signature(&probe) == selected_signature
-                    {
-                        equivalent_top_labels.push(candidate.label.clone());
-                    }
-                }
-                equivalent_top_labels.sort();
-            }
-
-            let tie_broken = top_labels.len() > 1;
-            let observationally_equivalent_tie = equivalent_top_labels.len() > 1;
-            let deferred = tie_broken
-                && !observationally_equivalent_tie
-                && deferred_entities.contains(&sphere_name);
-            if deferred {
-                self.activity_log.push(candidate_activity_entry(
-                    self.current_time(),
-                    &sphere_name,
-                    top_labels.first().map(String::as_str).unwrap_or(""),
-                    top_score,
-                    "deferred_due_to_tie",
-                ));
-                selected_candidate = None;
-                selected_score = None;
-                repaired_after_selection = false;
-            } else {
-                if let Some(spheres) = selected_spheres {
-                    self.spheres = spheres;
-                }
-                if let Some(label) = &selected_candidate {
-                    self.activity_log.push(candidate_activity_entry(
-                        self.current_time(),
-                        &sphere_name,
-                        label,
-                        selected_score_value.unwrap_or(top_score),
-                        "selected",
-                    ));
-                }
-                self.activity_log.extend(selected_activity_log);
-            }
-
-            let convergence_mode = if deferred {
-                "deferred"
-            } else if observationally_equivalent_tie {
-                "equivalent_tie"
-            } else if tie_broken {
-                "tie_broken"
-            } else if repaired_after_selection {
-                "repaired"
-            } else if rejected_candidates > 0 {
-                "fallback"
-            } else {
-                "direct"
-            };
-            let observation_mode = if deferred {
-                "ambiguous"
-            } else if observationally_equivalent_tie {
-                "representative"
-            } else if tie_broken {
-                "ambiguous"
-            } else {
-                "determinate"
-            };
-            let observation_labels = if observationally_equivalent_tie {
-                equivalent_top_labels.clone()
-            } else if tie_broken {
-                top_labels.clone()
-            } else {
-                selected_candidate
-                    .as_ref()
-                    .map(|label| vec![label.clone()])
-                    .unwrap_or_default()
-            };
-
-            self.candidate_resolutions.push(CandidateResolution {
-                entity: sphere_name,
-                total_candidates,
-                rejected_candidates,
-                skipped_candidates: if deferred {
-                    total_candidates.saturating_sub(rejected_candidates)
-                } else {
-                    total_candidates - rejected_candidates - 1
-                },
-                convergence_mode: convergence_mode.to_string(),
-                observation_mode: observation_mode.to_string(),
-                observation_labels,
-                symbolically_underdetermined: tie_broken,
-                observationally_underdetermined: tie_broken && !observationally_equivalent_tie,
-                selected_candidate,
-                selected_score,
-                top_score: format!("{top_score:.3}"),
-                tie_broken,
-                top_labels,
-                observationally_equivalent_tie,
-                equivalent_top_labels,
-                repaired_after_selection,
-            });
+        for (sphere_name, candidates) in grouped {
+            let resolution = self.resolve_candidates_for_entity(
+                &sphere_name,
+                &candidates,
+                deferred_entities.contains(&sphere_name),
+                false,
+                None,
+                None,
+                &[],
+                &[],
+            )?;
+            self.candidate_resolutions.push(resolution);
         }
 
         Ok(())
+    }
+
+    fn resolve_deferred_candidates_at(
+        &mut self,
+        observation_time: f64,
+    ) -> Result<(), SimulationError> {
+        let mut entities = self
+            .candidate_resolutions
+            .iter()
+            .filter(|resolution| {
+                resolution.convergence_mode == "deferred"
+                    && resolution.selected_candidate.is_none()
+                    && self
+                        .deferred_resolution_times
+                        .get(&resolution.entity)
+                        .is_some_and(|time| observation_time + EPSILON >= *time)
+            })
+            .map(|resolution| resolution.entity.clone())
+            .collect::<Vec<_>>();
+        entities.sort();
+
+        for entity in entities {
+            let candidates = self
+                .action_candidates_by_entity
+                .get(&entity)
+                .cloned()
+                .ok_or_else(|| {
+                    SimulationError::InvalidActionCandidate(format!(
+                        "missing deferred candidate inventory for sphere `{}`",
+                        entity
+                    ))
+                })?;
+            let preferred_label = self
+                .deferred_preference_triggers
+                .get(&entity)
+                .filter(|trigger| observation_time + EPSILON >= trigger.time)
+                .map(|trigger| trigger.label.clone());
+            let score_adjustments = self
+                .deferred_score_adjustments
+                .get(&entity)
+                .map(|adjustments| {
+                    adjustments
+                        .iter()
+                        .filter(|adjustment| observation_time + EPSILON >= adjustment.time)
+                        .map(|adjustment| (adjustment.label.clone(), adjustment.delta))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let active_law_updates = self.apply_deferred_law_updates_at(&entity, observation_time);
+            let resolution = self.resolve_candidates_for_entity(
+                &entity,
+                &candidates,
+                false,
+                true,
+                Some(observation_time),
+                preferred_label.as_deref(),
+                &score_adjustments,
+                &active_law_updates,
+            )?;
+            if let Some(existing) = self
+                .candidate_resolutions
+                .iter_mut()
+                .find(|existing| existing.entity == entity)
+            {
+                *existing = resolution;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn apply_deferred_law_updates_at(
+        &mut self,
+        entity: &str,
+        observation_time: f64,
+    ) -> Vec<String> {
+        let Some(update) = self.deferred_speed_limit_updates.get(entity).cloned() else {
+            return Vec::new();
+        };
+        if observation_time + EPSILON < update.time {
+            return Vec::new();
+        }
+        let mut activated = Vec::new();
+        for constraint in &mut self.constraints {
+            if let Constraint::VelocityLimit {
+                sphere_index,
+                max_speed,
+                ..
+            } = constraint
+            {
+                if self.spheres[*sphere_index].name == entity && (*max_speed - update.limit).abs() > EPSILON {
+                    *max_speed = update.limit;
+                    activated.push(format!("speed_limit:{:.3}", update.limit));
+                }
+            }
+        }
+        if !activated.is_empty() {
+            self.activity_log.push(ActivityEntry {
+                time: observation_time,
+                kind: "velocity_limit".to_string(),
+                targets: vec![entity.to_string()],
+                policy: format!("limit={:.3}", update.limit),
+                action: "updated_for_deferred_resolution".to_string(),
+            });
+        }
+        activated
+    }
+
+    fn resolve_candidates_for_entity(
+        &mut self,
+        sphere_name: &str,
+        candidates: &[ActionCandidateDecl],
+        allow_defer: bool,
+        resolved_from_deferred: bool,
+        resolved_at_observation_time: Option<f64>,
+        preferred_label: Option<&str>,
+        score_adjustments: &[(String, f64)],
+        active_law_updates: &[String],
+    ) -> Result<CandidateResolution, SimulationError> {
+        let sphere_index = ensure_sphere_exists(&self.spheres, sphere_name)?;
+        let mut candidates = candidates.to_vec();
+        for candidate in &mut candidates {
+            for (label, delta) in score_adjustments {
+                if candidate.label == *label {
+                    candidate.score += *delta;
+                }
+            }
+        }
+        candidates.sort_by(|left, right| {
+            right
+                .score
+                .total_cmp(&left.score)
+                .then_with(|| {
+                    match (
+                        preferred_label.is_some_and(|label| left.label == label),
+                        preferred_label.is_some_and(|label| right.label == label),
+                    ) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => std::cmp::Ordering::Equal,
+                    }
+                })
+                .then_with(|| left.label.cmp(&right.label))
+        });
+        let total_candidates = candidates.len();
+        let top_score = candidates.first().map(|candidate| candidate.score).unwrap_or(0.0);
+        let top_labels = candidates
+            .iter()
+            .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+            .map(|candidate| candidate.label.clone())
+            .collect::<Vec<_>>();
+        let top_candidate_specs = candidates
+            .iter()
+            .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let mut selected = false;
+        let mut rejected_candidates = 0usize;
+        let mut selected_candidate = None;
+        let mut selected_score = None;
+        let mut selected_score_value = None;
+        let mut repaired_after_selection = false;
+        let mut selected_signature = None;
+        let mut selected_spheres = None;
+        let mut selected_activity_log = Vec::new();
+        for candidate in candidates {
+            let mut probe = self.clone();
+            probe.activity_log.clear();
+            probe.spheres[sphere_index].velocity = candidate.velocity;
+
+            match probe.enforce_all_constraints() {
+                Ok(_) => {
+                    let probe_signature = world_signature(&probe);
+                    let probe_repaired = probe
+                        .activity_log
+                        .iter()
+                        .any(|activity| activity.action == "repaired");
+                    selected_spheres = Some(probe.spheres);
+                    selected_activity_log = probe.activity_log;
+                    selected_candidate = Some(candidate.label.clone());
+                    selected_score = Some(format!("score={:.3}", candidate.score));
+                    selected_score_value = Some(candidate.score);
+                    selected_signature = Some(probe_signature);
+                    repaired_after_selection = probe_repaired;
+                    selected = true;
+                    break;
+                }
+                Err(_) => {
+                    rejected_candidates += 1;
+                    self.activity_log.push(candidate_activity_entry(
+                        self.current_time(),
+                        sphere_name,
+                        &candidate.label,
+                        candidate.score,
+                        "rejected_by_hard_law",
+                    ));
+                }
+            }
+        }
+
+        if !selected {
+            return Err(SimulationError::InvalidActionCandidate(format!(
+                "all candidate actions for sphere `{}` were rejected by hard laws",
+                sphere_name
+            )));
+        }
+
+        let mut equivalent_top_labels = Vec::new();
+        if let Some(selected_signature) = &selected_signature {
+            for candidate in &top_candidate_specs {
+                let mut probe = self.clone();
+                probe.activity_log.clear();
+                probe.spheres[sphere_index].velocity = candidate.velocity;
+                if probe.enforce_all_constraints().is_ok()
+                    && &world_signature(&probe) == selected_signature
+                {
+                    equivalent_top_labels.push(candidate.label.clone());
+                }
+            }
+            equivalent_top_labels.sort();
+        }
+
+        let tie_broken = top_labels.len() > 1;
+        let observationally_equivalent_tie = equivalent_top_labels.len() > 1;
+        let deferred = allow_defer && tie_broken && !observationally_equivalent_tie;
+        let preferred_label = preferred_label.map(ToString::to_string);
+        let active_score_adjustments = score_adjustments
+            .iter()
+            .map(|(label, delta)| format!("{label}:{delta:+.3}"))
+            .collect::<Vec<_>>();
+        if deferred {
+            self.activity_log.push(candidate_activity_entry(
+                self.current_time(),
+                sphere_name,
+                top_labels.first().map(String::as_str).unwrap_or(""),
+                top_score,
+                "deferred_due_to_tie",
+            ));
+            selected_candidate = None;
+            selected_score = None;
+            repaired_after_selection = false;
+        } else {
+            if let Some(spheres) = selected_spheres {
+                self.spheres = spheres;
+            }
+            if let Some(label) = &selected_candidate {
+                self.activity_log.push(candidate_activity_entry(
+                    self.current_time(),
+                    sphere_name,
+                    label,
+                    selected_score_value.unwrap_or(top_score),
+                    if resolved_from_deferred && !active_law_updates.is_empty() {
+                        "selected_after_law_update"
+                    } else if resolved_from_deferred && !active_score_adjustments.is_empty() {
+                        "selected_after_rescore"
+                    } else if resolved_from_deferred && preferred_label.is_some() {
+                        "selected_after_preference"
+                    } else if resolved_from_deferred {
+                        "selected_after_defer"
+                    } else {
+                        "selected"
+                    },
+                ));
+            }
+            self.activity_log.extend(selected_activity_log);
+        }
+
+        let convergence_mode = if deferred {
+            "deferred"
+        } else if resolved_from_deferred && !active_law_updates.is_empty() {
+            "resolved_after_law_update"
+        } else if resolved_from_deferred && !active_score_adjustments.is_empty() {
+            "resolved_after_rescore"
+        } else if resolved_from_deferred && preferred_label.is_some() {
+            "resolved_after_preference"
+        } else if resolved_from_deferred {
+            "resolved_after_defer"
+        } else if observationally_equivalent_tie {
+            "equivalent_tie"
+        } else if tie_broken {
+            "tie_broken"
+        } else if repaired_after_selection {
+            "repaired"
+        } else if rejected_candidates > 0 {
+            "fallback"
+        } else {
+            "direct"
+        };
+        let observation_mode = if deferred {
+            "ambiguous"
+        } else if resolved_from_deferred {
+            "determinate"
+        } else if observationally_equivalent_tie {
+            "representative"
+        } else if tie_broken {
+            "ambiguous"
+        } else {
+            "determinate"
+        };
+        let observation_labels = if resolved_from_deferred {
+            selected_candidate
+                .as_ref()
+                .map(|label| vec![label.clone()])
+                .unwrap_or_default()
+        } else if observationally_equivalent_tie {
+            equivalent_top_labels.clone()
+        } else if tie_broken {
+            top_labels.clone()
+        } else {
+            selected_candidate
+                .as_ref()
+                .map(|label| vec![label.clone()])
+                .unwrap_or_default()
+        };
+
+        Ok(CandidateResolution {
+            entity: sphere_name.to_string(),
+            total_candidates,
+            rejected_candidates,
+            skipped_candidates: if deferred {
+                total_candidates.saturating_sub(rejected_candidates)
+            } else {
+                total_candidates - rejected_candidates - 1
+            },
+            convergence_mode: convergence_mode.to_string(),
+            observation_mode: observation_mode.to_string(),
+            observation_labels,
+            symbolically_underdetermined: tie_broken && !resolved_from_deferred,
+            observationally_underdetermined: tie_broken
+                && !observationally_equivalent_tie
+                && !resolved_from_deferred,
+            selected_candidate,
+            selected_score,
+            top_score: format!("{top_score:.3}"),
+            tie_broken,
+            top_labels,
+            observationally_equivalent_tie,
+            equivalent_top_labels,
+            repaired_after_selection,
+            observed_while_deferred: 0,
+            deferred_past_initial_frontier: false,
+            resolved_from_deferred,
+            resolved_at_observation_time: resolved_at_observation_time.map(|time| format!("{time:.3}")),
+            preferred_label,
+            active_score_adjustments,
+            active_law_updates: active_law_updates.to_vec(),
+        })
     }
 
 }
@@ -2190,6 +2693,9 @@ impl ConvergenceAnalytics {
             fallback_entities: 0,
             repaired_entities: 0,
             deferred_entities: 0,
+            preference_resolved_entities: 0,
+            rescore_resolved_entities: 0,
+            law_updated_entities: 0,
             tie_broken_entities: 0,
             equivalent_tie_entities: 0,
             determinate_entities: 0,
@@ -2209,6 +2715,9 @@ impl ConvergenceAnalytics {
                 "fallback" => analytics.fallback_entities += 1,
                 "repaired" => analytics.repaired_entities += 1,
                 "deferred" => analytics.deferred_entities += 1,
+                "resolved_after_preference" => analytics.preference_resolved_entities += 1,
+                "resolved_after_rescore" => analytics.rescore_resolved_entities += 1,
+                "resolved_after_law_update" => analytics.law_updated_entities += 1,
                 "tie_broken" => analytics.tie_broken_entities += 1,
                 "equivalent_tie" => analytics.equivalent_tie_entities += 1,
                 _ => {}
@@ -2365,6 +2874,15 @@ fn world_signature(world: &World) -> Vec<String> {
 }
 
 fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
+    let deferred_entities = program
+        .action_directives
+        .iter()
+        .filter(|directive| directive.kind == "defer_on_ambiguous_top")
+        .map(|directive| directive.entity.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    let preferred_entities = preferred_candidate_labels_from_action_directives(&program.action_directives);
+    let rescored_entities = rescore_candidate_labels_from_action_directives(&program.action_directives);
+    let law_updated_entities = law_update_labels_from_action_directives(&program.action_directives);
     let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
     for candidate in &program.action_candidates {
         grouped
@@ -2393,6 +2911,27 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 .map(|candidate| candidate.label.clone())
                 .collect::<Vec<_>>();
             top_labels.sort();
+            let top_score_tied = top_labels.len() > 1;
+            let defer_on_ambiguous_top = deferred_entities.contains(&entity);
+            let resolution_hint = if top_score_tied && defer_on_ambiguous_top {
+                if let Some((limit, update_time)) = law_updated_entities.get(&entity) {
+                    format!("defer_then_update_speed_limit_to_{limit:.3}_at_{update_time:.3}")
+                } else if let Some((rescore_label, delta, rescore_time)) = rescored_entities.get(&entity)
+                {
+                    format!(
+                        "defer_then_rescore_{}_by_{delta:+.3}_at_{rescore_time:.3}",
+                        rescore_label
+                    )
+                } else if let Some((label, time)) = preferred_entities.get(&entity) {
+                    format!("defer_then_prefer_{}_at_{time:.3}", label)
+                } else {
+                    "deferred_on_ambiguous_top".to_string()
+                }
+            } else if top_score_tied {
+                "deterministic_tie_break".to_string()
+            } else {
+                "single_top_candidate".to_string()
+            };
 
             CandidateInventorySummary {
                 entity,
@@ -2400,9 +2939,219 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 labels,
                 top_score: format!("{top_score:.3}"),
                 top_labels,
+                top_score_tied,
+                defer_on_ambiguous_top,
+                resolution_hint,
             }
         })
         .collect()
+}
+
+fn candidate_resolutions_for_report(
+    candidate_resolutions: &[CandidateResolution],
+    observation_count: usize,
+) -> Vec<CandidateResolution> {
+    candidate_resolutions
+        .iter()
+        .cloned()
+        .map(|mut resolution| {
+            if resolution.convergence_mode == "deferred" {
+                resolution.observed_while_deferred = observation_count;
+                resolution.deferred_past_initial_frontier = observation_count > 1;
+            } else if resolution.resolved_from_deferred {
+                resolution.observed_while_deferred = observation_count.saturating_sub(1);
+                resolution.deferred_past_initial_frontier = false;
+            }
+            resolution
+        })
+        .collect()
+}
+
+fn observation_checkpoint(time: f64, summary: &ObservationSummary) -> ObservationCheckpoint {
+    ObservationCheckpoint {
+        time,
+        status: summary.status.clone(),
+        representative_entities: summary.representative_entities,
+        ambiguous_entities: summary.ambiguous_entities,
+    }
+}
+
+fn action_candidates_by_entity(program: &Program) -> BTreeMap<String, Vec<ActionCandidateDecl>> {
+    let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
+    for candidate in &program.action_candidates {
+        grouped
+            .entry(candidate.entity.clone())
+            .or_default()
+            .push(candidate.clone());
+    }
+    grouped
+}
+
+fn deferred_resolution_times_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, f64> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "resolve_deferred_at" {
+            if let Some(time) = directive.time_argument {
+                result.insert(directive.entity.clone(), time);
+            }
+        }
+    }
+    result
+}
+
+fn deferred_preference_triggers_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, DeferredPreferenceTrigger> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "prefer_candidate_at" {
+            if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument) {
+                result.insert(
+                    directive.entity.clone(),
+                    DeferredPreferenceTrigger {
+                        label: label.clone(),
+                        time,
+                    },
+                );
+            }
+        }
+    }
+    result
+}
+
+fn deferred_score_adjustments_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, Vec<DeferredScoreAdjustment>> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "rescore_candidate_at" {
+            if let (Some(label), Some(time), Some(delta)) = (
+                &directive.label_argument,
+                directive.time_argument,
+                directive.score_argument,
+            ) {
+                result
+                    .entry(directive.entity.clone())
+                    .or_insert_with(Vec::new)
+                    .push(DeferredScoreAdjustment {
+                        label: label.clone(),
+                        time,
+                        delta,
+                    });
+            }
+        }
+    }
+    result
+}
+
+fn deferred_speed_limit_updates_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, DeferredSpeedLimitUpdate> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "update_speed_limit_at" {
+            if let (Some(time), Some(limit)) = (directive.time_argument, directive.value_argument) {
+                result.insert(
+                    directive.entity.clone(),
+                    DeferredSpeedLimitUpdate { time, limit },
+                );
+            }
+        }
+    }
+    result
+}
+
+fn preferred_candidate_labels_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, (String, f64)> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "prefer_candidate_at" {
+            if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument) {
+                result.insert(directive.entity.clone(), (label.clone(), time));
+            }
+        } else if directive.kind == "rescore_candidate_at" {
+            if let (Some(label), Some(time), Some(delta)) = (
+                &directive.label_argument,
+                directive.time_argument,
+                directive.score_argument,
+            ) {
+                result.insert(
+                    directive.entity.clone(),
+                    (format!("{label}+{delta:.3}"), time),
+                );
+            }
+        }
+    }
+    result
+}
+
+fn law_update_labels_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, (f64, f64)> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "update_speed_limit_at" {
+            if let (Some(time), Some(limit)) = (directive.time_argument, directive.value_argument) {
+                result.insert(directive.entity.clone(), (limit, time));
+            }
+        }
+    }
+    result
+}
+
+fn rescore_candidate_labels_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, (String, f64, f64)> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "rescore_candidate_at" {
+            if let (Some(label), Some(time), Some(delta)) = (
+                &directive.label_argument,
+                directive.time_argument,
+                directive.score_argument,
+            ) {
+                result.insert(directive.entity.clone(), (label.clone(), delta, time));
+            }
+        }
+    }
+    result
+}
+
+fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirectiveSummary> {
+    let mut directives = program
+        .action_directives
+        .iter()
+        .map(|directive| ActionDirectiveSummary {
+            entity: directive.entity.clone(),
+            kind: directive.kind.clone(),
+            argument: match (&directive.label_argument, directive.time_argument) {
+                (Some(label), Some(time)) => {
+                    if let Some(delta) = directive.score_argument {
+                        Some(format!("{label}, {time:.3}, {delta:+.3}"))
+                    } else if let Some(limit) = directive.value_argument {
+                        Some(format!("{time:.3}, {limit:.3}"))
+                    } else {
+                        Some(format!("{label}, {time:.3}"))
+                    }
+                }
+                (None, Some(time)) if directive.value_argument.is_some() => {
+                    Some(format!("{time:.3}, {:.3}", directive.value_argument.unwrap_or_default()))
+                }
+                (Some(label), None) => Some(label.clone()),
+                (None, Some(time)) => Some(format!("{time:.3}")),
+                (None, None) => None,
+            },
+        })
+        .collect::<Vec<_>>();
+    directives.sort_by(|left, right| {
+        left.entity
+            .cmp(&right.entity)
+            .then_with(|| left.kind.cmp(&right.kind))
+    });
+    directives
 }
 
 fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
@@ -2826,6 +3575,41 @@ constraint:
         assert!(json.contains("\"labels\": [\"fast\", \"safe\"]"));
         assert!(json.contains("\"top_score\": \"5.000\""));
         assert!(json.contains("\"top_labels\": [\"fast\"]"));
+        assert!(json.contains("\"top_score_tied\": false"));
+        assert!(json.contains("\"defer_on_ambiguous_top\": false"));
+        assert!(json.contains("\"resolution_hint\": \"single_top_candidate\""));
+    }
+
+    #[test]
+    fn analyze_program_reports_action_directives() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_at(A, beta, 1)
+constraint:
+    speed(A) <= 4
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let inventory = analyze_program(&program).expect("analysis should succeed");
+        let json = inventory.to_json("deferred.sk");
+        assert!(json.contains("\"action_directive_inventory\""));
+        assert!(json.contains("\"entity\": \"A\""));
+        assert!(json.contains("\"kind\": \"defer_on_ambiguous_top\""));
+        assert!(json.contains("\"kind\": \"resolve_deferred_at\""));
+        assert!(json.contains("\"kind\": \"prefer_candidate_at\""));
+        assert!(json.contains("\"argument\": \"1.000\""));
+        assert!(json.contains("\"argument\": \"beta, 1.000\""));
+        assert!(json.contains("\"top_score_tied\": true"));
+        assert!(json.contains("\"defer_on_ambiguous_top\": true"));
+        assert!(json.contains("\"resolution_hint\": \"defer_then_prefer_beta_at_1.000\""));
     }
 
     #[test]
@@ -3214,5 +3998,316 @@ observe:
         assert!(report.activities.iter().any(|entry| {
             entry.kind == "candidate_velocity" && entry.action == "deferred_due_to_tie"
         }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_mix_deferred_and_repaired_entities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    candidate_velocity(B, sprint) = (6, 0, 0) score 6
+    candidate_velocity(B, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+    clamp speed(B) <= 4
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        let b = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "B")
+            .expect("B should have candidate resolution");
+        assert_eq!(a.convergence_mode, "deferred");
+        assert_eq!(a.observation_mode, "ambiguous");
+        assert_eq!(a.selected_candidate, None);
+        assert_eq!(b.convergence_mode, "repaired");
+        assert_eq!(b.observation_mode, "determinate");
+        assert_eq!(b.selected_candidate.as_deref(), Some("sprint"));
+        assert!(b.repaired_after_selection);
+        assert_eq!(report.convergence_analytics.candidate_entities, 2);
+        assert_eq!(report.convergence_analytics.deferred_entities, 1);
+        assert_eq!(report.convergence_analytics.repaired_entities, 1);
+        assert_eq!(report.observation_summary.status, "unresolved");
+        assert_eq!(report.observation_summary.ambiguous_entities, 1);
+        assert_eq!(report.observation_summary.representative_entities, 0);
+    }
+
+    #[test]
+    fn candidate_velocity_can_keep_deferred_entity_across_observations() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    candidate_velocity(B, sprint) = (6, 0, 0) score 6
+    candidate_velocity(B, safe) = (3, 0, 0) score 2
+constraint:
+    speed(A) <= 4
+    clamp speed(B) <= 4
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots.len(), 2);
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        let b = report.snapshots[1]
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "B")
+            .expect("B should exist");
+        assert_eq!(a.convergence_mode, "deferred");
+        assert_eq!(a.observed_while_deferred, 2);
+        assert!(a.deferred_past_initial_frontier);
+        assert_eq!(b.position.x, 8.0);
+        assert_eq!(report.observation_summary.status, "unresolved");
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_after_defer_at_later_frontier() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        assert_eq!(report.snapshots.len(), 2);
+        assert_eq!(resolution.convergence_mode, "resolved_after_defer");
+        assert_eq!(resolution.observation_mode, "determinate");
+        assert_eq!(resolution.observation_labels, vec!["alpha".to_string()]);
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("alpha"));
+        assert_eq!(resolution.observed_while_deferred, 1);
+        assert!(!resolution.deferred_past_initial_frontier);
+        assert!(resolution.resolved_from_deferred);
+        assert_eq!(
+            resolution.resolved_at_observation_time.as_deref(),
+            Some("1.000")
+        );
+        assert_eq!(report.observation_summary.status, "determinate");
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity" && entry.action == "selected_after_defer"
+        }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_after_defer_with_later_preference() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (2, 0, 0) score 5
+    candidate_velocity(A, beta) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_at(A, beta, 1)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("beta"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("beta"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "selected_after_preference"
+                && entry.targets.iter().any(|target| target == "beta")
+        }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_after_defer_with_later_rescore() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (2, 0, 0) score 5
+    candidate_velocity(A, beta) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    rescore_candidate_at(A, beta, 1, 1)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_rescore");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("beta"));
+        assert_eq!(resolution.selected_score.as_deref(), Some("score=6.000"));
+        assert_eq!(
+            resolution.active_score_adjustments,
+            vec!["beta:+1.000".to_string()]
+        );
+        assert_eq!(report.convergence_analytics.rescore_resolved_entities, 1);
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "selected_after_rescore"
+                && entry.targets.iter().any(|target| target == "beta")
+        }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_after_defer_with_later_law_update() {
+        let source = r#"
+sphere A
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+action:
+    candidate_velocity(A, alpha) = (5, 0, 0) score 5
+    candidate_velocity(A, beta) = (3, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    update_speed_limit_at(A, 1, 6)
+constraint:
+    speed(A) <= 4
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_law_update");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("alpha"));
+        assert_eq!(resolution.active_law_updates, vec!["speed_limit:6.000".to_string()]);
+        assert_eq!(report.convergence_analytics.law_updated_entities, 1);
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "velocity_limit"
+                && entry.action == "updated_for_deferred_resolution"
+        }));
+        assert!(report.activities.iter().any(|entry| {
+            entry.kind == "candidate_velocity"
+                && entry.action == "selected_after_law_update"
+                && entry.targets.iter().any(|target| target == "alpha")
+        }));
+    }
+
+    #[test]
+    fn candidate_velocity_can_stagger_resolution_across_entities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, alpha) = (3, 0, 0) score 5
+    candidate_velocity(A, beta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    candidate_velocity(B, gamma) = (1, 0, 0) score 5
+    candidate_velocity(B, delta) = (2, 0, 0) score 5
+    defer_on_ambiguous_top(B)
+    resolve_deferred_at(B, 2)
+constraint:
+    speed(A) <= 4
+    speed(B) <= 4
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots.len(), 3);
+        assert_eq!(report.observation_timeline.len(), 3);
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[1].status, "unresolved");
+        assert_eq!(report.observation_timeline[2].status, "determinate");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A should have candidate resolution");
+        let b = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "B")
+            .expect("B should have candidate resolution");
+        assert_eq!(a.convergence_mode, "resolved_after_defer");
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(b.convergence_mode, "resolved_after_defer");
+        assert_eq!(b.resolved_at_observation_time.as_deref(), Some("2.000"));
+        assert_eq!(report.observation_summary.status, "determinate");
     }
 }

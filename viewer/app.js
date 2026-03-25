@@ -50,6 +50,7 @@ const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
 const candidateResolutionList = document.getElementById("candidate-resolution-list");
 const candidateComparisonList = document.getElementById("candidate-comparison-list");
+const observationTimelineList = document.getElementById("observation-timeline-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
@@ -88,6 +89,13 @@ const CANDIDATE_COMPARISON_SAMPLES = [
   { label: "fallback", path: "./samples/candidate_velocity.json" },
   { label: "repaired", path: "./samples/candidate_velocity_clamped.json" },
   { label: "deferred", path: "./samples/candidate_velocity_deferred.json" },
+  { label: "law update after defer", path: "./samples/candidate_velocity_law_updated_resolve.json" },
+  { label: "prefer after defer", path: "./samples/candidate_velocity_preferred_resolve.json" },
+  { label: "rescore after defer", path: "./samples/candidate_velocity_rescored_resolve.json" },
+  { label: "resolve after defer", path: "./samples/candidate_velocity_deferred_resolve.json" },
+  { label: "partial deferred", path: "./samples/candidate_velocity_partial_deferred.json" },
+  { label: "persistent deferred", path: "./samples/candidate_velocity_partial_deferred_persistent.json" },
+  { label: "staggered resolve", path: "./samples/candidate_velocity_staggered_resolve.json" },
   { label: "tie", path: "./samples/candidate_velocity_tied.json" },
   { label: "equivalent tie", path: "./samples/candidate_velocity_equivalent_tie.json" },
 ];
@@ -327,7 +335,10 @@ function normalizeReport(report) {
       observation_summary:
         report.observation_summary ||
         defaultObservationSummary(report.candidate_resolutions || []),
+      observation_timeline: report.observation_timeline || [],
       constraints: report.constraints || [],
+      candidate_inventory: report.candidate_inventory || [],
+      action_directive_inventory: report.action_directive_inventory || [],
       candidate_resolutions: report.candidate_resolutions || [],
       activities: report.activities || [],
       snapshots: report.snapshots || [],
@@ -341,7 +352,10 @@ function normalizeReport(report) {
     observation_summary:
       report.observation_summary ||
       defaultObservationSummary(report.candidate_resolutions || []),
+    observation_timeline: report.observation_timeline || [],
     constraints: report.constraints || [],
+    candidate_inventory: report.candidate_inventory || [],
+    action_directive_inventory: report.action_directive_inventory || [],
     candidate_resolutions: report.candidate_resolutions || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
@@ -410,6 +424,15 @@ function activeSnapshot() {
   return state.report.snapshots[index];
 }
 
+function activeObservationCheckpoint() {
+  if (!state.report) return null;
+  const timeline = state.report.observation_timeline || [];
+  if (timeline.length === 0) return null;
+  const maxIndex = timeline.length - 1;
+  const index = Math.min(state.snapshotIndex, maxIndex);
+  return timeline[index];
+}
+
 function lastStableSnapshot() {
   if (!hasStableSnapshots()) return null;
   return state.report.snapshots[state.report.snapshots.length - 1];
@@ -436,6 +459,11 @@ function syncCameraLabels() {
 }
 
 function render() {
+  const activeObservation = activeObservationCheckpoint();
+  observationStatus.textContent =
+    activeObservation?.status ||
+    state.report?.observation_summary?.status ||
+    "determinate";
   renderCanvas();
   renderSidebar();
   renderConstraintCandidates();
@@ -914,8 +942,39 @@ function renderSidebar() {
   renderAnalyticsList();
   renderCandidateResolution();
   renderCandidateComparison();
+  renderObservationTimeline();
   renderActivityList();
   renderComparisonList();
+}
+
+function renderObservationTimeline() {
+  if (!state.report) {
+    observationTimelineList.innerHTML =
+      '<p class="muted">Load a report to inspect observation status across frontiers.</p>';
+    return;
+  }
+
+  const timeline = state.report.observation_timeline || [];
+  if (timeline.length === 0) {
+    observationTimelineList.innerHTML =
+      '<p class="muted">This report has no observation timeline metadata.</p>';
+    return;
+  }
+
+  observationTimelineList.innerHTML = "";
+  timeline.forEach((checkpoint, index) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+    const active = index === Math.min(state.snapshotIndex, timeline.length - 1);
+    card.innerHTML = `
+      <h3>${active ? "Current Frontier" : "Frontier"}</h3>
+      <p>t = ${Number(checkpoint.time || 0).toFixed(3)}</p>
+      <p class="muted">status = ${checkpoint.status || "determinate"}</p>
+      <p class="muted">representative = ${checkpoint.representative_entities ?? 0}</p>
+      <p class="muted">ambiguous = ${checkpoint.ambiguous_entities ?? 0}</p>
+    `;
+    observationTimelineList.appendChild(card);
+  });
 }
 
 function renderConstraintList() {
@@ -1018,8 +1077,43 @@ function renderCandidateResolution() {
 
   const candidateResolutions = state.report.candidate_resolutions || [];
   if (candidateResolutions.length === 0) {
-    candidateResolutionList.innerHTML =
-      '<p class="muted">This report has no candidate-resolution metadata.</p>';
+    const candidateInventory = state.report.candidate_inventory || [];
+    const actionDirectiveInventory = state.report.action_directive_inventory || [];
+    if (candidateInventory.length === 0 && actionDirectiveInventory.length === 0) {
+      candidateResolutionList.innerHTML =
+        '<p class="muted">This report has no candidate-resolution metadata.</p>';
+      return;
+    }
+    candidateResolutionList.innerHTML = "";
+    const summaryCard = document.createElement("article");
+    summaryCard.className = "sphere-card";
+    summaryCard.innerHTML = `
+      <h3>Static Phase I Inventory</h3>
+      <p>candidate entities = ${candidateInventory.length}</p>
+      <p class="muted">action directives = ${actionDirectiveInventory.length}</p>
+      <p class="muted">execution = not run</p>
+    `;
+    candidateResolutionList.appendChild(summaryCard);
+    candidateInventory.forEach((inventory) => {
+      const directives = actionDirectiveInventory
+        .filter((directive) => directive.entity === inventory.entity)
+        .map((directive) =>
+          directive.argument ? `${directive.kind}(${directive.argument})` : directive.kind,
+        );
+      const card = document.createElement("article");
+      card.className = "sphere-card";
+      card.innerHTML = `
+        <h3>${inventory.entity}</h3>
+        <p>candidates = ${inventory.total_candidates}</p>
+        <p class="muted">top score = ${inventory.top_score || "n/a"}</p>
+        <p class="muted">top labels = ${(inventory.top_labels || []).join(", ") || "none"}</p>
+        <p class="muted">top score tied = ${inventory.top_score_tied ? "yes" : "no"}</p>
+        <p class="muted">defer on ambiguous top = ${inventory.defer_on_ambiguous_top ? "yes" : "no"}</p>
+        <p class="muted">resolution hint = ${inventory.resolution_hint || "n/a"}</p>
+        <p class="muted">directives = ${directives.join(", ") || "none"}</p>
+      `;
+      candidateResolutionList.appendChild(card);
+    });
     return;
   }
 
@@ -1033,7 +1127,10 @@ function renderCandidateResolution() {
     <p class="muted">direct = ${convergenceAnalytics.direct_entities ?? 0}</p>
     <p class="muted">fallback = ${convergenceAnalytics.fallback_entities ?? 0}</p>
     <p class="muted">repaired = ${convergenceAnalytics.repaired_entities ?? 0}</p>
+    <p class="muted">law updated = ${convergenceAnalytics.law_updated_entities ?? 0}</p>
+    <p class="muted">rescore resolved = ${convergenceAnalytics.rescore_resolved_entities ?? 0}</p>
     <p class="muted">tie broken = ${convergenceAnalytics.tie_broken_entities ?? 0}</p>
+    <p class="muted">preference resolved = ${convergenceAnalytics.preference_resolved_entities ?? 0}</p>
     <p class="muted">equivalent tie = ${convergenceAnalytics.equivalent_tie_entities ?? 0}</p>
     <p class="muted">observation determinate = ${convergenceAnalytics.determinate_entities ?? 0}</p>
     <p class="muted">observation representative = ${convergenceAnalytics.representative_entities ?? 0}</p>
@@ -1063,6 +1160,13 @@ function renderCandidateResolution() {
       <p class="muted">equivalent top labels = ${(candidateResolution.equivalent_top_labels || []).join(", ") || "none"}</p>
       <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+      <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
+      <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
+      <p class="muted">resolved from deferred = ${candidateResolution.resolved_from_deferred ? "yes" : "no"}</p>
+      <p class="muted">preferred label = ${candidateResolution.preferred_label || "n/a"}</p>
+      <p class="muted">score adjustments = ${(candidateResolution.active_score_adjustments || []).join(", ") || "none"}</p>
+      <p class="muted">law updates = ${(candidateResolution.active_law_updates || []).join(", ") || "none"}</p>
+      <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
     `;
     candidateResolutionList.appendChild(card);
   });
@@ -1077,8 +1181,13 @@ function renderCandidateComparison() {
 
   const candidateResolutions = state.report.candidate_resolutions || [];
   if (candidateResolutions.length === 0) {
-    candidateComparisonList.innerHTML =
-      '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
+    if ((state.report.candidate_inventory || []).length > 0) {
+      candidateComparisonList.innerHTML =
+        '<p class="muted">Static analyze reports show candidate inventories and resolution hints, but not runtime comparison outcomes.</p>';
+    } else {
+      candidateComparisonList.innerHTML =
+        '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
+    }
     return;
   }
 
@@ -1089,6 +1198,7 @@ function renderCandidateComparison() {
   summary.className = "sphere-card";
   summary.innerHTML = `
     <h3>Current Pattern</h3>
+    <p>entities = ${candidateResolutions.length}</p>
     <p>mode = ${candidateResolution.convergence_mode || "direct"}</p>
     <p class="muted">observation mode = ${candidateResolution.observation_mode || "determinate"}</p>
     <p class="muted">observation labels = ${(candidateResolution.observation_labels || []).join(", ") || "none"}</p>
@@ -1101,6 +1211,10 @@ function renderCandidateComparison() {
     <p class="muted">observationally underdetermined = ${candidateResolution.observationally_underdetermined ? "yes" : "no"}</p>
     <p class="muted">observationally equivalent tie = ${candidateResolution.observationally_equivalent_tie ? "yes" : "no"}</p>
     <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
+    <p class="muted">observed while deferred = ${candidateResolution.observed_while_deferred ?? 0}</p>
+    <p class="muted">deferred past initial frontier = ${candidateResolution.deferred_past_initial_frontier ? "yes" : "no"}</p>
+    <p class="muted">resolved from deferred = ${candidateResolution.resolved_from_deferred ? "yes" : "no"}</p>
+    <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
   `;
   candidateComparisonList.appendChild(summary);
 
@@ -1120,6 +1234,14 @@ function renderCandidateComparison() {
           ? "The highest-scoring candidate is selected and repaired into admissibility by the hard law layer."
           : sample.label === "deferred"
             ? "A top-score ambiguity is deferred explicitly, so the entity remains unresolved at the observation layer."
+          : sample.label === "resolve after defer"
+            ? "An ambiguous top score is deferred at the initial frontier and then resolved deterministically at a later observation time."
+          : sample.label === "partial deferred"
+            ? "One entity remains unresolved by design while another still converges, exposing a mixed observation state in the same world."
+          : sample.label === "persistent deferred"
+            ? "A deferred entity remains unresolved across more than one observed frontier while another entity continues to evolve."
+          : sample.label === "staggered resolve"
+            ? "Multiple deferred entities resolve at different observed frontiers, so the world-level observation status changes over time."
           : sample.label === "tie"
             ? "Two candidates share the top score, so deterministic tie-breaking selects one and records the other as skipped."
             : "Two candidates share the top score and also collapse to the same observed result, exposing a small observational-equivalence case.";

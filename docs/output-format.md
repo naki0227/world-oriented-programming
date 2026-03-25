@@ -187,9 +187,12 @@ Failure reports may still include:
 Phase I reports may additionally include:
 
 - `convergence_analytics` for run-level totals over candidate-bearing entities
+- `preference_resolved_entities` inside `convergence_analytics` when a later preference trigger resolves a deferred tie
+- `law_updated_entities` inside `convergence_analytics` when a later law update changes admissibility before re-convergence
 - `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
+- `observation_timeline` for observation status at each recorded frontier
 - `candidate_resolutions` when initial action candidates were evaluated before observation
-- `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `tie_broken`, or `equivalent_tie`)
+- `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `resolved_after_preference`, `resolved_after_rescore`, `resolved_after_law_update`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)
 - `observation_labels` for the labels that still matter at the observation layer
 - `symbolically_underdetermined` and `observationally_underdetermined` for each candidate-bearing entity
@@ -199,6 +202,11 @@ Phase I reports may additionally include:
 - `tie_broken` when multiple top-score candidates existed and deterministic ordering selected one
 - `equivalent_top_labels` and `observationally_equivalent_tie` when tied candidates collapse to the same observed result
 - `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
+- `observed_while_deferred` and `deferred_past_initial_frontier` when a deferred entity remains unresolved across one or more observations
+- `resolved_from_deferred` and `resolved_at_observation_time` when a deferred entity later converges at an explicit frontier
+- `preferred_label` when a later preference trigger actively guided a deferred re-convergence
+- `active_score_adjustments` when later score updates changed the candidate ranking before re-convergence
+- `active_law_updates` when later law updates changed admissibility before re-convergence
 
 ## Rationale
 
@@ -224,7 +232,7 @@ This format is intentionally small but useful for:
 ## Static Analysis
 
 `sekai analyze` uses the same constraint build path but stops before time evolution.
-It reports the declared law inventory, aggregated law analytics, and any Phase I candidate inventory without simulation snapshots.
+It reports the declared law inventory, aggregated law analytics, any Phase I candidate inventory, and any Phase I action directives without simulation snapshots.
 
 For example, a Phase I analyze result may additionally include:
 
@@ -235,7 +243,22 @@ For example, a Phase I analyze result may additionally include:
     "total_candidates": 2,
     "labels": ["fast", "safe"],
     "top_score": "5.000",
-    "top_labels": ["fast"]
+    "top_labels": ["fast"],
+    "top_score_tied": false,
+    "defer_on_ambiguous_top": false,
+    "resolution_hint": "single_top_candidate"
+  }
+],
+"action_directive_inventory": [
+  {
+    "entity": "A",
+    "kind": "defer_on_ambiguous_top",
+    "argument": null
+  },
+  {
+    "entity": "A",
+    "kind": "resolve_deferred_at",
+    "argument": "1.000"
   }
 ]
 ```

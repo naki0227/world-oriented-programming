@@ -25,8 +25,10 @@ and provides:
 - display of active world laws, their categories, supported policies, and per-run law activity
 - display of report-level law analytics for category and outcome totals
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
+- display of static Phase I candidate inventories and action directives when reports come from `sekai analyze`
 - display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
-- quick comparison between candidate deferred, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
+- display of observation timeline checkpoints when reports expose frontier-by-frontier observation status
+- quick comparison between candidate deferred, law-update-after-defer, prefer-after-defer, rescore-after-defer, resolve-after-defer, partial-deferred, persistent-deferred, staggered-resolve, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - a minimal diagram-aware draft editor in `xy` mode
@@ -75,9 +77,18 @@ cargo run -p sekai-cli -- simulate-report examples/clamped_region.sk > viewer/sa
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity.sk > viewer/samples/candidate_velocity.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_clamped.sk > viewer/samples/candidate_velocity_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_deferred.sk > viewer/samples/candidate_velocity_deferred.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_law_updated_resolve.sk > viewer/samples/candidate_velocity_law_updated_resolve.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_preferred_resolve.sk > viewer/samples/candidate_velocity_preferred_resolve.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_rescored_resolve.sk > viewer/samples/candidate_velocity_rescored_resolve.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_equivalent_tie.sk > viewer/samples/candidate_velocity_equivalent_tie.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_deferred_resolve.sk > viewer/samples/candidate_velocity_deferred_resolve.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_partial_deferred.sk > viewer/samples/candidate_velocity_partial_deferred.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_partial_deferred_persistent.sk > viewer/samples/candidate_velocity_partial_deferred_persistent.json
+cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_staggered_resolve.sk > viewer/samples/candidate_velocity_staggered_resolve.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_tied.sk > viewer/samples/candidate_velocity_tied.json
 cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_two_entity.sk > viewer/samples/candidate_velocity_two_entity.json
+cargo run -p sekai-cli -- analyze examples/candidate_velocity_deferred.sk > viewer/samples/candidate_velocity_deferred_analyze.json
+cargo run -p sekai-cli -- analyze examples/candidate_velocity_preferred_resolve.sk > viewer/samples/candidate_velocity_preferred_resolve_analyze.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
@@ -119,7 +130,11 @@ When a report includes `candidate_resolutions`, the viewer now separates:
 
 This makes it easier to tell whether a world remained ambiguous only symbolically or also at the observation layer.
 
+The candidate cards also expose whether a deferred entity was later resolved and, if so, at which observation frontier that happened.
+
 The report header now also exposes a run-level observation status, so unresolved Phase I cases can be spotted without opening any entity card.
+
+When `observation_timeline` is present, the viewer also shows frontier-by-frontier status cards, which is especially useful for staged re-convergence examples.
 
 ## Round-Trip Notes
 

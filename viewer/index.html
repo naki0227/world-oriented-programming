@@ -45,7 +45,16 @@
               <option value="./samples/candidate_velocity.json">candidate_velocity</option>
               <option value="./samples/candidate_velocity_clamped.json">candidate_velocity_clamped</option>
               <option value="./samples/candidate_velocity_deferred.json">candidate_velocity_deferred</option>
+              <option value="./samples/candidate_velocity_deferred_analyze.json">candidate_velocity_deferred_analyze</option>
+              <option value="./samples/candidate_velocity_preferred_resolve_analyze.json">candidate_velocity_preferred_resolve_analyze</option>
+              <option value="./samples/candidate_velocity_preferred_resolve.json">candidate_velocity_preferred_resolve</option>
+              <option value="./samples/candidate_velocity_law_updated_resolve.json">candidate_velocity_law_updated_resolve</option>
+              <option value="./samples/candidate_velocity_rescored_resolve.json">candidate_velocity_rescored_resolve</option>
+              <option value="./samples/candidate_velocity_deferred_resolve.json">candidate_velocity_deferred_resolve</option>
               <option value="./samples/candidate_velocity_equivalent_tie.json">candidate_velocity_equivalent_tie</option>
+              <option value="./samples/candidate_velocity_partial_deferred.json">candidate_velocity_partial_deferred</option>
+              <option value="./samples/candidate_velocity_partial_deferred_persistent.json">candidate_velocity_partial_deferred_persistent</option>
+              <option value="./samples/candidate_velocity_staggered_resolve.json">candidate_velocity_staggered_resolve</option>
               <option value="./samples/candidate_velocity_tied.json">candidate_velocity_tied</option>
               <option value="./samples/candidate_velocity_two_entity.json">candidate_velocity_two_entity</option>
               <option value="./samples/reflected_region.json">reflected_region</option>
@@ -125,7 +134,14 @@
           <div>
             <h2>Candidate Comparison</h2>
             <div id="candidate-comparison-list" class="snapshot-list">
-              <p class="muted">Load a Phase I report to compare fallback and repaired selection.</p>
+              <p class="muted">Load a Phase I report to compare fallback, repaired, deferred, and later-preference resolution.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Observation Timeline</h2>
+            <div id="observation-timeline-list" class="snapshot-list">
+              <p class="muted">Load a report to inspect observation status across frontiers.</p>
             </div>
           </div>
 

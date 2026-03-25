@@ -201,6 +201,8 @@ The static analysis path should also expose candidate inventory before simulatio
 - which entities carry candidates
 - how many candidates they declare
 - which labels are tied for the top soft score
+- which entities explicitly request deferred handling for ambiguous top choices
+- which static resolution hint applies before runtime (`single_top_candidate`, `deterministic_tie_break`, `deferred_on_ambiguous_top`, or a deferred preference hint such as `defer_then_prefer_beta_at_1.000`)
 
 The runtime report should also expose a convergence summary after selection, so that underdetermined worlds are not reduced to a single opaque winner:
 
@@ -219,6 +221,27 @@ This is the first executable stand-in for `Obs?(W^?, t_obs) = U`.
 
 The current prototype can also defer an ambiguous top-score tie explicitly instead of choosing a representative branch immediately.
 This creates the first small executable case where the world remains unresolved at observation time by design.
+
+The next useful case is a mixed world where one entity stays deferred while another still converges.
+That makes partial convergence visible instead of forcing the whole world into a fully determinate or fully unresolved reading.
+
+After that, the next important executable step is persistence across frontiers:
+a deferred entity should be able to remain unresolved across more than one observation while other entities continue to evolve.
+
+The next step after persistence is controlled re-convergence:
+the world should be able to defer a top-score ambiguity at one frontier and resolve it later when an explicit convergence trigger becomes active.
+
+The current prototype now also includes a small preference-triggered version of that step:
+`prefer_candidate_at(A, beta, 1)` makes a later frontier prefer `beta` among an otherwise tied top-score set, so the world can move from deferred ambiguity to a determinate branch for a semantic reason stronger than alphabetical tie-breaking.
+
+It now also includes a score-update version:
+`rescore_candidate_at(A, beta, 1, 1)` changes the soft ranking itself at a later frontier, making it possible for re-convergence to follow newly active information rather than only a fixed score table declared at time zero.
+
+It now also includes a law-update version:
+`update_speed_limit_at(A, 1, 6)` changes admissibility itself at a later frontier, so a branch that was previously blocked by a hard law can later become selectable without rewriting the whole scene imperatively.
+
+Once controlled re-convergence exists for one entity, the next useful case is staged world-level convergence:
+different entities may resolve at different frontiers, so observation status should be able to move from unresolved to determinate over time.
 
 ## Definition Of Success
 

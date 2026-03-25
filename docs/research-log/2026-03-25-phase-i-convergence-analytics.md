@@ -23,6 +23,14 @@ This is the first prototype-level hook for `Obs? = U`.
 
 The next extension on top of this pass adds an explicit deferred case, where an ambiguous top-score tie is left unresolved instead of forcing representative branch selection.
 
+The static analysis path now also exposes that directive, so `sekai analyze` can show that a scene intends to defer ambiguous top-score resolution before any simulation runs.
+
+It now also exposes a small static resolution hint, so tied-top cases can be distinguished from deferred-top cases before runtime.
+
+The viewer now also accepts a static `analyze` sample for deferred Phase I worlds, so the pre-runtime intent and the post-runtime convergence behavior can be inspected in the same interface.
+
+It now also has a mixed Phase I sample where one entity remains deferred while another converges after repair, making partial convergence visible in a single run.
+
 Each entity-level candidate resolution now also says whether the world remained symbolically underdetermined and whether that underdetermination was still visible at the observation layer.
 
 This pushes Phase I closer to a real convergence model instead of a set of isolated candidate-selection examples.
