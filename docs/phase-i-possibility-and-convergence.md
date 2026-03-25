@@ -158,7 +158,7 @@ The first prototype for Phase I should stay small.
 
 Recommended first scope:
 
-- candidate actions for a single entity
+- candidate actions for a small finite set of entities
 - hard constraints from the existing law layer
 - soft preference scores attached to those actions
 - deterministic tie-breaking after scoring
@@ -180,6 +180,7 @@ where the runtime:
 - chooses the highest-scoring admissible continuation
 - logs which candidates were rejected and which one was selected
 - exposes a compact candidate-resolution summary in the structured report
+- can apply the same initial resolution pass to multiple entities in a deterministic order
 
 The next minimal demonstration after pure rejection filtering is a repaired selection:
 

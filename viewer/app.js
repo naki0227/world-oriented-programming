@@ -319,7 +319,7 @@ function normalizeReport(report) {
       error: report.error || null,
       analytics: report.analytics || defaultAnalytics(report.constraints || []),
       constraints: report.constraints || [],
-      candidate_resolution: report.candidate_resolution || null,
+      candidate_resolutions: report.candidate_resolutions || [],
       activities: report.activities || [],
       snapshots: report.snapshots || [],
     };
@@ -330,7 +330,7 @@ function normalizeReport(report) {
     error: null,
     analytics: report.analytics || defaultAnalytics(report.constraints || []),
     constraints: report.constraints || [],
-    candidate_resolution: report.candidate_resolution || null,
+    candidate_resolutions: report.candidate_resolutions || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
   };
@@ -985,23 +985,27 @@ function renderCandidateResolution() {
     return;
   }
 
-  const candidateResolution = state.report.candidate_resolution;
-  if (!candidateResolution) {
+  const candidateResolutions = state.report.candidate_resolutions || [];
+  if (candidateResolutions.length === 0) {
     candidateResolutionList.innerHTML =
       '<p class="muted">This report has no candidate-resolution metadata.</p>';
     return;
   }
 
-  candidateResolutionList.innerHTML = `
-    <article class="sphere-card">
+  candidateResolutionList.innerHTML = "";
+  candidateResolutions.forEach((candidateResolution) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+    card.innerHTML = `
       <h3>${candidateResolution.entity}</h3>
       <p>candidates = ${candidateResolution.total_candidates}</p>
       <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
       <p class="muted">selected = ${candidateResolution.selected_candidate || "none"}</p>
       <p class="muted">score = ${candidateResolution.selected_score || "n/a"}</p>
       <p class="muted">repaired after selection = ${candidateResolution.repaired_after_selection ? "yes" : "no"}</p>
-    </article>
-  `;
+    `;
+    candidateResolutionList.appendChild(card);
+  });
 }
 
 function renderCandidateComparison() {
@@ -1011,8 +1015,8 @@ function renderCandidateComparison() {
     return;
   }
 
-  const candidateResolution = state.report.candidate_resolution;
-  if (!candidateResolution) {
+  const candidateResolutions = state.report.candidate_resolutions || [];
+  if (candidateResolutions.length === 0) {
     candidateComparisonList.innerHTML =
       '<p class="muted">Comparison is available for candidate-resolution reports.</p>';
     return;
@@ -1020,6 +1024,7 @@ function renderCandidateComparison() {
 
   candidateComparisonList.innerHTML = "";
 
+  const candidateResolution = candidateResolutions[0];
   const summary = document.createElement("article");
   summary.className = "sphere-card";
   summary.innerHTML = `

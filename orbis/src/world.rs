@@ -135,7 +135,7 @@ pub struct Snapshot {
 pub struct SimulationReport {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
-    pub candidate_resolution: Option<CandidateResolution>,
+    pub candidate_resolutions: Vec<CandidateResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
 }
@@ -302,43 +302,46 @@ impl SimulationReport {
             json.push('\n');
         }
         json.push_str("  ],\n");
-        match &self.candidate_resolution {
-            Some(candidate_resolution) => {
-                json.push_str("  \"candidate_resolution\": {\n");
-                json.push_str(&format!(
-                    "    \"entity\": \"{}\",\n",
-                    escape_json(&candidate_resolution.entity)
-                ));
-                json.push_str(&format!(
-                    "    \"total_candidates\": {},\n",
-                    candidate_resolution.total_candidates
-                ));
-                json.push_str(&format!(
-                    "    \"rejected_candidates\": {},\n",
-                    candidate_resolution.rejected_candidates
-                ));
-                match &candidate_resolution.selected_candidate {
-                    Some(selected_candidate) => json.push_str(&format!(
-                        "    \"selected_candidate\": \"{}\",\n",
-                        escape_json(selected_candidate)
-                    )),
-                    None => json.push_str("    \"selected_candidate\": null,\n"),
-                }
-                match &candidate_resolution.selected_score {
-                    Some(selected_score) => json.push_str(&format!(
-                        "    \"selected_score\": \"{}\",\n",
-                        escape_json(selected_score)
-                    )),
-                    None => json.push_str("    \"selected_score\": null,\n"),
-                }
-                json.push_str(&format!(
-                    "    \"repaired_after_selection\": {}\n",
-                    candidate_resolution.repaired_after_selection
-                ));
-                json.push_str("  },\n");
+        json.push_str("  \"candidate_resolutions\": [\n");
+        for (index, candidate_resolution) in self.candidate_resolutions.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&candidate_resolution.entity)
+            ));
+            json.push_str(&format!(
+                "      \"total_candidates\": {},\n",
+                candidate_resolution.total_candidates
+            ));
+            json.push_str(&format!(
+                "      \"rejected_candidates\": {},\n",
+                candidate_resolution.rejected_candidates
+            ));
+            match &candidate_resolution.selected_candidate {
+                Some(selected_candidate) => json.push_str(&format!(
+                    "      \"selected_candidate\": \"{}\",\n",
+                    escape_json(selected_candidate)
+                )),
+                None => json.push_str("      \"selected_candidate\": null,\n"),
             }
-            None => json.push_str("  \"candidate_resolution\": null,\n"),
+            match &candidate_resolution.selected_score {
+                Some(selected_score) => json.push_str(&format!(
+                    "      \"selected_score\": \"{}\",\n",
+                    escape_json(selected_score)
+                )),
+                None => json.push_str("      \"selected_score\": null,\n"),
+            }
+            json.push_str(&format!(
+                "      \"repaired_after_selection\": {}\n",
+                candidate_resolution.repaired_after_selection
+            ));
+            json.push_str("    }");
+            if index + 1 != self.candidate_resolutions.len() {
+                json.push(',');
+            }
+            json.push('\n');
         }
+        json.push_str("  ],\n");
         json.push_str("  \"activities\": [\n");
         for (index, activity) in self.activities.iter().enumerate() {
             json.push_str("    {\n");
@@ -693,43 +696,47 @@ impl SimulationEnvelope {
                     json.push('\n');
                 }
                 json.push_str("  ],\n");
-                match &report.candidate_resolution {
-                    Some(candidate_resolution) => {
-                        json.push_str("  \"candidate_resolution\": {\n");
-                        json.push_str(&format!(
-                            "    \"entity\": \"{}\",\n",
-                            escape_json(&candidate_resolution.entity)
-                        ));
-                        json.push_str(&format!(
-                            "    \"total_candidates\": {},\n",
-                            candidate_resolution.total_candidates
-                        ));
-                        json.push_str(&format!(
-                            "    \"rejected_candidates\": {},\n",
-                            candidate_resolution.rejected_candidates
-                        ));
-                        match &candidate_resolution.selected_candidate {
-                            Some(selected_candidate) => json.push_str(&format!(
-                                "    \"selected_candidate\": \"{}\",\n",
-                                escape_json(selected_candidate)
-                            )),
-                            None => json.push_str("    \"selected_candidate\": null,\n"),
-                        }
-                        match &candidate_resolution.selected_score {
-                            Some(selected_score) => json.push_str(&format!(
-                                "    \"selected_score\": \"{}\",\n",
-                                escape_json(selected_score)
-                            )),
-                            None => json.push_str("    \"selected_score\": null,\n"),
-                        }
-                        json.push_str(&format!(
-                            "    \"repaired_after_selection\": {}\n",
-                            candidate_resolution.repaired_after_selection
-                        ));
-                        json.push_str("  },\n");
+                json.push_str("  \"candidate_resolutions\": [\n");
+                for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
+                {
+                    json.push_str("    {\n");
+                    json.push_str(&format!(
+                        "      \"entity\": \"{}\",\n",
+                        escape_json(&candidate_resolution.entity)
+                    ));
+                    json.push_str(&format!(
+                        "      \"total_candidates\": {},\n",
+                        candidate_resolution.total_candidates
+                    ));
+                    json.push_str(&format!(
+                        "      \"rejected_candidates\": {},\n",
+                        candidate_resolution.rejected_candidates
+                    ));
+                    match &candidate_resolution.selected_candidate {
+                        Some(selected_candidate) => json.push_str(&format!(
+                            "      \"selected_candidate\": \"{}\",\n",
+                            escape_json(selected_candidate)
+                        )),
+                        None => json.push_str("      \"selected_candidate\": null,\n"),
                     }
-                    None => json.push_str("  \"candidate_resolution\": null,\n"),
+                    match &candidate_resolution.selected_score {
+                        Some(selected_score) => json.push_str(&format!(
+                            "      \"selected_score\": \"{}\",\n",
+                            escape_json(selected_score)
+                        )),
+                        None => json.push_str("      \"selected_score\": null,\n"),
+                    }
+                    json.push_str(&format!(
+                        "      \"repaired_after_selection\": {}\n",
+                        candidate_resolution.repaired_after_selection
+                    ));
+                    json.push_str("    }");
+                    if index + 1 != report.candidate_resolutions.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
                 }
+                json.push_str("  ],\n");
                 json.push_str("  \"activities\": [\n");
                 for (index, activity) in report.activities.iter().enumerate() {
                     json.push_str("    {\n");
@@ -811,7 +818,7 @@ impl SimulationEnvelope {
                 json.push_str("    \"contradicted_constraints\": 0\n");
                 json.push_str("  },\n");
                 json.push_str("  \"constraints\": [],\n");
-                json.push_str("  \"candidate_resolution\": null,\n");
+                json.push_str("  \"candidate_resolutions\": [],\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
@@ -895,7 +902,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
-        candidate_resolution: candidate_resolution_from_activities(&world.activity_log),
+        candidate_resolutions: candidate_resolutions_from_activities(&world.activity_log),
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -929,7 +936,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
-                    candidate_resolution: candidate_resolution_from_activities(
+                    candidate_resolutions: candidate_resolutions_from_activities(
                         &world.activity_log,
                     ),
                     activities: world.activity_log.clone(),
@@ -956,7 +963,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
-            candidate_resolution: candidate_resolution_from_activities(&world.activity_log),
+            candidate_resolutions: candidate_resolutions_from_activities(&world.activity_log),
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1180,63 +1187,64 @@ impl World {
             return Ok(());
         }
 
-        let mut entity_names = action_candidates
-            .iter()
-            .map(|candidate| candidate.entity.as_str())
-            .collect::<Vec<_>>();
-        entity_names.sort_unstable();
-        entity_names.dedup();
-        if entity_names.len() > 1 {
-            return Err(SimulationError::InvalidActionCandidate(
-                "phase I prototype currently supports candidate actions for only one entity at a time"
-                    .to_string(),
-            ));
+        let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
+        for candidate in action_candidates {
+            grouped
+                .entry(candidate.entity.clone())
+                .or_default()
+                .push(candidate.clone());
         }
 
-        let sphere_name = entity_names[0];
-        let sphere_index = ensure_sphere_exists(&self.spheres, sphere_name)?;
-        let mut candidates = action_candidates.to_vec();
-        candidates.sort_by(|left, right| {
-            right
-                .score
-                .total_cmp(&left.score)
-                .then_with(|| left.label.cmp(&right.label))
-        });
+        for (sphere_name, mut candidates) in grouped {
+            let sphere_index = ensure_sphere_exists(&self.spheres, &sphere_name)?;
+            candidates.sort_by(|left, right| {
+                right
+                    .score
+                    .total_cmp(&left.score)
+                    .then_with(|| left.label.cmp(&right.label))
+            });
 
-        for candidate in candidates {
-            let mut probe = self.clone();
-            probe.activity_log.clear();
-            probe.spheres[sphere_index].velocity = candidate.velocity;
+            let mut selected = false;
+            for candidate in candidates {
+                let mut probe = self.clone();
+                probe.activity_log.clear();
+                probe.spheres[sphere_index].velocity = candidate.velocity;
 
-            match probe.enforce_all_constraints() {
-                Ok(_) => {
-                    self.spheres = probe.spheres;
-                    self.activity_log.push(candidate_activity_entry(
-                        self.current_time(),
-                        sphere_name,
-                        &candidate.label,
-                        candidate.score,
-                        "selected",
-                    ));
-                    self.activity_log.extend(probe.activity_log);
-                    return Ok(());
+                match probe.enforce_all_constraints() {
+                    Ok(_) => {
+                        self.spheres = probe.spheres;
+                        self.activity_log.push(candidate_activity_entry(
+                            self.current_time(),
+                            &sphere_name,
+                            &candidate.label,
+                            candidate.score,
+                            "selected",
+                        ));
+                        self.activity_log.extend(probe.activity_log);
+                        selected = true;
+                        break;
+                    }
+                    Err(_) => {
+                        self.activity_log.push(candidate_activity_entry(
+                            self.current_time(),
+                            &sphere_name,
+                            &candidate.label,
+                            candidate.score,
+                            "rejected_by_hard_law",
+                        ));
+                    }
                 }
-                Err(_) => {
-                    self.activity_log.push(candidate_activity_entry(
-                        self.current_time(),
-                        sphere_name,
-                        &candidate.label,
-                        candidate.score,
-                        "rejected_by_hard_law",
-                    ));
-                }
+            }
+
+            if !selected {
+                return Err(SimulationError::InvalidActionCandidate(format!(
+                    "all candidate actions for sphere `{}` were rejected by hard laws",
+                    sphere_name
+                )));
             }
         }
 
-        Err(SimulationError::InvalidActionCandidate(format!(
-            "all candidate actions for sphere `{}` were rejected by hard laws",
-            sphere_name
-        )))
+        Ok(())
     }
 
 }
@@ -1774,43 +1782,50 @@ fn candidate_activity_entry(
     }
 }
 
-fn candidate_resolution_from_activities(
+fn candidate_resolutions_from_activities(
     activities: &[ActivityEntry],
-) -> Option<CandidateResolution> {
-    let candidate_activities = activities
+) -> Vec<CandidateResolution> {
+    let mut grouped = BTreeMap::<String, Vec<&ActivityEntry>>::new();
+    for activity in activities
         .iter()
         .filter(|activity| activity.kind == "candidate_velocity")
-        .collect::<Vec<_>>();
-    if candidate_activities.is_empty() {
-        return None;
+    {
+        if let Some(entity) = activity.targets.first() {
+            grouped.entry(entity.clone()).or_default().push(activity);
+        }
     }
 
-    let entity = candidate_activities[0].targets.first()?.clone();
-    let selected = candidate_activities
-        .iter()
-        .find(|activity| activity.action == "selected");
+    grouped
+        .into_iter()
+        .map(|(entity, candidate_activities)| {
+            let selected = candidate_activities
+                .iter()
+                .copied()
+                .find(|activity| activity.action == "selected");
 
-    Some(CandidateResolution {
-        entity,
-        total_candidates: candidate_activities.len(),
-        rejected_candidates: candidate_activities
-            .iter()
-            .filter(|activity| activity.action == "rejected_by_hard_law")
-            .count(),
-        selected_candidate: selected
-            .and_then(|activity| activity.targets.get(1))
-            .cloned(),
-        selected_score: selected.map(|activity| activity.policy.clone()),
-        repaired_after_selection: selected
-            .map(|selected_activity| {
-                activities.iter().any(|activity| {
-                    activity.kind != "candidate_velocity"
-                        && activity.time == selected_activity.time
-                        && activity.action == "repaired"
-                })
-            })
-            .unwrap_or(false),
-    })
+            CandidateResolution {
+                entity,
+                total_candidates: candidate_activities.len(),
+                rejected_candidates: candidate_activities
+                    .iter()
+                    .filter(|activity| activity.action == "rejected_by_hard_law")
+                    .count(),
+                selected_candidate: selected
+                    .and_then(|activity| activity.targets.get(1))
+                    .cloned(),
+                selected_score: selected.map(|activity| activity.policy.clone()),
+                repaired_after_selection: selected
+                    .map(|selected_activity| {
+                        activities.iter().any(|activity| {
+                            activity.kind != "candidate_velocity"
+                                && activity.time == selected_activity.time
+                                && activity.action == "repaired"
+                        })
+                    })
+                    .unwrap_or(false),
+            }
+        })
+        .collect()
 }
 
 fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventorySummary> {
@@ -2216,7 +2231,7 @@ observe:
         assert!(json.contains("\"outcome\": \"idle\""));
         assert!(json.contains("\"fired_count\""));
         assert!(json.contains("\"repaired_count\""));
-        assert!(json.contains("\"candidate_resolution\": null"));
+        assert!(json.contains("\"candidate_resolutions\": ["));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"snapshots\""));
         assert!(json.contains("\"name\": \"A\""));
@@ -2348,8 +2363,9 @@ observe:
                 && entry.targets.iter().any(|target| target == "fast")
         }));
         let candidate_resolution = report
-            .candidate_resolution
-            .as_ref()
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
             .expect("candidate resolution should be recorded");
         assert_eq!(candidate_resolution.entity, "A");
         assert_eq!(candidate_resolution.total_candidates, 2);
@@ -2390,13 +2406,64 @@ observe:
             .iter()
             .any(|entry| entry.kind == "velocity_limit" && entry.action == "repaired"));
         let candidate_resolution = report
-            .candidate_resolution
-            .as_ref()
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
             .expect("candidate resolution should be recorded");
         assert_eq!(
             candidate_resolution.selected_candidate.as_deref(),
             Some("fast")
         );
         assert!(candidate_resolution.repaired_after_selection);
+    }
+
+    #[test]
+    fn candidate_velocity_can_resolve_multiple_entities() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (5, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+action:
+    candidate_velocity(A, fast) = (6, 0, 0) score 5
+    candidate_velocity(A, safe) = (3, 0, 0) score 2
+    candidate_velocity(B, sprint) = (5, 0, 0) score 4
+    candidate_velocity(B, coast) = (2, 0, 0) score 1
+constraint:
+    speed(A) <= 4
+    speed(B) <= 3
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .snapshots[0]
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "A")
+            .expect("sphere A exists");
+        let b = report
+            .snapshots[0]
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "B")
+            .expect("sphere B exists");
+        assert_eq!(a.velocity.x, 3.0);
+        assert_eq!(b.velocity.x, 2.0);
+        assert_eq!(report.candidate_resolutions.len(), 2);
+        assert!(report
+            .candidate_resolutions
+            .iter()
+            .any(|resolution| resolution.entity == "A"));
+        assert!(report
+            .candidate_resolutions
+            .iter()
+            .any(|resolution| resolution.entity == "B"));
     }
 }

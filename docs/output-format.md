@@ -58,7 +58,7 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 0
     }
   ],
-  "candidate_resolution": null,
+  "candidate_resolutions": [],
   "activities": [
     {
       "time": 1.0,
@@ -113,7 +113,7 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
       "contradicted_count": 1
     }
   ],
-  "candidate_resolution": null,
+  "candidate_resolutions": [],
   "activities": [
     {
       "time": 2.0,
@@ -146,7 +146,7 @@ Failure reports may still include:
 
 Phase I reports may additionally include:
 
-- `candidate_resolution` when initial action candidates were evaluated before observation
+- `candidate_resolutions` when initial action candidates were evaluated before observation
 - `selected_candidate` and `selected_score` for the chosen branch
 - `repaired_after_selection` when a hard law repaired the chosen branch into admissibility
 
