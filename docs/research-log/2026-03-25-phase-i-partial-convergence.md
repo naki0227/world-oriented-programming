@@ -24,3 +24,5 @@ The follow-up slice extends this one across two observation times, so deferred a
 The next follow-up adds a tiny controlled re-convergence case: a deferred entity may remain unresolved at the first frontier and then resolve deterministically at a later observation time declared in the action layer.
 
 The next step after that is staged re-convergence across multiple entities, where world-level observation stays unresolved until the last deferred entity resolves.
+
+The viewer now exposes that progression directly through observation-timeline cards, so the shift from unresolved to determinate is visible without reading raw JSON.

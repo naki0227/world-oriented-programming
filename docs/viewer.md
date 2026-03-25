@@ -27,6 +27,7 @@ and provides:
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
 - display of static Phase I candidate inventories and action directives when reports come from `sekai analyze`
 - display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
+- display of observation timeline checkpoints when reports expose frontier-by-frontier observation status
 - quick comparison between candidate deferred, resolve-after-defer, partial-deferred, persistent-deferred, staggered-resolve, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
@@ -128,6 +129,8 @@ This makes it easier to tell whether a world remained ambiguous only symbolicall
 The candidate cards also expose whether a deferred entity was later resolved and, if so, at which observation frontier that happened.
 
 The report header now also exposes a run-level observation status, so unresolved Phase I cases can be spotted without opening any entity card.
+
+When `observation_timeline` is present, the viewer also shows frontier-by-frontier status cards, which is especially useful for staged re-convergence examples.
 
 ## Round-Trip Notes
 

@@ -50,6 +50,7 @@ const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
 const candidateResolutionList = document.getElementById("candidate-resolution-list");
 const candidateComparisonList = document.getElementById("candidate-comparison-list");
+const observationTimelineList = document.getElementById("observation-timeline-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
@@ -938,8 +939,39 @@ function renderSidebar() {
   renderAnalyticsList();
   renderCandidateResolution();
   renderCandidateComparison();
+  renderObservationTimeline();
   renderActivityList();
   renderComparisonList();
+}
+
+function renderObservationTimeline() {
+  if (!state.report) {
+    observationTimelineList.innerHTML =
+      '<p class="muted">Load a report to inspect observation status across frontiers.</p>';
+    return;
+  }
+
+  const timeline = state.report.observation_timeline || [];
+  if (timeline.length === 0) {
+    observationTimelineList.innerHTML =
+      '<p class="muted">This report has no observation timeline metadata.</p>';
+    return;
+  }
+
+  observationTimelineList.innerHTML = "";
+  timeline.forEach((checkpoint, index) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+    const active = index === Math.min(state.snapshotIndex, timeline.length - 1);
+    card.innerHTML = `
+      <h3>${active ? "Current Frontier" : "Frontier"}</h3>
+      <p>t = ${Number(checkpoint.time || 0).toFixed(3)}</p>
+      <p class="muted">status = ${checkpoint.status || "determinate"}</p>
+      <p class="muted">representative = ${checkpoint.representative_entities ?? 0}</p>
+      <p class="muted">ambiguous = ${checkpoint.ambiguous_entities ?? 0}</p>
+    `;
+    observationTimelineList.appendChild(card);
+  });
 }
 
 function renderConstraintList() {
