@@ -47,6 +47,7 @@ const projectionLabel = document.getElementById("projection-label");
 const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
 const activityList = document.getElementById("activity-list");
+const comparisonList = document.getElementById("comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
 const pitchSlider = document.getElementById("pitch-slider");
 const zoomSlider = document.getElementById("zoom-slider");
@@ -73,6 +74,12 @@ const draftHint = document.getElementById("draft-hint");
 const constraintCandidates = document.getElementById("constraint-candidates");
 const draftStatus = document.getElementById("draft-status");
 
+const POLICY_COMPARISON_SAMPLES = [
+  { label: "reject", path: "./samples/forbidden_region.json" },
+  { label: "clamp", path: "./samples/clamped_region.json" },
+  { label: "reflect", path: "./samples/reflected_region.json" },
+];
+
 fileInput.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -83,10 +90,14 @@ fileInput.addEventListener("change", async (event) => {
 sampleSelect.addEventListener("change", async (event) => {
   const path = event.target.value;
   if (!path) return;
+  await loadSample(path);
+});
+
+async function loadSample(path) {
   const response = await fetch(path);
   const report = await response.json();
   loadReport(report, path);
-});
+}
 
 viewModeSelect.addEventListener("change", (event) => {
   state.viewMode = event.target.value;
@@ -775,6 +786,7 @@ function renderSidebar() {
     snapshotList.innerHTML = '<p class="muted">Load a report to inspect world state.</p>';
     constraintList.innerHTML = '<p class="muted">Load a report to inspect active constraints.</p>';
     activityList.innerHTML = '<p class="muted">Load a report to inspect fired or repaired laws.</p>';
+    comparisonList.innerHTML = '<p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>';
     return;
   }
 
@@ -808,6 +820,7 @@ function renderSidebar() {
     }
     renderConstraintList();
     renderActivityList();
+    renderComparisonList();
     return;
   }
 
@@ -829,6 +842,7 @@ function renderSidebar() {
 
   renderConstraintList();
   renderActivityList();
+  renderComparisonList();
 }
 
 function renderConstraintList() {
@@ -914,6 +928,68 @@ function renderActivityList() {
     card.appendChild(kind);
     card.appendChild(targets);
     activityList.appendChild(card);
+  });
+}
+
+function renderComparisonList() {
+  if (!state.report) {
+    comparisonList.innerHTML = '<p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>';
+    return;
+  }
+
+  const regionLaw = (state.report.constraints || []).find((constraint) => constraint.kind === "not_inside");
+  if (!regionLaw) {
+    comparisonList.innerHTML = '<p class="muted">Comparison is available for forbidden-region laws.</p>';
+    return;
+  }
+
+  comparisonList.innerHTML = "";
+
+  const summary = document.createElement("article");
+  summary.className = "sphere-card";
+  const outcome =
+    state.report.status === "error"
+      ? "contradiction"
+      : (regionLaw.repaired_count ?? 0) > 0
+        ? "repaired world"
+        : "admissible world";
+  summary.innerHTML = `
+    <h3>Current Outcome</h3>
+    <p>policy = ${regionLaw.policy || "implicit"}</p>
+    <p class="muted">category = ${regionLaw.category || "boundary"}</p>
+    <p class="muted">outcome = ${outcome}</p>
+  `;
+  comparisonList.appendChild(summary);
+
+  POLICY_COMPARISON_SAMPLES.forEach((sample) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = sample.label;
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      sample.label === "reject"
+        ? "Stops the world when the forbidden boundary is crossed."
+        : sample.label === "clamp"
+          ? "Projects the sphere back to the nearest admissible boundary."
+          : "Reflects the sphere off the forbidden boundary.";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sample.path === sampleSelect.value ? "Loaded" : `Load ${sample.label}`;
+    button.disabled = sample.path === sampleSelect.value;
+    button.addEventListener("click", async () => {
+      sampleSelect.value = sample.path;
+      await loadSample(sample.path);
+    });
+
+    card.appendChild(title);
+    card.appendChild(note);
+    card.appendChild(button);
+    comparisonList.appendChild(card);
   });
 }
 
