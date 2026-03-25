@@ -18,6 +18,16 @@ SCENARIOS = [
         ROOT / "examples" / "candidate_velocity.sk",
         ROOT / "benchmarks" / "imperative" / "candidate_velocity.py",
     ),
+    (
+        "clamped_region",
+        ROOT / "examples" / "clamped_region.sk",
+        ROOT / "benchmarks" / "imperative" / "clamped_region.py",
+    ),
+    (
+        "candidate_velocity_deferred",
+        ROOT / "examples" / "candidate_velocity_deferred.sk",
+        ROOT / "benchmarks" / "imperative" / "candidate_velocity_deferred.py",
+    ),
 ]
 
 

@@ -17,12 +17,16 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/bounce.sk`
 - `examples/two_body_collision.sk`
 - `examples/candidate_velocity.sk`
+- `examples/clamped_region.sk`
+- `examples/candidate_velocity_deferred.sk`
 
 Imperative reference baselines live in:
 
 - `benchmarks/imperative/bounce.py`
 - `benchmarks/imperative/two_body_collision.py`
 - `benchmarks/imperative/candidate_velocity.py`
+- `benchmarks/imperative/clamped_region.py`
+- `benchmarks/imperative/candidate_velocity_deferred.py`
 
 ## Initial Metrics
 

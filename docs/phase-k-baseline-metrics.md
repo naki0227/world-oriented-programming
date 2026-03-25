@@ -41,8 +41,33 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 11 | 0 |
 | declarative density | 0.917 | 0.000 |
 
+## Clamped Region
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 15 | 33 |
+| token count | 96 | 275 |
+| branch keywords | 0 | 4 |
+| loop keywords | 0 | 1 |
+| state-assignment lines | 7 | 16 |
+| declarative lines | 14 | 0 |
+| declarative density | 0.933 | 0.000 |
+
+## Candidate Velocity Deferred
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 13 | 36 |
+| token count | 86 | 317 |
+| branch keywords | 0 | 4 |
+| loop keywords | 0 | 3 |
+| state-assignment lines | 6 | 13 |
+| declarative lines | 11 | 0 |
+| declarative density | 0.846 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
 - The imperative baselines spend more of their specification budget on control and explicit update structure.
+- The widened corpus keeps the same pattern even for repair-oriented and deferred-convergence scenarios.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.
