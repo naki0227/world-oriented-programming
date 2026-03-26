@@ -294,6 +294,33 @@ It now also includes a first branching visibility world, where the same geometry
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show that the center of expression shifts from step-by-step update procedure to world definition and admissibility law.
 
+\subsection{Structural Comparison Snapshot}
+
+The current Phase K scaffold also provides a small structural comparison against compact imperative baselines.
+Table~\ref{tab:baseline-snapshot} reports three representative cases: basic world evolution, underdetermined convergence, and geometry-conditioned branching.
+These numbers are intentionally modest rather than exhaustive.
+They are included to show that the evaluation is already reproducible and that the current corpus consistently shifts specification effort away from loops, branches, and explicit update bookkeeping.
+
+\begin{table}[t]
+  \caption{Representative structural comparison between \emph{sekai} and compact imperative baselines.}
+  \label{tab:baseline-snapshot}
+  \centering
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    Scenario & LOC$_s$ & LOC$_i$ & Density$_s$ & Branch$_i$ \\
+    \midrule
+    bounce & 15 & 32 & 0.867 & 3 \\
+    candidate deferred & 13 & 36 & 0.846 & 4 \\
+    visibility pursuit world & 20 & 56 & 0.900 & 8 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Across this first corpus, \emph{sekai} remains shorter and more declarative in structure, while the imperative versions spend more of their specification budget on explicit control and state-management machinery.
+The point is not that these initial baselines are definitive.
+It is that even the first scaffold already supports a stable narrative: once space, time, admissibility, and convergence are made first-class, the center of expression moves away from update logic and toward world description.
+
 \subsection{Minimal Declarative Evolution}
 
 The first scenario is a bouncing sphere described in the \emph{bounce} example.
@@ -395,13 +422,10 @@ In the second, the highest-scoring candidate is selected but then repaired by a 
 The prototype can now also expose top-score ties explicitly, together with the deterministic tie-break that selects one admissible continuation while recording the remaining tied labels as skipped candidates.
 It can further distinguish ties whose top-scoring continuations are observationally equivalent, making it explicit when deterministic branch selection chooses a representative continuation rather than an observably different one.
 The prototype can now also mix these modes within one world, so one entity may remain deferred while another converges after repair in the same run.
-The prototype can also now keep a deferred entity unresolved across more than one observed frontier while other entities continue to evolve.
-It can also resolve such a deferred tie at a later frontier when the scene explicitly requests a later convergence point.
-It can also let a newly active preference guide that later convergence, so a deferred tie may resolve for a semantic reason stronger than the prototype's default lexical tie-break.
-It can now also let later score updates reshape that convergence, so underdetermined worlds need not be committed forever to the initial soft ranking declared at time zero.
+The prototype can also keep a deferred entity unresolved across more than one observed frontier while other entities continue to evolve, and it can later re-converge that entity through a delayed resolution point, a newly active preference, or a later score update.
 This convergence work is also starting to connect back to geometry, since a pursuit-like candidate can now be preferred only when another entity remains visible, while an occluded world can prefer a different continuation such as search. That makes line of sight part of world evolution rather than only part of contradiction reporting.
-It can now also let later law updates reshape admissibility itself, so a continuation that was previously blocked by a hard law may later become selectable without abandoning the world-oriented formulation.
-It can now also stagger such re-convergence across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
+Later law updates can likewise reshape admissibility itself, so a continuation that was previously blocked by a hard law may later become selectable without abandoning the world-oriented formulation.
+These re-convergences can also be staggered across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
 The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, deferred, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still unresolved in a small executable stand-in for $Obs? = U$.
 
 These additions remain deliberately small, but they matter for the research trajectory.
@@ -412,6 +436,7 @@ It can also begin to represent worlds whose next admissible development is chose
 
 The current prototype supports the paper's central conceptual claims.
 It shows that declarative world description can drive execution, that admissibility can be modeled as a world law, that interaction can be localized rather than globally synchronized, and that a first visual-to-execution loop is already implementable.
+It also now shows that the same prototype line can be evaluated structurally against compact imperative baselines and extended into a first richer-geometry pillar without abandoning the original world-oriented formulation.
 
 \section{Discussion and Future Work}
 
