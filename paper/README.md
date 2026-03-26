@@ -23,20 +23,22 @@ You may want to switch options later depending on the exact submission track.
 
 ## Current Status
 
-- the manuscript content has been moved into a LaTeX source file
-- supplementary figures omitted from the main paper have been moved into `appendix.tex`
-- bibliography entries have been converted into BibTeX entries
-- figures point to the repository's existing paper-ready image files
-- the setup has been compiled successfully with `tectonic`
+- the manuscript content is in `paper/main.tex`
+- the seed-paper argument now includes:
+  - semantics trajectory
+  - underdetermined-world convergence
+  - compact comparative evaluation
+  - a visibility-based richer-geometry pillar
+- supplementary figures omitted from the main paper live in `appendix.tex`
+- bibliography entries are maintained in `references.bib`
+- figures point to paper-ready image files, including `*-paper.png` viewer crops
+- the setup compiles successfully with `tectonic`
 - the current main-paper PDF output is `paper/main.pdf`
 - the supplementary PDF output is `paper/appendix.pdf`
-- the Phase E submission roadmap is tracked in `docs/phase-e-submission-plan.md`
-- the main manuscript now keeps only argument-critical figures, while interface-supporting figures live in `appendix.tex`
-- the build still reports light layout warnings, so another typography pass is still worthwhile before submission
-- Phase E packaging is complete for an anonymous review-ready manuscript bundle
+- the manuscript is now in a seed-paper-final state for internal review and public packaging
 
 ## Likely Next Steps
 
-1. continue tightening the manuscript only if page pressure or reviewer readability demands it
-2. switch from anonymous review mode to named metadata when the submission plan requires it
-3. adapt front matter only if the target venue or track changes
+1. switch from anonymous review mode to named metadata when the submission plan requires it
+2. prepare the arXiv/public package using `../docs/arxiv-release-package.md`
+3. do one last venue-specific sanity pass only if the target venue or track changes

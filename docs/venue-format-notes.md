@@ -21,8 +21,19 @@ The current manuscript is being shaped as an `Onward!`-style SPLASH submission i
 ## Remaining Format Work
 
 1. finalize the eventual named author/affiliation block when the review strategy changes
-2. do a last venue-specific sanity pass if the target track changes from the current ACM/SIGPLAN assumption
-3. optionally run one more typography pass if page pressure increases
+2. do a final venue sanity pass immediately before submission
+3. align the public package (`README`, arXiv summary, and manuscript framing) to one stable one-sentence description
+
+## Seed-Paper State
+
+The manuscript is now beyond draft-only packaging.
+It contains:
+
+- a stable abstract and introduction
+- a semantics section
+- prototype evaluation with a compact structural comparison
+- visibility as the first richer-geometry pillar
+- enough manuscript coherence to function as a seed paper rather than only as a prototype report
 
 ## Source Links
 
