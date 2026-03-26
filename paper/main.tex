@@ -355,6 +355,34 @@ That same draft layer can now also propose a small visibility-pursuit world, so 
 \label{fig:viewer-roundtrip}
 \end{figure*}
 
+\subsection{Visibility-Conditioned World Branching}
+
+The richer-geometry direction is now beginning to produce its own executable pillar rather than only remaining future work.
+In the current visibility slice, \texttt{visible(A, B)} is not only a contradiction condition.
+It can also participate in action preference, so the same world can prefer a pursuit-like continuation when line of sight is clear and a search-like continuation when an occluding region blocks visibility.
+
+Figure~\ref{fig:visibility-pursuit} shows this emerging geometry path in one visual sequence.
+The center panel is the editor-side world candidate, while the left and right panels show executed reports for the clear and occluded cases.
+The key point is that the branching is still expressed as part of one world description pipeline rather than as distributed update-logic checks.
+
+\begin{figure*}[t]
+  \centering
+  \begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../figures/viewer-visibility-01-clear-run.png}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../figures/viewer-visibility-02-occluded-preset.png}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../figures/viewer-visibility-03-occluded-run.png}
+  \end{minipage}
+  \caption{Visibility-conditioned world branching in the viewer. Left: a clear-visibility world executes a pursuit-oriented continuation. Center: the draft editor proposes a visibility world with an occluding region. Right: the occluded execution instead selects a search-oriented continuation.}
+  \label{fig:visibility-pursuit}
+\end{figure*}
+
 \subsection{Early Underdetermined-World Convergence}
 
 The project has also now begun to cross the boundary from fully specified worlds to underdetermined ones.
