@@ -54,5 +54,11 @@ Use:
 ```
 
 from the repository root to stage a public bundle under `dist/arxiv-package/`.
-The staged package still expects real author metadata before a named-public arXiv upload.
-The intended named-public manuscript entry point is `paper/main-public.tex`.
+The staged package now contains:
+
+- `paper/main-public.tex` for a normal named-public local build
+- `paper/main-arxiv.tex` for arXiv upload
+- `paper/main.bbl` so the upload does not depend on arXiv-side BibTeX execution
+
+The intended upload entry point is `paper/main-arxiv.tex`.
+The intended local named-public build entry point remains `paper/main-public.tex`.
