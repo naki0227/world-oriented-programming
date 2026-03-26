@@ -32,12 +32,14 @@ This slice is intentionally small, but strategically important:
 The next Phase J slice connects visibility to world evolution:
 
 - `prefer_candidate_if_visible(A, pursue, B)`
+- `prefer_candidate_if_occluded(A, search, B)`
 
 This matters because:
 
 - visibility stops being only a contradiction trigger
 - line of sight begins to influence candidate-world convergence
 - Phase J starts to connect directly to Phase I underdetermined worlds
+- a world can switch between pursuit-like and search-like continuations without exposing update logic
 
 ## Near-Term Targets
 

@@ -91,6 +91,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "occluded", path: "./samples/visibility_occluded.json" },
   { label: "pursuit clear", path: "./samples/visibility_pursuit_clear.json" },
   { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
+  { label: "world clear", path: "./samples/visibility_pursuit_world_clear.json" },
+  { label: "world occluded", path: "./samples/visibility_pursuit_world_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1350,7 +1352,7 @@ function renderComparisonList() {
 function renderVisibilityComparison() {
   if (!state.report) {
     visibilityComparisonList.innerHTML =
-      '<p class="muted">Load a visibility report to compare line-of-sight and visibility-conditioned pursuit worlds.</p>';
+      '<p class="muted">Load a visibility report to compare line-of-sight, pursuit preference, and pursuit-world branching.</p>';
     return;
   }
 
@@ -1363,7 +1365,7 @@ function renderVisibilityComparison() {
     (state.report.source || "").includes("visibility_pursuit");
   if (!visibleLaw && !visibilityError && !visibilityConditionedSelection) {
     visibilityComparisonList.innerHTML =
-      '<p class="muted">Comparison is available for visibility laws.</p>';
+      '<p class="muted">Comparison is available for visibility laws and visibility-conditioned worlds.</p>';
     return;
   }
 
@@ -1397,7 +1399,11 @@ function renderVisibilityComparison() {
           ? "An occluding region intersects the line of sight, so the world contradicts at the observation frontier."
           : sample.label === "pursuit clear"
             ? "Visibility now changes candidate selection, so the pursuit-like continuation is preferred."
-            : "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected.";
+            : sample.label === "pursuit occluded"
+              ? "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected."
+              : sample.label === "world clear"
+                ? "A clear line of sight now branches the world toward pursuit rather than hold or search."
+                : "An occluded line of sight now branches the same world toward search instead of pursuit.";
 
     const button = document.createElement("button");
     button.type = "button";

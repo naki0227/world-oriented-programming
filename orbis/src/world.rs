@@ -124,7 +124,7 @@ pub struct World {
     pub action_candidates_by_entity: BTreeMap<String, Vec<ActionCandidateDecl>>,
     pub deferred_resolution_times: BTreeMap<String, f64>,
     pub deferred_preference_triggers: BTreeMap<String, DeferredPreferenceTrigger>,
-    pub visibility_preference_triggers: BTreeMap<String, VisibilityPreferenceTrigger>,
+    pub visibility_preference_triggers: BTreeMap<String, Vec<VisibilityPreferenceTrigger>>,
     pub deferred_score_adjustments: BTreeMap<String, Vec<DeferredScoreAdjustment>>,
     pub deferred_speed_limit_updates: BTreeMap<String, DeferredSpeedLimitUpdate>,
 }
@@ -199,6 +199,13 @@ pub struct DeferredPreferenceTrigger {
 pub struct VisibilityPreferenceTrigger {
     pub label: String,
     pub target: String,
+    pub condition: VisibilityCondition,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VisibilityCondition {
+    Visible,
+    Occluded,
 }
 
 #[derive(Clone, Debug)]
@@ -1900,18 +1907,13 @@ impl World {
         }
 
         for (sphere_name, candidates) in grouped {
-            let preferred_if_visible = self
-                .visibility_preference_triggers
-                .get(&sphere_name)
-                .filter(|trigger| self.entity_can_see(&sphere_name, &trigger.target))
-                .map(|trigger| trigger.label.clone());
             let resolution = self.resolve_candidates_for_entity(
                 &sphere_name,
                 &candidates,
                 deferred_entities.contains(&sphere_name),
                 false,
                 None,
-                preferred_if_visible.as_deref(),
+                self.visibility_conditioned_preference(&sphere_name).as_deref(),
                 &[],
                 &[],
             )?;
@@ -1955,7 +1957,8 @@ impl World {
                 .deferred_preference_triggers
                 .get(&entity)
                 .filter(|trigger| observation_time + EPSILON >= trigger.time)
-                .map(|trigger| trigger.label.clone());
+                .map(|trigger| trigger.label.clone())
+                .or_else(|| self.visibility_conditioned_preference(&entity));
             let score_adjustments = self
                 .deferred_score_adjustments
                 .get(&entity)
@@ -1988,6 +1991,21 @@ impl World {
         }
 
         Ok(())
+    }
+
+    fn visibility_conditioned_preference(&self, sphere_name: &str) -> Option<String> {
+        self.visibility_preference_triggers
+            .get(sphere_name)
+            .and_then(|triggers| {
+                triggers.iter().find_map(|trigger| {
+                    let visible = self.entity_can_see(sphere_name, &trigger.target);
+                    let matches = match trigger.condition {
+                        VisibilityCondition::Visible => visible,
+                        VisibilityCondition::Occluded => !visible,
+                    };
+                    matches.then(|| trigger.label.clone())
+                })
+            })
     }
 
     fn apply_deferred_law_updates_at(
@@ -2982,15 +3000,28 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
     let visibility_preferred_entities = program
         .action_directives
         .iter()
-        .filter(|directive| directive.kind == "prefer_candidate_if_visible")
+        .filter(|directive| {
+            directive.kind == "prefer_candidate_if_visible"
+                || directive.kind == "prefer_candidate_if_occluded"
+        })
         .filter_map(|directive| {
             directive
                 .label_argument
                 .as_ref()
                 .zip(directive.target_argument.as_ref())
-                .map(|(label, target)| (directive.entity.clone(), (label.clone(), target.clone())))
+                .map(|(label, target)| {
+                    let hint = if directive.kind == "prefer_candidate_if_visible" {
+                        format!("prefer_{label}_if_visible_to_{target}")
+                    } else {
+                        format!("prefer_{label}_if_occluded_to_{target}")
+                    };
+                    (directive.entity.clone(), hint)
+                })
         })
-        .collect::<BTreeMap<_, _>>();
+        .fold(BTreeMap::<String, Vec<String>>::new(), |mut acc, (entity, hint)| {
+            acc.entry(entity).or_default().push(hint);
+            acc
+        });
     let preferred_entities = preferred_candidate_labels_from_action_directives(&program.action_directives);
     let rescored_entities = rescore_candidate_labels_from_action_directives(&program.action_directives);
     let law_updated_entities = law_update_labels_from_action_directives(&program.action_directives);
@@ -3038,8 +3069,8 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 } else {
                     "deferred_on_ambiguous_top".to_string()
                 }
-            } else if let Some((label, target)) = visibility_preferred_entities.get(&entity) {
-                format!("prefer_{label}_if_visible_to_{target}")
+            } else if let Some(hints) = visibility_preferred_entities.get(&entity) {
+                hints.join("_else_")
             } else if top_score_tied {
                 "deterministic_tie_break".to_string()
             } else {
@@ -3136,19 +3167,26 @@ fn deferred_preference_triggers_from_action_directives(
 
 fn visibility_preference_triggers_from_action_directives(
     action_directives: &[ActionDirectiveDecl],
-) -> BTreeMap<String, VisibilityPreferenceTrigger> {
+) -> BTreeMap<String, Vec<VisibilityPreferenceTrigger>> {
     let mut result = BTreeMap::new();
     for directive in action_directives {
-        if directive.kind == "prefer_candidate_if_visible" {
+        if directive.kind == "prefer_candidate_if_visible"
+            || directive.kind == "prefer_candidate_if_occluded"
+        {
             if let (Some(label), Some(target)) = (&directive.label_argument, &directive.target_argument)
             {
-                result.insert(
-                    directive.entity.clone(),
-                    VisibilityPreferenceTrigger {
+                result
+                    .entry(directive.entity.clone())
+                    .or_insert_with(Vec::new)
+                    .push(VisibilityPreferenceTrigger {
                         label: label.clone(),
                         target: target.clone(),
-                    },
-                );
+                        condition: if directive.kind == "prefer_candidate_if_visible" {
+                            VisibilityCondition::Visible
+                        } else {
+                            VisibilityCondition::Occluded
+                        },
+                    });
             }
         }
     }
@@ -3261,7 +3299,9 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
         .map(|directive| ActionDirectiveSummary {
             entity: directive.entity.clone(),
             kind: directive.kind.clone(),
-            argument: if directive.kind == "prefer_candidate_if_visible" {
+            argument: if directive.kind == "prefer_candidate_if_visible"
+                || directive.kind == "prefer_candidate_if_occluded"
+            {
                 match (&directive.label_argument, &directive.target_argument) {
                     (Some(label), Some(target)) => Some(format!("{label}, {target}")),
                     _ => None,
@@ -4603,5 +4643,73 @@ observe:
             .expect("candidate resolution should be present");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("hold"));
         assert_eq!(resolution.preferred_label, None);
+    }
+
+    #[test]
+    fn visibility_world_can_switch_between_pursue_and_search() {
+        let clear = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (0, 4, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall) = (2, 1, -1)
+max(wall) = (3, 3, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (0, 1, 0) score 5
+    candidate_velocity(A, search) = (1, 0, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+"#;
+        let clear_program = parse_program(clear).expect("clear program should parse");
+        let clear_report = simulate_program(&clear_program).expect("clear simulation should succeed");
+        let clear_resolution = clear_report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("clear candidate resolution should be present");
+        assert_eq!(clear_resolution.selected_candidate.as_deref(), Some("pursue"));
+        assert_eq!(clear_resolution.preferred_label.as_deref(), Some("pursue"));
+
+        let occluded = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    candidate_velocity(A, search) = (0, 1, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+"#;
+        let occluded_program = parse_program(occluded).expect("occluded program should parse");
+        let occluded_report =
+            simulate_program(&occluded_program).expect("occluded simulation should succeed");
+        let occluded_resolution = occluded_report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("occluded candidate resolution should be present");
+        assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
+        assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
     }
 }
