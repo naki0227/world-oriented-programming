@@ -75,6 +75,8 @@ const draftRegionMaxX = document.getElementById("draft-region-max-x");
 const draftRegionMaxY = document.getElementById("draft-region-max-y");
 const removeSphereButton = document.getElementById("remove-sphere");
 const clearDraftButton = document.getElementById("clear-draft");
+const loadVisibilityClearButton = document.getElementById("load-visibility-clear");
+const loadVisibilityOccludedButton = document.getElementById("load-visibility-occluded");
 const draftOutput = document.getElementById("draft-output");
 const draftHint = document.getElementById("draft-hint");
 const constraintCandidates = document.getElementById("constraint-candidates");
@@ -307,6 +309,14 @@ clearDraftButton.addEventListener("click", () => {
   state.editor.acceptedConstraints = new Set();
   syncDraftControls();
   render();
+});
+
+loadVisibilityClearButton.addEventListener("click", () => {
+  loadVisibilityPreset("clear");
+});
+
+loadVisibilityOccludedButton.addEventListener("click", () => {
+  loadVisibilityPreset("occluded");
 });
 
 function loadReport(report, sourceName) {
@@ -1790,6 +1800,84 @@ function setDraftStatus(message, tone) {
   } else if (tone === "busy") {
     draftStatus.classList.add("status-busy");
   }
+}
+
+function loadVisibilityPreset(mode) {
+  state.editor.enabled = true;
+  editToggle.textContent = "Editing Draft";
+  state.viewMode = "xy";
+  viewModeSelect.value = "xy";
+  state.editor.floorEnabled = true;
+  state.editor.floorOffset = 0;
+  state.editor.regionEnabled = true;
+  state.editor.acceptedConstraints = new Set();
+
+  if (mode === "clear") {
+    state.editor.region = {
+      minX: 2,
+      minY: 1,
+      maxX: 3,
+      maxY: 3,
+    };
+    state.editor.spheres = [
+      {
+        id: "visibility-clear-a",
+        name: "A",
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+      {
+        id: "visibility-clear-b",
+        name: "B",
+        position: { x: 0, y: 4, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+    ];
+  } else {
+    state.editor.region = {
+      minX: 1,
+      minY: -1,
+      maxX: 3,
+      maxY: 1,
+    };
+    state.editor.spheres = [
+      {
+        id: "visibility-occluded-a",
+        name: "A",
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+      {
+        id: "visibility-occluded-b",
+        name: "B",
+        position: { x: 4, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+    ];
+  }
+
+  state.editor.nextIndex = 3;
+  state.editor.selectedId = state.editor.spheres[0].id;
+
+  const visibilityWorldId =
+    mode === "clear"
+      ? `visibility-world:${state.editor.spheres[0].id}:${state.editor.spheres[1].id}`
+      : `visibility-world:${state.editor.spheres[0].id}:${state.editor.spheres[1].id}`;
+  state.editor.acceptedConstraints.add(visibilityWorldId);
+
+  syncViewLabels();
+  syncDraftControls();
+  setDraftStatus(
+    mode === "clear"
+      ? "Loaded the clear visibility world preset. Run Draft to execute a pursuit-first world."
+      : "Loaded the occluded visibility world preset. Run Draft to execute a search-first world.",
+    "ok",
+  );
+  render();
 }
 
 function buildCandidateConstraints() {
