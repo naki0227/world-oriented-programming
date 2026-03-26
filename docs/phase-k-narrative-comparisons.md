@@ -88,6 +88,19 @@ Narrative reading:
 - `sekai` foregrounds visibility as a geometric condition on convergence.
 - the imperative baseline foregrounds score adjustment and selection plumbing.
 
+## Visibility Pursuit World Occluded
+
+This pair pushes the same idea one step further.
+`sekai` can keep hold, pursue, and search as equally scored continuations and let geometry
+decide whether the world branches toward pursuit or toward search.
+The imperative baseline must explicitly test line of sight, branch on the result, and then
+manually perturb whichever continuation family should win before an ordinary score-based choice.
+
+Narrative reading:
+
+- `sekai` foregrounds visibility as a geometric branching condition on world evolution.
+- the imperative baseline foregrounds control flow, visibility checks, and ranking updates.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

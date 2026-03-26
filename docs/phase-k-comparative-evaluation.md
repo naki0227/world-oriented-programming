@@ -21,6 +21,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/candidate_velocity_deferred.sk`
 - `examples/visibility_occluded.sk`
 - `examples/visibility_pursuit_occluded.sk`
+- `examples/visibility_pursuit_world_occluded.sk`
 
 Imperative reference baselines live in:
 
@@ -31,6 +32,7 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/candidate_velocity_deferred.py`
 - `benchmarks/imperative/visibility_occluded.py`
 - `benchmarks/imperative/visibility_pursuit_occluded.py`
+- `benchmarks/imperative/visibility_pursuit_world_occluded.py`
 
 ## Initial Metrics
 
@@ -69,6 +71,7 @@ The first recorded output is summarized in:
 - extend the corpus as Phase J adds richer geometry
 - use visibility as the first geometry-forward comparison scenario
 - extend that visibility slice into a behavior-level comparison where geometry changes candidate selection
+- extend that same visibility line into a branching world comparison where geometry changes which continuation family is taken
 - add scenario-specific narrative comparisons for each pair
 - connect these structural metrics to cognitive-load hypotheses
 - decide whether a lightweight user study is feasible
