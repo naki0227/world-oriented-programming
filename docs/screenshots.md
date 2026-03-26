@@ -34,6 +34,23 @@ Capture these screens whenever the viewer round-trip changes in a meaningful way
    - Keep the contradiction message visible
    - This supports the logical-constraint story
 
+5. `viewer-visibility-01-clear-run.png`
+   - Load the clear visibility preset
+   - Run the draft
+   - Keep the world and the visibility-conditioned result visible
+   - This supports the geometry-conditioned pursuit story
+
+6. `viewer-visibility-02-occluded-preset.png`
+   - Load the occluded visibility preset
+   - Keep the draft editor and world candidates visible before execution
+   - This supports the geometry-to-world-authoring story
+
+7. `viewer-visibility-03-occluded-run.png`
+   - Load the occluded visibility preset
+   - Run the draft
+   - Keep the world and candidate-resolution summary visible
+   - This supports the geometry-conditioned branching story
+
 ## Capture Notes
 
 - Prefer the browser window at desktop width.
@@ -75,3 +92,18 @@ After taking screenshots, append a short note to the current research log entry 
   - supports the claim that contradictions are expressed as world-law violations rather than imperative repair logic
   - likely paper use: constraint-first admissibility discussion
   - paper-ready crop: `figures/viewer-04-contradiction-report-paper.png`
+
+- `viewer-visibility-01-clear-run.png`
+  - captured after loading the clear visibility preset and executing the draft
+  - supports the claim that a visible target can steer the world toward a pursuit-like continuation
+  - likely paper use: richer geometry or visibility-world discussion
+
+- `viewer-visibility-02-occluded-preset.png`
+  - captured from the occluded visibility preset before execution
+  - supports the claim that the draft editor can propose a visibility-conditioned world, not only static laws
+  - likely paper use: visual-logical interface follow-up or appendix
+
+- `viewer-visibility-03-occluded-run.png`
+  - captured after running the occluded visibility preset
+  - supports the claim that the same world can branch toward search rather than pursuit when line of sight is blocked
+  - likely paper use: richer geometry or visibility-world discussion

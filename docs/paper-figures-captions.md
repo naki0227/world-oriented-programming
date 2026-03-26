@@ -27,3 +27,15 @@ Round-trip execution from diagram editing to world simulation. A draft scene is 
 ## Figure 6
 
 Constraint violation as a world contradiction in the viewer. After enabling `not inside(S1, forbidden_zone)`, execution fails with an explicit contradiction report. The resulting screen shows that invalid evolution is represented as a law violation in the world model rather than as imperative exception-handling code.
+
+## Visibility Figure A
+
+Visibility-conditioned pursuit in the clear-line-of-sight case. A draft world produced from the viewer executes immediately, and the resulting report keeps the target visible, allowing the world to prefer a pursuit-like continuation.
+
+## Visibility Figure B
+
+Visibility-world preset in the draft editor. The viewer is no longer proposing only static laws; it can now also propose a small geometry-conditioned world with visibility-sensitive action structure before execution.
+
+## Visibility Figure C
+
+Visibility-conditioned branching in the occluded case. After the same draft structure is executed with an occluding region between the entities, the runtime selects a search-like continuation and reports the branching outcome in the same interface.

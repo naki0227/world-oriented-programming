@@ -42,6 +42,20 @@ This document lists the current executable assets that can already be cited in a
 - caption source: `docs/paper-figures-captions.md`
 - role: contradiction reporting as a world-law violation inside the viewer
 
+### Visibility Set
+
+- image: `figures/viewer-visibility-01-clear-run.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: visibility-conditioned pursuit in the clear-line-of-sight case
+
+- image: `figures/viewer-visibility-02-occluded-preset.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: draft-editor preset for a visibility-conditioned world
+
+- image: `figures/viewer-visibility-03-occluded-run.png`
+- caption source: `docs/paper-figures-captions.md`
+- role: visibility-conditioned branching toward search in the occluded case
+
 ## Executable Examples
 
 - `examples/bounce.sk`
@@ -67,3 +81,4 @@ python3 scripts/render_figure.py examples/two_body_collision.sk
 - use Figure 4 in the visual-logical interface discussion
 - use Figure 5 in the round-trip execution discussion
 - use Figure 6 in the constraint-validation discussion
+- use the visibility set in a richer-geometry discussion or appendix once the paper needs a dedicated visibility storyline
