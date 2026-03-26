@@ -7,6 +7,8 @@ This note tracks the public-facing package needed when the seed paper is prepare
 ## Core Files
 
 - `paper/main.tex`
+- `paper/main-public.tex`
+- `paper/main-body.tex`
 - `paper/main.pdf`
 - `paper/references.bib`
 - `README.md`
@@ -32,6 +34,7 @@ If a shorter arXiv summary is needed, compress around these points:
 - figures referenced publicly use the paper-ready image variants when available
 - the repository branch used for the public release is clean and reproducible
 - author metadata is filled before making a named-public version
+- the public release switches to `paper/main-public.tex`
 
 ## Staging Command
 
@@ -44,9 +47,11 @@ Prepare a bundle skeleton with:
 This creates `dist/arxiv-package/` containing:
 
 - `paper/main.tex`
+- `paper/main-public.tex`
+- `paper/main-body.tex`
 - `paper/main.pdf`
 - `paper/references.bib`
-- any figures referenced by `paper/main.tex` or `paper/appendix.tex`
+- any figures referenced by `paper/main.tex`, `paper/main-public.tex`, or `paper/appendix.tex`
 - the public summary and author-metadata checklist
 
 ## Suggested arXiv Summary

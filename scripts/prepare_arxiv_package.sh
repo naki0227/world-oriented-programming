@@ -12,6 +12,12 @@ rm -rf "$OUT_DIR"
 mkdir -p "$PAPER_DIR" "$FIGURE_DIR" "$DOC_DIR"
 
 cp "$ROOT_DIR/paper/main.tex" "$PAPER_DIR/"
+if [[ -f "$ROOT_DIR/paper/main-public.tex" ]]; then
+  cp "$ROOT_DIR/paper/main-public.tex" "$PAPER_DIR/"
+fi
+if [[ -f "$ROOT_DIR/paper/main-body.tex" ]]; then
+  cp "$ROOT_DIR/paper/main-body.tex" "$PAPER_DIR/"
+fi
 cp "$ROOT_DIR/paper/references.bib" "$PAPER_DIR/"
 
 if [[ -f "$ROOT_DIR/paper/main.pdf" ]]; then
@@ -30,7 +36,7 @@ while IFS= read -r fig; do
   [[ -z "$fig" ]] && continue
   cp "$ROOT_DIR/figures/$fig" "$FIGURE_DIR/"
 done < <(
-  rg --no-filename -o '\.\./figures/[A-Za-z0-9._-]+' "$ROOT_DIR/paper/main.tex" "$ROOT_DIR/paper/appendix.tex" 2>/dev/null \
+  rg --no-filename -o '\.\./figures/[A-Za-z0-9._-]+' "$ROOT_DIR/paper/main.tex" "$ROOT_DIR/paper/main-public.tex" "$ROOT_DIR/paper/appendix.tex" 2>/dev/null \
     | sed 's#^\.\./figures/##' \
     | sort -u
 )

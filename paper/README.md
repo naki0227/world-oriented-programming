@@ -5,6 +5,8 @@ This directory contains the first ACM/SIGPLAN-oriented LaTeX manuscript setup fo
 ## Files
 
 - `main.tex`
+- `main-public.tex`
+- `main-body.tex`
 - `appendix.tex`
 - `references.bib`
 - `../docs/phase-e-submission-plan.md`
@@ -53,3 +55,4 @@ Use:
 
 from the repository root to stage a public bundle under `dist/arxiv-package/`.
 The staged package still expects real author metadata before a named-public arXiv upload.
+The intended named-public manuscript entry point is `paper/main-public.tex`.
