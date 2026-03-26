@@ -11,6 +11,8 @@ This note tracks the public-facing package needed when the seed paper is prepare
 - `paper/references.bib`
 - `README.md`
 - `docs/public-facing-summary.md`
+- `docs/arxiv-author-metadata-template.md`
+- `scripts/prepare_arxiv_package.sh`
 
 ## Recommended Abstract Basis
 
@@ -29,6 +31,23 @@ If a shorter arXiv summary is needed, compress around these points:
 - repository README uses the same one-sentence description
 - figures referenced publicly use the paper-ready image variants when available
 - the repository branch used for the public release is clean and reproducible
+- author metadata is filled before making a named-public version
+
+## Staging Command
+
+Prepare a bundle skeleton with:
+
+```sh
+./scripts/prepare_arxiv_package.sh
+```
+
+This creates `dist/arxiv-package/` containing:
+
+- `paper/main.tex`
+- `paper/main.pdf`
+- `paper/references.bib`
+- any figures referenced by `paper/main.tex` or `paper/appendix.tex`
+- the public summary and author-metadata checklist
 
 ## Suggested arXiv Summary
 

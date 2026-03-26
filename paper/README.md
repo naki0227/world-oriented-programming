@@ -42,3 +42,14 @@ You may want to switch options later depending on the exact submission track.
 1. switch from anonymous review mode to named metadata when the submission plan requires it
 2. prepare the arXiv/public package using `../docs/arxiv-release-package.md`
 3. do one last venue-specific sanity pass only if the target venue or track changes
+
+## arXiv Prep
+
+Use:
+
+```sh
+./scripts/prepare_arxiv_package.sh
+```
+
+from the repository root to stage a public bundle under `dist/arxiv-package/`.
+The staged package still expects real author metadata before a named-public arXiv upload.
