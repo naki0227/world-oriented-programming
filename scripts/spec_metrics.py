@@ -38,6 +38,11 @@ SCENARIOS = [
         ROOT / "examples" / "visibility_pursuit_occluded.sk",
         ROOT / "benchmarks" / "imperative" / "visibility_pursuit_occluded.py",
     ),
+    (
+        "visibility_pursuit_world_occluded",
+        ROOT / "examples" / "visibility_pursuit_world_occluded.sk",
+        ROOT / "benchmarks" / "imperative" / "visibility_pursuit_world_occluded.py",
+    ),
 ]
 
 

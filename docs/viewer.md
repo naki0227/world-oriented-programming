@@ -33,6 +33,9 @@ and provides:
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - quick comparison between clear and occluded `visible(A, B)` worlds
 - quick comparison between clear and occluded visibility-conditioned pursuit worlds
+- quick comparison between clear and occluded pursuit-world branching
+- draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
+- draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
 - automatic constraint candidate suggestion with user-controlled adoption
@@ -98,6 +101,8 @@ cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/
 cargo run -p sekai-cli -- simulate-report examples/visibility_occluded.sk > viewer/samples/visibility_occluded.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_clear.sk > viewer/samples/visibility_pursuit_clear.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_occluded.sk > viewer/samples/visibility_pursuit_occluded.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_world_clear.sk > viewer/samples/visibility_pursuit_world_clear.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_world_occluded.sk > viewer/samples/visibility_pursuit_world_occluded.json
 ```
 
 ## Why This Viewer Exists

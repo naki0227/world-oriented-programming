@@ -75,6 +75,8 @@ const draftRegionMaxX = document.getElementById("draft-region-max-x");
 const draftRegionMaxY = document.getElementById("draft-region-max-y");
 const removeSphereButton = document.getElementById("remove-sphere");
 const clearDraftButton = document.getElementById("clear-draft");
+const loadVisibilityClearButton = document.getElementById("load-visibility-clear");
+const loadVisibilityOccludedButton = document.getElementById("load-visibility-occluded");
 const draftOutput = document.getElementById("draft-output");
 const draftHint = document.getElementById("draft-hint");
 const constraintCandidates = document.getElementById("constraint-candidates");
@@ -91,6 +93,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "occluded", path: "./samples/visibility_occluded.json" },
   { label: "pursuit clear", path: "./samples/visibility_pursuit_clear.json" },
   { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
+  { label: "world clear", path: "./samples/visibility_pursuit_world_clear.json" },
+  { label: "world occluded", path: "./samples/visibility_pursuit_world_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -305,6 +309,14 @@ clearDraftButton.addEventListener("click", () => {
   state.editor.acceptedConstraints = new Set();
   syncDraftControls();
   render();
+});
+
+loadVisibilityClearButton.addEventListener("click", () => {
+  loadVisibilityPreset("clear");
+});
+
+loadVisibilityOccludedButton.addEventListener("click", () => {
+  loadVisibilityPreset("occluded");
 });
 
 function loadReport(report, sourceName) {
@@ -1350,7 +1362,7 @@ function renderComparisonList() {
 function renderVisibilityComparison() {
   if (!state.report) {
     visibilityComparisonList.innerHTML =
-      '<p class="muted">Load a visibility report to compare line-of-sight and visibility-conditioned pursuit worlds.</p>';
+      '<p class="muted">Load a visibility report to compare line-of-sight, pursuit preference, and pursuit-world branching.</p>';
     return;
   }
 
@@ -1363,7 +1375,7 @@ function renderVisibilityComparison() {
     (state.report.source || "").includes("visibility_pursuit");
   if (!visibleLaw && !visibilityError && !visibilityConditionedSelection) {
     visibilityComparisonList.innerHTML =
-      '<p class="muted">Comparison is available for visibility laws.</p>';
+      '<p class="muted">Comparison is available for visibility laws and visibility-conditioned worlds.</p>';
     return;
   }
 
@@ -1397,7 +1409,11 @@ function renderVisibilityComparison() {
           ? "An occluding region intersects the line of sight, so the world contradicts at the observation frontier."
           : sample.label === "pursuit clear"
             ? "Visibility now changes candidate selection, so the pursuit-like continuation is preferred."
-            : "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected.";
+            : sample.label === "pursuit occluded"
+              ? "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected."
+              : sample.label === "world clear"
+                ? "A clear line of sight now branches the world toward pursuit rather than hold or search."
+                : "An occluded line of sight now branches the same world toward search instead of pursuit.";
 
     const button = document.createElement("button");
     button.type = "button";
@@ -1650,16 +1666,28 @@ function generateDraftDSL() {
     lines.push("");
   }
 
-  lines.push("constraint:");
-  const accepted = buildCandidateConstraints().filter((candidate) =>
+  const accepted = buildDraftCandidates().filter((candidate) =>
     state.editor.acceptedConstraints.has(candidate.id),
   );
-  if (accepted.length > 0) {
-    accepted.forEach((candidate) => {
-      lines.push(`    ${candidate.expression}`);
+
+  const acceptedConstraints = accepted.filter((candidate) => candidate.section === "constraint");
+  const acceptedActions = accepted.filter((candidate) => candidate.section === "action");
+
+  lines.push("constraint:");
+  if (acceptedConstraints.length > 0) {
+    acceptedConstraints.forEach((candidate) => {
+      candidate.lines.forEach((line) => lines.push(`    ${line}`));
     });
   } else {
     lines.push("    # add constraints here");
+  }
+
+  if (acceptedActions.length > 0) {
+    lines.push("");
+    lines.push("action:");
+    acceptedActions.forEach((candidate) => {
+      candidate.lines.forEach((line) => lines.push(`    ${line}`));
+    });
   }
 
   lines.push("");
@@ -1717,7 +1745,7 @@ function normalizedRegion() {
 }
 
 function renderConstraintCandidates() {
-  const candidates = buildCandidateConstraints();
+  const candidates = buildDraftCandidates();
   constraintCandidates.innerHTML = "";
 
   if (candidates.length === 0) {
@@ -1772,6 +1800,84 @@ function setDraftStatus(message, tone) {
   } else if (tone === "busy") {
     draftStatus.classList.add("status-busy");
   }
+}
+
+function loadVisibilityPreset(mode) {
+  state.editor.enabled = true;
+  editToggle.textContent = "Editing Draft";
+  state.viewMode = "xy";
+  viewModeSelect.value = "xy";
+  state.editor.floorEnabled = true;
+  state.editor.floorOffset = 0;
+  state.editor.regionEnabled = true;
+  state.editor.acceptedConstraints = new Set();
+
+  if (mode === "clear") {
+    state.editor.region = {
+      minX: 2,
+      minY: 1,
+      maxX: 3,
+      maxY: 3,
+    };
+    state.editor.spheres = [
+      {
+        id: "visibility-clear-a",
+        name: "A",
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+      {
+        id: "visibility-clear-b",
+        name: "B",
+        position: { x: 0, y: 4, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+    ];
+  } else {
+    state.editor.region = {
+      minX: 1,
+      minY: -1,
+      maxX: 3,
+      maxY: 1,
+    };
+    state.editor.spheres = [
+      {
+        id: "visibility-occluded-a",
+        name: "A",
+        position: { x: 0, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+      {
+        id: "visibility-occluded-b",
+        name: "B",
+        position: { x: 4, y: 0, z: 0 },
+        velocity: { x: 0, y: 0, z: 0 },
+        radius: 1,
+      },
+    ];
+  }
+
+  state.editor.nextIndex = 3;
+  state.editor.selectedId = state.editor.spheres[0].id;
+
+  const visibilityWorldId =
+    mode === "clear"
+      ? `visibility-world:${state.editor.spheres[0].id}:${state.editor.spheres[1].id}`
+      : `visibility-world:${state.editor.spheres[0].id}:${state.editor.spheres[1].id}`;
+  state.editor.acceptedConstraints.add(visibilityWorldId);
+
+  syncViewLabels();
+  syncDraftControls();
+  setDraftStatus(
+    mode === "clear"
+      ? "Loaded the clear visibility world preset. Run Draft to execute a pursuit-first world."
+      : "Loaded the occluded visibility world preset. Run Draft to execute a search-first world.",
+    "ok",
+  );
+  render();
 }
 
 function buildCandidateConstraints() {
@@ -1833,6 +1939,66 @@ function buildCandidateConstraints() {
   }
 
   return candidates;
+}
+
+function buildDraftCandidates() {
+  const candidates = buildCandidateConstraints().map((candidate) => ({
+    ...candidate,
+    section: "constraint",
+    lines: [candidate.expression],
+  }));
+
+  if (state.editor.spheres.length >= 2 && state.editor.regionEnabled) {
+    for (let i = 0; i < state.editor.spheres.length; i += 1) {
+      for (let j = i + 1; j < state.editor.spheres.length; j += 1) {
+        const actor = state.editor.spheres[i];
+        const target = state.editor.spheres[j];
+        const pursuit = pursuitVector(actor, target);
+        const search = searchVector(pursuit);
+        candidates.push({
+          id: `visible:${actor.id}:${target.id}`,
+          section: "constraint",
+          expression: `visible(${actor.name}, ${target.name})`,
+          lines: [`visible(${actor.name}, ${target.name})`],
+          reason: `${actor.name} can be constrained to maintain line of sight to ${target.name} across the occluding region.`,
+        });
+        candidates.push({
+          id: `visibility-world:${actor.id}:${target.id}`,
+          section: "action",
+          expression: `visibility_pursuit_world(${actor.name}, ${target.name})`,
+          lines: [
+            `candidate_velocity(${actor.name}, hold) = (0, 0, 0) score 5`,
+            `candidate_velocity(${actor.name}, pursue) = (${formatNum(pursuit.x)}, ${formatNum(pursuit.y)}, 0) score 5`,
+            `candidate_velocity(${actor.name}, search) = (${formatNum(search.x)}, ${formatNum(search.y)}, 0) score 5`,
+            `prefer_candidate_if_visible(${actor.name}, pursue, ${target.name})`,
+            `prefer_candidate_if_occluded(${actor.name}, search, ${target.name})`,
+          ],
+          reason: `This turns visibility into a world-level branch: ${actor.name} pursues ${target.name} when visible and searches when occluded.`,
+        });
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function pursuitVector(actor, target) {
+  const dx = target.position.x - actor.position.x;
+  const dy = target.position.y - actor.position.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-6) {
+    return { x: 1, y: 0 };
+  }
+  return { x: dx / length, y: dy / length };
+}
+
+function searchVector(direction) {
+  const perpendicular = { x: -direction.y, y: direction.x };
+  const length = Math.hypot(perpendicular.x, perpendicular.y);
+  if (length < 1e-6) {
+    return { x: 0, y: 1 };
+  }
+  return { x: perpendicular.x / length, y: perpendicular.y / length };
 }
 
 function isPairApproaching(left, right) {

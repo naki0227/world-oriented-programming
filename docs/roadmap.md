@@ -383,6 +383,7 @@ Status:
 - in progress
 - first executable slice is a visibility law over an occluding region
 - next executable slice is a visibility-conditioned pursuit preference over candidate actions
+- current next slice: visibility can branch between pursuit and search continuations
 
 - not started
 

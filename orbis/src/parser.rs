@@ -615,6 +615,38 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         });
     }
 
+    if let Some(rest) = line.strip_prefix("prefer_candidate_if_occluded(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "prefer_candidate_if_occluded is missing `)`"))?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 3 {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_candidate_if_occluded requires an entity, a label, and a target entity",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_candidate_if_occluded does not take trailing arguments",
+            ));
+        }
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "prefer_candidate_if_occluded".to_string(),
+            time_argument: None,
+            label_argument: Some(args[1].to_string()),
+            target_argument: Some(args[2].to_string()),
+            score_argument: None,
+            value_argument: None,
+        });
+    }
+
     if let Some(rest) = line.strip_prefix("prefer_candidate_at(") {
         let close = rest
             .find(')')

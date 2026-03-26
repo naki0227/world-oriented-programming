@@ -290,6 +290,7 @@ For the forbidden-region example, it requires imperative checks around movement 
 For the two-body case, it requires manual event detection and collision-response sequencing.
 The current evaluation scaffold now also includes a first visibility pair, where \texttt{visible(A, B)} is contrasted with imperative line-of-sight checking against an occluding region.
 It now also includes a first visibility-conditioned pursuit pair, where line of sight changes which equally scored continuation is preferred.
+It now also includes a first branching visibility world, where the same geometry switches a world between pursuit-like and search-like continuations.
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show that the center of expression shifts from step-by-step update procedure to world definition and admissibility law.
 
@@ -345,12 +346,41 @@ At contact, a local synchronization event is resolved, after which the spheres c
 A user can place spheres in the viewer, enable a floor or forbidden region, inspect proposed constraints, and execute the generated draft through the same runtime.
 The resulting report is then shown in the same interface.
 This gives the prototype its first end-to-end visual-logical cycle: arrangement, candidate law selection, execution, and inspection.
+That same draft layer can now also propose a small visibility-pursuit world, so the editor is beginning to surface geometry-conditioned action structure rather than only static laws.
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.9\textwidth]{../figures/viewer-03-roundtrip-result-paper.png}
 \caption{Round-trip execution from diagram editing to world simulation. A draft scene is executed through \texttt{Run Draft}, after which the returned world report is displayed in the same interface.}
 \label{fig:viewer-roundtrip}
+\end{figure*}
+
+\subsection{Visibility-Conditioned World Branching}
+
+The richer-geometry direction is now beginning to produce its own executable pillar rather than only remaining future work.
+In the current visibility slice, \texttt{visible(A, B)} is not only a contradiction condition.
+It can also participate in action preference, so the same world can prefer a pursuit-like continuation when line of sight is clear and a search-like continuation when an occluding region blocks visibility.
+
+Figure~\ref{fig:visibility-pursuit} shows this emerging geometry path in one visual sequence.
+The center panel is the editor-side world candidate, while the left and right panels show executed reports for the clear and occluded cases.
+The key point is that the branching is still expressed as part of one world description pipeline rather than as distributed update-logic checks.
+
+\begin{figure*}[t]
+  \centering
+  \begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../figures/viewer-visibility-01-clear-run-paper.png}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../figures/viewer-visibility-02-occluded-preset-paper.png}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../figures/viewer-visibility-03-occluded-run-paper.png}
+  \end{minipage}
+  \caption{Visibility-conditioned world branching in the viewer. Left: a clear-visibility world executes a pursuit-oriented continuation. Center: the draft editor proposes a visibility world with an occluding region. Right: the occluded execution instead selects a search-oriented continuation.}
+  \label{fig:visibility-pursuit}
 \end{figure*}
 
 \subsection{Early Underdetermined-World Convergence}
@@ -369,7 +399,7 @@ The prototype can also now keep a deferred entity unresolved across more than on
 It can also resolve such a deferred tie at a later frontier when the scene explicitly requests a later convergence point.
 It can also let a newly active preference guide that later convergence, so a deferred tie may resolve for a semantic reason stronger than the prototype's default lexical tie-break.
 It can now also let later score updates reshape that convergence, so underdetermined worlds need not be committed forever to the initial soft ranking declared at time zero.
-This convergence work is also starting to connect back to geometry, since a pursuit-like candidate can now be preferred only when another entity remains visible, making line of sight part of world evolution rather than only part of contradiction reporting.
+This convergence work is also starting to connect back to geometry, since a pursuit-like candidate can now be preferred only when another entity remains visible, while an occluded world can prefer a different continuation such as search. That makes line of sight part of world evolution rather than only part of contradiction reporting.
 It can now also let later law updates reshape admissibility itself, so a continuation that was previously blocked by a hard law may later become selectable without abandoning the world-oriented formulation.
 It can now also stagger such re-convergence across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
 The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, deferred, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still unresolved in a small executable stand-in for $Obs? = U$.

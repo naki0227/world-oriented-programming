@@ -63,6 +63,8 @@
               <option value="./samples/visibility_occluded.json">visibility_occluded</option>
               <option value="./samples/visibility_pursuit_clear.json">visibility_pursuit_clear</option>
               <option value="./samples/visibility_pursuit_occluded.json">visibility_pursuit_occluded</option>
+              <option value="./samples/visibility_pursuit_world_clear.json">visibility_pursuit_world_clear</option>
+              <option value="./samples/visibility_pursuit_world_occluded.json">visibility_pursuit_world_occluded</option>
               <option value="./samples/forbidden_region.json">forbidden_region</option>
             </select>
           </label>
@@ -166,7 +168,7 @@
           <div>
             <h2>Visibility Comparison</h2>
             <div id="visibility-comparison-list" class="snapshot-list">
-              <p class="muted">Load a visibility report to compare line-of-sight and visibility-conditioned pursuit worlds.</p>
+              <p class="muted">Load a visibility report to compare line-of-sight, pursuit preference, and pursuit-world branching.</p>
             </div>
           </div>
 
@@ -178,6 +180,11 @@
             <div class="draft-actions">
               <button id="remove-sphere" type="button">Remove Selected</button>
               <button id="clear-draft" type="button">Clear Draft</button>
+            </div>
+            <h3 class="subhead">Visibility Presets</h3>
+            <div class="draft-actions">
+              <button id="load-visibility-clear" type="button">Load Clear World</button>
+              <button id="load-visibility-occluded" type="button">Load Occluded World</button>
             </div>
             <div class="draft-form">
               <label>
@@ -233,9 +240,9 @@
                 <input id="draft-region-max-y" type="number" value="3" step="0.1">
               </label>
             </div>
-            <h3 class="subhead">Constraint Candidates</h3>
+            <h3 class="subhead">World Candidates</h3>
             <div id="constraint-candidates" class="constraint-candidates">
-              <p class="muted">Place objects to generate candidate constraints.</p>
+              <p class="muted">Place objects to generate candidate laws and action worlds.</p>
             </div>
             <p id="draft-status" class="muted">Run Draft sends the generated scene through the local runtime.</p>
             <label class="dsl-label" for="draft-output">Generated .sk</label>
