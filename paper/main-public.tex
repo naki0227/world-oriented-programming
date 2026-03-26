@@ -1,0 +1,72 @@
+\documentclass[sigplan]{acmart}
+
+\settopmatter{printfolios=true,printccs=true,printacmref=false}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
+\raggedbottom
+\setlength{\emergencystretch}{2em}
+
+\begin{document}
+
+\title{World-Oriented Programming:\\Executable World Description Through Space, Time, and Constraints}
+\shorttitle{World-Oriented Programming}
+
+\author{Ibuki Nagase}
+\affiliation{
+  \institution{Osaka Electro-Communication University}
+  \country{Japan}
+}
+\email{contact@enludus.com}
+
+\begin{abstract}
+This paper proposes World-Oriented Programming, a programming paradigm in which executable systems are described as worlds rather than as instruction sequences.
+The proposal is motivated by a persistent mismatch between human spatial-temporal reasoning and conventional programming practice, especially in domains such as simulation, geometry, interactive environments, and world-based game logic.
+In the proposed model, entities, spatial relations, temporal development, and logical constraints are represented directly, while execution is treated as the evolution of a constrained world over time.
+
+The contribution of this paper is not a claim of mature generality.
+Rather, it is a claim that this representational shift is already coherent enough to be instantiated in a small executable system.
+The current prototype combines declarative world description, update-free temporal progression, constraint-first validity handling, and local synchronization at interaction points.
+Three executable scenarios and a minimal visual round-trip are used as worked examples: a bouncing-sphere world, a forbidden-region world, a two-body collision world, and a viewer path from diagrammatic drafting to execution.
+Together they show that simple spatial-temporal systems can already be expressed without user-authored update loops, that contradictions can be modeled as violations of world laws, that independently evolving entities can synchronize only when interaction occurs, and that visual arrangement can already participate in the same execution pipeline.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10011007.10011006.10011039</concept_id>
+<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10011007.10011006.10011041</concept_id>
+<concept_desc>Software and its engineering~Constraint and logic languages</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10003120.10003123.10011759</concept_id>
+<concept_desc>Human-centered computing~Visual languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10010147.10010257.10010293</concept_id>
+<concept_desc>Computing methodologies~Simulation environments</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Domain specific languages}
+\ccsdesc[500]{Software and its engineering~Constraint and logic languages}
+\ccsdesc[300]{Human-centered computing~Visual languages}
+\ccsdesc[300]{Computing methodologies~Simulation environments}
+
+\keywords{World-Oriented Programming, declarative worlds, spatial-temporal programming, local synchronization}
+
+\maketitle
+
+\input{main-body.tex}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

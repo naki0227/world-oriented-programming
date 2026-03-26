@@ -132,6 +132,7 @@ The current prototype already supports:
 
 For a paper-oriented overview, see `paper/main.tex`.
 For public-facing wording, see `docs/public-facing-summary.md`.
+For arXiv staging, see `docs/arxiv-release-package.md`.
 
 ## Working Rule For This Repository
 
