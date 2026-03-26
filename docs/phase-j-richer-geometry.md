@@ -2,9 +2,14 @@
 
 Phase J expands `sekai` beyond moving spheres, a single plane, and axis-aligned region exclusion.
 
-The goal is not just to add more primitives.
-It is to identify which geometry features most clearly benefit from a world-oriented model
-instead of imperative update logic.
+The goal is not only to add more geometry primitives, but to preserve the language's
+world-oriented semantics while the spatial vocabulary becomes richer.
+
+## Research Questions
+
+- Which geometric primitives should become first-class before the model becomes too diffuse?
+- How should richer geometry interact with world laws, event ordering, and local synchronization?
+- Which new spatial relations matter most for later evaluation in Phase K?
 
 ## First Executable Slice
 
@@ -22,9 +27,33 @@ This slice is intentionally small, but strategically important:
 - it gives Phase K a more compelling future comparison target
 - it makes visibility a world-level condition instead of scattered update logic
 
-## Next Geometry Targets
+## Near-Term Targets
 
-- oriented or non-axis-aligned occluders
-- path primitives
-- visibility-sensitive action scenarios
+- richer surfaces beyond a single plane
+- non-axis-aligned regions and bounded volumes
+- path and trajectory primitives
+- visibility and line-of-sight predicates
 - stronger 3D editing support in the viewer
+
+## Evaluation-Relevant Geometry Tasks
+
+These are the first geometry scenarios that should be expressible before Phase J is considered mature:
+
+- corridor navigation with forbidden volumes
+- view-dependent interaction through line-of-sight
+- path following with spatial constraints
+- multiple surfaces with contact rules
+
+## Design Principles
+
+- add primitives only when they fit the current law/event model
+- prefer geometric relations that can appear in both DSL and viewer
+- preserve deterministic observation semantics from Phase G
+- make new geometry measurable in Phase K through representative tasks
+
+## Expected Outputs
+
+- a small but meaningful richer-geometry corpus
+- updated spatial/event semantics where needed
+- viewer affordances for at least one new geometry family
+- evaluation-ready scenarios that compare `sekai` against imperative baselines
