@@ -1,6 +1,8 @@
 # sekai / World-Oriented Programming
 
-This repository records the research and prototyping process for `sekai`, a world-description language centered on space, time, relations, and constraints.
+`sekai` is an experimental world-oriented programming language for describing executable worlds through space, time, and constraints rather than through instruction sequences.
+
+This repository records the research, prototype implementation, manuscript, viewer, and evaluation scaffold for that project.
 
 ## Project Statement
 
@@ -48,53 +50,88 @@ The long-term goal is a programming environment where:
 - `docs/templates/`: reusable templates for future logs and papers
 - `examples/`: reference `.sk` scenarios
 
-## Current Milestone
+## Current Status
 
-The first milestone is:
+The repository now contains:
 
-Declaratively simulate a bouncing sphere on a floor without writing an `update` loop.
+- a prototype DSL and runtime
+- executable examples for bouncing, contradiction, synchronization, convergence, and visibility
+- a browser-based viewer and diagram-to-logic round-trip
+- a seed-paper manuscript in LaTeX at `paper/main.tex`
+- comparative evaluation scaffolding and imperative baselines
 
-Current prototype command:
+Current focus:
 
-```text
+- final submission shaping for the seed paper
+- public-facing packaging for arXiv / README / venue use
+- the first richer-geometry pillar centered on visibility
+
+## Quick Start
+
+Minimal declarative evolution:
+
+```sh
 cargo run -p sekai-cli -- simulate examples/bounce.sk
 ```
 
-Constraint example:
+Constraint-first contradiction:
 
-```text
+```sh
 cargo run -p sekai-cli -- simulate examples/forbidden_region.sk
 ```
 
-Local synchronization example:
+Local synchronization:
 
-```text
+```sh
 cargo run -p sekai-cli -- simulate examples/two_body_collision.sk
 ```
 
-Structured output example:
+Structured report:
 
-```text
+```sh
 cargo run -p sekai-cli -- simulate-json examples/two_body_collision.sk
 ```
 
-Static law analysis example:
+Static law analysis:
 
-```text
+```sh
 cargo run -p sekai-cli -- analyze examples/reflected_region.sk
 ```
 
-Figure generation example:
+Figure generation:
 
-```text
+```sh
 python3 scripts/render_figure.py examples/two_body_collision.sk
 ```
 
-Viewer example:
+Viewer:
 
-```text
+```sh
 python3 -m http.server 8000
 ```
+
+Then open `http://127.0.0.1:8000/viewer/`.
+
+## Public Summary
+
+Short version:
+
+`sekai` explores a shift from procedure-centered programming to executable world description.
+Programs define entities, geometry, temporal development, and world laws directly; execution is treated as the evolution of an admissible world.
+
+Longer version:
+
+The current prototype already supports:
+
+- update-free world evolution
+- constraints as world laws
+- global asynchrony with local synchronization
+- underdetermined-world convergence slices
+- visibility-conditioned branching worlds
+- a viewer path from diagrammatic drafting to execution and contradiction reporting
+
+For a paper-oriented overview, see `paper/main.tex`.
+For public-facing wording, see `docs/public-facing-summary.md`.
 
 ## Working Rule For This Repository
 

@@ -2,25 +2,25 @@
 
 ## Current Status
 
-The paper is now in a strong draft state, but not yet in final submission form.
+The paper is now in seed-paper-final shape for internal review and public packaging.
 
 ## Remaining Tasks
 
 ### Must Do
 
-1. Insert figures formally into the manuscript layout
-2. Convert references to the target venue style
-3. Add a few more archival references in visual mathematics and language design
-4. Final pass for wording, length, and repetition
+1. Decide the exact submission target and deadline
+2. Switch metadata from anonymous review mode when needed
+3. Do one final venue-specific sanity pass
+4. Freeze the arXiv/public package against the current manuscript
 
 ### Should Do
 
-1. Add one compact baseline comparison paragraph
-2. Add one short methodology paragraph clarifying why the evaluation is example-driven
-3. Add explicit contribution bullets near the end of the introduction
+1. Add one more archival reference pass only if a target venue review suggests a gap
+2. Re-check page pressure after the final venue metadata change
+3. Decide whether any supplementary figure should move between main paper and appendix
 
 ### Nice To Have
 
-1. A third rendered figure for the forbidden-region scenario
-2. A short appendix describing the current DSL syntax
-3. A diagram of the runtime architecture
+1. A short appendix describing the current DSL syntax
+2. A diagram of the runtime architecture
+3. A public-facing GIF or short demo clip for outreach
