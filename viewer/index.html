@@ -59,6 +59,8 @@
               <option value="./samples/candidate_velocity_two_entity.json">candidate_velocity_two_entity</option>
               <option value="./samples/reflected_region.json">reflected_region</option>
               <option value="./samples/two_body_collision.json">two_body_collision</option>
+              <option value="./samples/visibility_clear.json">visibility_clear</option>
+              <option value="./samples/visibility_occluded.json">visibility_occluded</option>
               <option value="./samples/forbidden_region.json">forbidden_region</option>
             </select>
           </label>
@@ -156,6 +158,13 @@
             <h2>Policy Comparison</h2>
             <div id="comparison-list" class="snapshot-list">
               <p class="muted">Load a forbidden-region report to compare reject, clamp, and reflect.</p>
+            </div>
+          </div>
+
+          <div>
+            <h2>Visibility Comparison</h2>
+            <div id="visibility-comparison-list" class="snapshot-list">
+              <p class="muted">Load a visibility report to compare clear and occluded line-of-sight worlds.</p>
             </div>
           </div>
 

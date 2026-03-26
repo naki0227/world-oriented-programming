@@ -25,9 +25,9 @@ Current roadmap status by phase:
 - Phase 6: not started
 - Phase G: in progress, but already substantially advanced
 - Phase H: partially started through the current viewer
-- Phase I: not started
-- Phase J: not started
-- Phase K: not started
+- Phase I: in progress
+- Phase J: in progress
+- Phase K: in progress
 
 More specifically:
 
@@ -204,7 +204,7 @@ Topics:
 
 Status:
 
-- in progress with a first executable visibility-law slice
+- not started
 
 ## Phase G. Time And Event Semantics
 
@@ -361,7 +361,8 @@ Definition of done:
 
 Status:
 
-- not started
+- in progress
+- first executable slice is a visibility law over an occluding region
 
 ## Phase J. Richer Geometry And Space
 
@@ -397,6 +398,15 @@ Outputs:
 Definition of done:
 
 - the project has evidence for why this model is better than an imperative alternative for its target tasks
+
+Status:
+
+- in progress
+- initial paired corpus, imperative baselines, metric script, and narrative comparisons now exist
+
+Status:
+
+- in progress with an initial paired corpus, metric script, and imperative baselines
 
 ## Near-Term Milestone
 

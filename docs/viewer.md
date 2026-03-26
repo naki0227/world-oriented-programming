@@ -31,6 +31,7 @@ and provides:
 - quick comparison between candidate deferred, law-update-after-defer, prefer-after-defer, rescore-after-defer, resolve-after-defer, partial-deferred, persistent-deferred, staggered-resolve, fallback, repaired-selection, tie-broken, and observationally equivalent tie Phase I samples
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
+- quick comparison between clear and occluded `visible(A, B)` worlds
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
 - automatic constraint candidate suggestion with user-controlled adoption
@@ -92,6 +93,8 @@ cargo run -p sekai-cli -- analyze examples/candidate_velocity_preferred_resolve.
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_occluded.sk > viewer/samples/visibility_occluded.json
 ```
 
 ## Why This Viewer Exists

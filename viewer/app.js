@@ -53,6 +53,7 @@ const candidateComparisonList = document.getElementById("candidate-comparison-li
 const observationTimelineList = document.getElementById("observation-timeline-list");
 const activityList = document.getElementById("activity-list");
 const comparisonList = document.getElementById("comparison-list");
+const visibilityComparisonList = document.getElementById("visibility-comparison-list");
 const yawSlider = document.getElementById("yaw-slider");
 const pitchSlider = document.getElementById("pitch-slider");
 const zoomSlider = document.getElementById("zoom-slider");
@@ -83,6 +84,11 @@ const POLICY_COMPARISON_SAMPLES = [
   { label: "reject", path: "./samples/forbidden_region.json" },
   { label: "clamp", path: "./samples/clamped_region.json" },
   { label: "reflect", path: "./samples/reflected_region.json" },
+];
+
+const VISIBILITY_COMPARISON_SAMPLES = [
+  { label: "clear", path: "./samples/visibility_clear.json" },
+  { label: "occluded", path: "./samples/visibility_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -919,6 +925,7 @@ function renderSidebar() {
     renderCandidateComparison();
     renderActivityList();
     renderComparisonList();
+    renderVisibilityComparison();
     return;
   }
 
@@ -945,6 +952,7 @@ function renderSidebar() {
   renderObservationTimeline();
   renderActivityList();
   renderComparisonList();
+  renderVisibilityComparison();
 }
 
 function renderObservationTimeline() {
@@ -1334,6 +1342,65 @@ function renderComparisonList() {
     card.appendChild(note);
     card.appendChild(button);
     comparisonList.appendChild(card);
+  });
+}
+
+function renderVisibilityComparison() {
+  if (!state.report) {
+    visibilityComparisonList.innerHTML =
+      '<p class="muted">Load a visibility report to compare clear and occluded line-of-sight worlds.</p>';
+    return;
+  }
+
+  const visibleLaw = (state.report.constraints || []).find((constraint) => constraint.kind === "visible");
+  const visibilityError = (state.report.error || "").includes("cannot see");
+  if (!visibleLaw && !visibilityError) {
+    visibilityComparisonList.innerHTML =
+      '<p class="muted">Comparison is available for visibility laws.</p>';
+    return;
+  }
+
+  visibilityComparisonList.innerHTML = "";
+
+  const summary = document.createElement("article");
+  summary.className = "sphere-card";
+  const targets = visibleLaw?.targets || [];
+  const outcome = visibleLaw?.outcome || (visibilityError ? "contradicted" : "idle");
+  summary.innerHTML = `
+    <h3>Current Outcome</h3>
+    <p>law = visible(${targets.join(", ") || "A, B"})</p>
+    <p class="muted">category = ${visibleLaw?.category || "interaction"}</p>
+    <p class="muted">outcome = ${outcome}</p>
+  `;
+  visibilityComparisonList.appendChild(summary);
+
+  VISIBILITY_COMPARISON_SAMPLES.forEach((sample) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+
+    const title = document.createElement("h3");
+    title.textContent = sample.label;
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      sample.label === "clear"
+        ? "The line of sight is unobstructed, so the visibility law remains admissible."
+        : "An occluding region intersects the line of sight, so the world contradicts at the observation frontier.";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = sample.path === sampleSelect.value ? "Loaded" : `Load ${sample.label}`;
+    button.disabled = sample.path === sampleSelect.value;
+    button.addEventListener("click", async () => {
+      sampleSelect.value = sample.path;
+      await loadSample(sample.path);
+    });
+
+    card.appendChild(title);
+    card.appendChild(note);
+    card.appendChild(button);
+    visibilityComparisonList.appendChild(card);
   });
 }
 
