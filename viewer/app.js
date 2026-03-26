@@ -89,6 +89,8 @@ const POLICY_COMPARISON_SAMPLES = [
 const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "clear", path: "./samples/visibility_clear.json" },
   { label: "occluded", path: "./samples/visibility_occluded.json" },
+  { label: "pursuit clear", path: "./samples/visibility_pursuit_clear.json" },
+  { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1348,13 +1350,18 @@ function renderComparisonList() {
 function renderVisibilityComparison() {
   if (!state.report) {
     visibilityComparisonList.innerHTML =
-      '<p class="muted">Load a visibility report to compare clear and occluded line-of-sight worlds.</p>';
+      '<p class="muted">Load a visibility report to compare line-of-sight and visibility-conditioned pursuit worlds.</p>';
     return;
   }
 
   const visibleLaw = (state.report.constraints || []).find((constraint) => constraint.kind === "visible");
   const visibilityError = (state.report.error || "").includes("cannot see");
-  if (!visibleLaw && !visibilityError) {
+  const candidateResolution = (state.report.candidate_resolutions || [])[0];
+  const visibilityConditionedSelection =
+    candidateResolution &&
+    candidateResolution.preferred_label &&
+    (state.report.source || "").includes("visibility_pursuit");
+  if (!visibleLaw && !visibilityError && !visibilityConditionedSelection) {
     visibilityComparisonList.innerHTML =
       '<p class="muted">Comparison is available for visibility laws.</p>';
     return;
@@ -1368,9 +1375,9 @@ function renderVisibilityComparison() {
   const outcome = visibleLaw?.outcome || (visibilityError ? "contradicted" : "idle");
   summary.innerHTML = `
     <h3>Current Outcome</h3>
-    <p>law = visible(${targets.join(", ") || "A, B"})</p>
+    <p>${visibilityConditionedSelection ? `preferred = ${candidateResolution.preferred_label}` : `law = visible(${targets.join(", ") || "A, B"})`}</p>
     <p class="muted">category = ${visibleLaw?.category || "interaction"}</p>
-    <p class="muted">outcome = ${outcome}</p>
+    <p class="muted">outcome = ${visibilityConditionedSelection ? candidateResolution.convergence_mode : outcome}</p>
   `;
   visibilityComparisonList.appendChild(summary);
 
@@ -1386,7 +1393,11 @@ function renderVisibilityComparison() {
     note.textContent =
       sample.label === "clear"
         ? "The line of sight is unobstructed, so the visibility law remains admissible."
-        : "An occluding region intersects the line of sight, so the world contradicts at the observation frontier.";
+        : sample.label === "occluded"
+          ? "An occluding region intersects the line of sight, so the world contradicts at the observation frontier."
+          : sample.label === "pursuit clear"
+            ? "Visibility now changes candidate selection, so the pursuit-like continuation is preferred."
+            : "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected.";
 
     const button = document.createElement("button");
     button.type = "button";

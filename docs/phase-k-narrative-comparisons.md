@@ -75,6 +75,19 @@ Narrative reading:
 - `sekai` foregrounds visibility as a world condition.
 - the imperative baseline foregrounds the occlusion algorithm and failure plumbing.
 
+## Visibility Pursuit Occluded
+
+This pair moves visibility from contradiction handling into behavior selection.
+`sekai` can keep two equal-score candidate velocities and state that one should only be preferred
+when the target remains visible.
+The imperative baseline must explicitly compute line of sight and then manually perturb the
+candidate ranking before doing an ordinary score-based choice.
+
+Narrative reading:
+
+- `sekai` foregrounds visibility as a geometric condition on convergence.
+- the imperative baseline foregrounds score adjustment and selection plumbing.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:
