@@ -77,10 +77,23 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 15 | 0 |
 | declarative density | 0.938 | 0.000 |
 
+## Visibility Pursuit Occluded
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 18 | 51 |
+| token count | 139 | 600 |
+| branch keywords | 0 | 6 |
+| loop keywords | 0 | 2 |
+| state-assignment lines | 10 | 21 |
+| declarative lines | 17 | 0 |
+| declarative density | 0.944 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
 - The imperative baselines spend more of their specification budget on control and explicit update structure.
 - The widened corpus keeps the same pattern even for repair-oriented and deferred-convergence scenarios.
 - The first visibility slice keeps the same pattern while moving the corpus toward richer geometry.
+- The visibility-pursuit pair keeps the same structural pattern even when geometry changes candidate selection rather than only causing contradiction.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

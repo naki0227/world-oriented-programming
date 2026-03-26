@@ -1,0 +1,23 @@
+sphere A
+sphere B
+plane floor
+region wall
+
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+
+observe:
+    snapshot at 0

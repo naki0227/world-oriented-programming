@@ -28,6 +28,7 @@ pub struct ActionDirectiveDecl {
     pub kind: String,
     pub time_argument: Option<f64>,
     pub label_argument: Option<String>,
+    pub target_argument: Option<String>,
     pub score_argument: Option<f64>,
     pub value_argument: Option<f64>,
 }
@@ -538,6 +539,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             kind: "defer_on_ambiguous_top".to_string(),
             time_argument: None,
             label_argument: None,
+            target_argument: None,
             score_argument: None,
             value_argument: None,
         });
@@ -575,6 +577,39 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             kind: "resolve_deferred_at".to_string(),
             time_argument: Some(time),
             label_argument: None,
+            target_argument: None,
+            score_argument: None,
+            value_argument: None,
+        });
+    }
+
+    if let Some(rest) = line.strip_prefix("prefer_candidate_if_visible(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "prefer_candidate_if_visible is missing `)`"))?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 3 {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_candidate_if_visible requires an entity, a label, and a target entity",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_candidate_if_visible does not take trailing arguments",
+            ));
+        }
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "prefer_candidate_if_visible".to_string(),
+            time_argument: None,
+            label_argument: Some(args[1].to_string()),
+            target_argument: Some(args[2].to_string()),
             score_argument: None,
             value_argument: None,
         });
@@ -612,6 +647,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             kind: "prefer_candidate_at".to_string(),
             time_argument: Some(time),
             label_argument: Some(args[1].to_string()),
+            target_argument: None,
             score_argument: None,
             value_argument: None,
         });
@@ -655,6 +691,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             kind: "update_speed_limit_at".to_string(),
             time_argument: Some(time),
             label_argument: None,
+            target_argument: None,
             score_argument: None,
             value_argument: Some(limit),
         });
@@ -703,6 +740,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         kind: "rescore_candidate_at".to_string(),
         time_argument: Some(time),
         label_argument: Some(args[1].to_string()),
+        target_argument: None,
         score_argument: Some(delta),
         value_argument: None,
     })

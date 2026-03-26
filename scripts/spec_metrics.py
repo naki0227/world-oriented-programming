@@ -33,6 +33,11 @@ SCENARIOS = [
         ROOT / "examples" / "visibility_occluded.sk",
         ROOT / "benchmarks" / "imperative" / "visibility_occluded.py",
     ),
+    (
+        "visibility_pursuit_occluded",
+        ROOT / "examples" / "visibility_pursuit_occluded.sk",
+        ROOT / "benchmarks" / "imperative" / "visibility_pursuit_occluded.py",
+    ),
 ]
 
 

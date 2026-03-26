@@ -124,6 +124,7 @@ pub struct World {
     pub action_candidates_by_entity: BTreeMap<String, Vec<ActionCandidateDecl>>,
     pub deferred_resolution_times: BTreeMap<String, f64>,
     pub deferred_preference_triggers: BTreeMap<String, DeferredPreferenceTrigger>,
+    pub visibility_preference_triggers: BTreeMap<String, VisibilityPreferenceTrigger>,
     pub deferred_score_adjustments: BTreeMap<String, Vec<DeferredScoreAdjustment>>,
     pub deferred_speed_limit_updates: BTreeMap<String, DeferredSpeedLimitUpdate>,
 }
@@ -192,6 +193,12 @@ pub struct ActionDirectiveSummary {
 pub struct DeferredPreferenceTrigger {
     pub label: String,
     pub time: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct VisibilityPreferenceTrigger {
+    pub label: String,
+    pub target: String,
 }
 
 #[derive(Clone, Debug)]
@@ -1727,6 +1734,9 @@ impl World {
             deferred_preference_triggers: deferred_preference_triggers_from_action_directives(
                 &program.action_directives,
             ),
+            visibility_preference_triggers: visibility_preference_triggers_from_action_directives(
+                &program.action_directives,
+            ),
             deferred_score_adjustments: deferred_score_adjustments_from_action_directives(
                 &program.action_directives,
             ),
@@ -1890,13 +1900,18 @@ impl World {
         }
 
         for (sphere_name, candidates) in grouped {
+            let preferred_if_visible = self
+                .visibility_preference_triggers
+                .get(&sphere_name)
+                .filter(|trigger| self.entity_can_see(&sphere_name, &trigger.target))
+                .map(|trigger| trigger.label.clone());
             let resolution = self.resolve_candidates_for_entity(
                 &sphere_name,
                 &candidates,
                 deferred_entities.contains(&sphere_name),
                 false,
                 None,
-                None,
+                preferred_if_visible.as_deref(),
                 &[],
                 &[],
             )?;
@@ -2010,6 +2025,25 @@ impl World {
             });
         }
         activated
+    }
+
+    fn entity_can_see(&self, observer_name: &str, target_name: &str) -> bool {
+        let Some(region) = &self.region else {
+            return true;
+        };
+        let Ok(observer_index) = ensure_sphere_exists(&self.spheres, observer_name) else {
+            return false;
+        };
+        let Ok(target_index) = ensure_sphere_exists(&self.spheres, target_name) else {
+            return false;
+        };
+
+        !line_segment_intersects_box(
+            self.spheres[observer_index].position,
+            self.spheres[target_index].position,
+            region.min,
+            region.max,
+        )
     }
 
     fn resolve_candidates_for_entity(
@@ -2945,6 +2979,18 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
         .filter(|directive| directive.kind == "defer_on_ambiguous_top")
         .map(|directive| directive.entity.clone())
         .collect::<std::collections::BTreeSet<_>>();
+    let visibility_preferred_entities = program
+        .action_directives
+        .iter()
+        .filter(|directive| directive.kind == "prefer_candidate_if_visible")
+        .filter_map(|directive| {
+            directive
+                .label_argument
+                .as_ref()
+                .zip(directive.target_argument.as_ref())
+                .map(|(label, target)| (directive.entity.clone(), (label.clone(), target.clone())))
+        })
+        .collect::<BTreeMap<_, _>>();
     let preferred_entities = preferred_candidate_labels_from_action_directives(&program.action_directives);
     let rescored_entities = rescore_candidate_labels_from_action_directives(&program.action_directives);
     let law_updated_entities = law_update_labels_from_action_directives(&program.action_directives);
@@ -2992,6 +3038,8 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 } else {
                     "deferred_on_ambiguous_top".to_string()
                 }
+            } else if let Some((label, target)) = visibility_preferred_entities.get(&entity) {
+                format!("prefer_{label}_if_visible_to_{target}")
             } else if top_score_tied {
                 "deterministic_tie_break".to_string()
             } else {
@@ -3078,6 +3126,27 @@ fn deferred_preference_triggers_from_action_directives(
                     DeferredPreferenceTrigger {
                         label: label.clone(),
                         time,
+                    },
+                );
+            }
+        }
+    }
+    result
+}
+
+fn visibility_preference_triggers_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, VisibilityPreferenceTrigger> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "prefer_candidate_if_visible" {
+            if let (Some(label), Some(target)) = (&directive.label_argument, &directive.target_argument)
+            {
+                result.insert(
+                    directive.entity.clone(),
+                    VisibilityPreferenceTrigger {
+                        label: label.clone(),
+                        target: target.clone(),
                     },
                 );
             }
@@ -3192,7 +3261,13 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
         .map(|directive| ActionDirectiveSummary {
             entity: directive.entity.clone(),
             kind: directive.kind.clone(),
-            argument: match (&directive.label_argument, directive.time_argument) {
+            argument: if directive.kind == "prefer_candidate_if_visible" {
+                match (&directive.label_argument, &directive.target_argument) {
+                    (Some(label), Some(target)) => Some(format!("{label}, {target}")),
+                    _ => None,
+                }
+            } else {
+                match (&directive.label_argument, directive.time_argument) {
                 (Some(label), Some(time)) => {
                     if let Some(delta) = directive.score_argument {
                         Some(format!("{label}, {time:.3}, {delta:+.3}"))
@@ -3208,6 +3283,7 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
                 (Some(label), None) => Some(label.clone()),
                 (None, Some(time)) => Some(format!("{time:.3}")),
                 (None, None) => None,
+            }
             },
         })
         .collect::<Vec<_>>();
@@ -4461,5 +4537,71 @@ observe:
         assert_eq!(b.convergence_mode, "resolved_after_defer");
         assert_eq!(b.resolved_at_observation_time.as_deref(), Some("2.000"));
         assert_eq!(report.observation_summary.status, "determinate");
+    }
+
+    #[test]
+    fn visibility_condition_can_prefer_a_pursuit_candidate() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (0, 4, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall) = (2, 1, -1)
+max(wall) = (3, 3, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (0, 1, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("pursue"));
+    }
+
+    #[test]
+    fn visibility_condition_does_not_prefer_when_occluded() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("hold"));
+        assert_eq!(resolution.preferred_label, None);
     }
 }
