@@ -2,6 +2,11 @@
 
 This directory contains the first ACM/SIGPLAN-oriented LaTeX manuscript setup for the `sekai` paper.
 
+Public record:
+
+- Zenodo DOI: `10.5281/zenodo.19235961`
+- Zenodo record: `https://zenodo.org/records/19235961`
+
 ## Files
 
 - `main.tex`
@@ -36,6 +41,7 @@ You may want to switch options later depending on the exact submission track.
 - figures point to paper-ready image files, including `*-paper.png` viewer crops
 - the setup compiles successfully with `tectonic`
 - the current main-paper PDF output is `paper/main.pdf`
+- the current named-public PDF output is `paper/main-public.pdf`
 - the supplementary PDF output is `paper/appendix.pdf`
 - the manuscript is now in a seed-paper-final state for internal review and public packaging
 

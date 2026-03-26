@@ -1,8 +1,16 @@
 # sekai / World-Oriented Programming
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19235961.svg)](https://doi.org/10.5281/zenodo.19235961)
+
 `sekai` is an experimental world-oriented programming language for describing executable worlds through space, time, and constraints rather than through instruction sequences.
 
 This repository records the research, prototype implementation, manuscript, viewer, and evaluation scaffold for that project.
+
+Public release:
+
+- Zenodo DOI: `10.5281/zenodo.19235961`
+- Zenodo record: `https://zenodo.org/records/19235961`
+- Named public manuscript: `paper/main-public.tex`
 
 ## Project Statement
 
@@ -131,6 +139,7 @@ The current prototype already supports:
 - a viewer path from diagrammatic drafting to execution and contradiction reporting
 
 For a paper-oriented overview, see `paper/main.tex`.
+For the named public manuscript, see `paper/main-public.tex`.
 For public-facing wording, see `docs/public-facing-summary.md`.
 For arXiv staging, see `docs/arxiv-release-package.md`.
 For citation and archive metadata, see `CITATION.cff` and `.zenodo.json`.
