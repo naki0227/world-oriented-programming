@@ -422,13 +422,10 @@ In the second, the highest-scoring candidate is selected but then repaired by a 
 The prototype can now also expose top-score ties explicitly, together with the deterministic tie-break that selects one admissible continuation while recording the remaining tied labels as skipped candidates.
 It can further distinguish ties whose top-scoring continuations are observationally equivalent, making it explicit when deterministic branch selection chooses a representative continuation rather than an observably different one.
 The prototype can now also mix these modes within one world, so one entity may remain deferred while another converges after repair in the same run.
-The prototype can also now keep a deferred entity unresolved across more than one observed frontier while other entities continue to evolve.
-It can also resolve such a deferred tie at a later frontier when the scene explicitly requests a later convergence point.
-It can also let a newly active preference guide that later convergence, so a deferred tie may resolve for a semantic reason stronger than the prototype's default lexical tie-break.
-It can now also let later score updates reshape that convergence, so underdetermined worlds need not be committed forever to the initial soft ranking declared at time zero.
+The prototype can also keep a deferred entity unresolved across more than one observed frontier while other entities continue to evolve, and it can later re-converge that entity through a delayed resolution point, a newly active preference, or a later score update.
 This convergence work is also starting to connect back to geometry, since a pursuit-like candidate can now be preferred only when another entity remains visible, while an occluded world can prefer a different continuation such as search. That makes line of sight part of world evolution rather than only part of contradiction reporting.
-It can now also let later law updates reshape admissibility itself, so a continuation that was previously blocked by a hard law may later become selectable without abandoning the world-oriented formulation.
-It can now also stagger such re-convergence across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
+Later law updates can likewise reshape admissibility itself, so a continuation that was previously blocked by a hard law may later become selectable without abandoning the world-oriented formulation.
+These re-convergences can also be staggered across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
 The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, deferred, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still unresolved in a small executable stand-in for $Obs? = U$.
 
 These additions remain deliberately small, but they matter for the research trajectory.
