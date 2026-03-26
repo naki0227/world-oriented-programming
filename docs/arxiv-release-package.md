@@ -8,7 +8,9 @@ This note tracks the public-facing package needed when the seed paper is prepare
 
 - `paper/main.tex`
 - `paper/main-public.tex`
+- `paper/main-arxiv.tex`
 - `paper/main-body.tex`
+- `paper/main.bbl`
 - `paper/main.pdf`
 - `paper/references.bib`
 - `README.md`
@@ -35,6 +37,8 @@ If a shorter arXiv summary is needed, compress around these points:
 - the repository branch used for the public release is clean and reproducible
 - author metadata is filled before making a named-public version
 - the public release switches to `paper/main-public.tex`
+- the arXiv upload entry point is `paper/main-arxiv.tex`
+- the staged upload bundle includes `paper/main.bbl`
 
 ## Staging Command
 
@@ -48,11 +52,26 @@ This creates `dist/arxiv-package/` containing:
 
 - `paper/main.tex`
 - `paper/main-public.tex`
+- `paper/main-arxiv.tex`
 - `paper/main-body.tex`
+- `paper/main.bbl`
 - `paper/main.pdf`
 - `paper/references.bib`
 - any figures referenced by `paper/main.tex`, `paper/main-public.tex`, or `paper/appendix.tex`
 - the public summary and author-metadata checklist
+
+## Recommended Upload Entry Point
+
+Use `paper/main-arxiv.tex` for arXiv uploads.
+It is the named-public manuscript with the generated bibliography output embedded through `paper/main.bbl`, which avoids relying on arXiv-side BibTeX execution.
+
+## Suggested Upload Sequence
+
+1. run `./scripts/prepare_arxiv_package.sh`
+2. open `dist/arxiv-package/paper/`
+3. upload `main-arxiv.tex`, `main-body.tex`, `main.bbl`, `references.bib`, and the referenced figures
+4. use `main-arxiv.tex` as the primary manuscript file
+5. keep `main-public.tex` as the local named-public build, not the upload entry point
 
 ## Suggested arXiv Summary
 

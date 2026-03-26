@@ -15,10 +15,16 @@ cp "$ROOT_DIR/paper/main.tex" "$PAPER_DIR/"
 if [[ -f "$ROOT_DIR/paper/main-public.tex" ]]; then
   cp "$ROOT_DIR/paper/main-public.tex" "$PAPER_DIR/"
 fi
+if [[ -f "$ROOT_DIR/paper/main-arxiv.tex" ]]; then
+  cp "$ROOT_DIR/paper/main-arxiv.tex" "$PAPER_DIR/"
+fi
 if [[ -f "$ROOT_DIR/paper/main-body.tex" ]]; then
   cp "$ROOT_DIR/paper/main-body.tex" "$PAPER_DIR/"
 fi
 cp "$ROOT_DIR/paper/references.bib" "$PAPER_DIR/"
+if [[ -f "$ROOT_DIR/paper/main.bbl" ]]; then
+  cp "$ROOT_DIR/paper/main.bbl" "$PAPER_DIR/"
+fi
 
 if [[ -f "$ROOT_DIR/paper/main.pdf" ]]; then
   cp "$ROOT_DIR/paper/main.pdf" "$PAPER_DIR/"

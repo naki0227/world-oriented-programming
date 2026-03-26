@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+title: "World-Oriented Programming: Executable World Description Through Space, Time, and Constraints"
+message: "If you use this repository or manuscript, please cite the public manuscript and the repository."
+type: software
+authors:
+  - family-names: Nagase
+    given-names: Ibuki
+    affiliation: Osaka Electro-Communication University
+    email: contact@enludus.com
+repository-code: "https://github.com/naki0227/world-oriented-programming"
+url: "https://github.com/naki0227/world-oriented-programming"
+abstract: >-
+  sekai is an experimental world-oriented programming language where programs
+  describe executable worlds through space, time, and constraints rather than
+  through instruction sequences.
+keywords:
+  - programming languages
+  - domain-specific languages
+  - simulation
+  - constraints
+  - semantics
+  - visual programming
+license: "MIT"

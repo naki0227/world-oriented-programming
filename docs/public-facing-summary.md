@@ -51,3 +51,12 @@ This file can be used as source text for:
 - conference or workshop summaries
 - outreach posts
 - short research introductions
+
+## Release Note
+
+If arXiv endorsement is not yet available, the project can still be shared through:
+
+- the GitHub repository
+- `paper/main-public.pdf`
+- a Zenodo-linked repository release
+- direct outreach to nearby researchers for feedback and endorsement
