@@ -28,6 +28,11 @@ SCENARIOS = [
         ROOT / "examples" / "candidate_velocity_deferred.sk",
         ROOT / "benchmarks" / "imperative" / "candidate_velocity_deferred.py",
     ),
+    (
+        "visibility_occluded",
+        ROOT / "examples" / "visibility_occluded.sk",
+        ROOT / "benchmarks" / "imperative" / "visibility_occluded.py",
+    ),
 ]
 
 

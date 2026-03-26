@@ -61,6 +61,20 @@ Narrative reading:
 - `sekai` can treat non-resolution as a first-class world state.
 - the imperative baseline must simulate that non-resolution with extra machinery.
 
+## Visibility Occluded
+
+This pair is useful because it begins the move from collision-only geometry toward
+view-dependent world conditions.
+`sekai` can state `visible(A, B)` as a world law and let contradiction emerge when an
+occluding region blocks the line of sight.
+The imperative baseline must instead encode the segment-versus-box test directly and route
+the failure through explicit procedural control flow.
+
+Narrative reading:
+
+- `sekai` foregrounds visibility as a world condition.
+- the imperative baseline foregrounds the occlusion algorithm and failure plumbing.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

@@ -19,6 +19,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/candidate_velocity.sk`
 - `examples/clamped_region.sk`
 - `examples/candidate_velocity_deferred.sk`
+- `examples/visibility_occluded.sk`
 
 Imperative reference baselines live in:
 
@@ -27,6 +28,7 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/candidate_velocity.py`
 - `benchmarks/imperative/clamped_region.py`
 - `benchmarks/imperative/candidate_velocity_deferred.py`
+- `benchmarks/imperative/visibility_occluded.py`
 
 ## Initial Metrics
 
@@ -63,6 +65,7 @@ The first recorded output is summarized in:
 ## Next Steps
 
 - extend the corpus as Phase J adds richer geometry
+- use visibility as the first geometry-forward comparison scenario
 - add scenario-specific narrative comparisons for each pair
 - connect these structural metrics to cognitive-load hypotheses
 - decide whether a lightweight user study is feasible
