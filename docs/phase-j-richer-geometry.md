@@ -27,6 +27,18 @@ This slice is intentionally small, but strategically important:
 - it gives Phase K a more compelling future comparison target
 - it makes visibility a world-level condition instead of scattered update logic
 
+## Next Geometry-Behavior Slice
+
+The next Phase J slice connects visibility to world evolution:
+
+- `prefer_candidate_if_visible(A, pursue, B)`
+
+This matters because:
+
+- visibility stops being only a contradiction trigger
+- line of sight begins to influence candidate-world convergence
+- Phase J starts to connect directly to Phase I underdetermined worlds
+
 ## Near-Term Targets
 
 - richer surfaces beyond a single plane

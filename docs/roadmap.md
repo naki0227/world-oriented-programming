@@ -362,7 +362,7 @@ Definition of done:
 Status:
 
 - in progress
-- first executable slice is a visibility law over an occluding region
+- underdetermined worlds and convergence behavior are part of the core intellectual identity of `sekai`
 
 ## Phase J. Richer Geometry And Space
 
@@ -379,6 +379,10 @@ Definition of done:
 - the language can model more than moving spheres and axis-aligned forbidden regions
 
 Status:
+
+- in progress
+- first executable slice is a visibility law over an occluding region
+- next executable slice is a visibility-conditioned pursuit preference over candidate actions
 
 - not started
 
