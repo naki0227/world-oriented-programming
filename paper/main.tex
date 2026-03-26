@@ -242,7 +242,7 @@ The prototype consists of five connected layers:
 
 The textual DSL is implemented in \texttt{sekai}.
 The runtime core is implemented in \texttt{orbis}.
-The current system supports spheres, one static plane, an axis-aligned region model, velocity limits, forbidden regions, and pairwise elastic collisions.
+The current system supports spheres, one static plane, an axis-aligned region model, velocity limits, forbidden regions, a first visibility law, and pairwise elastic collisions.
 
 Execution begins by constructing a world from declarations.
 The runtime then advances the relevant state to requested observation times, while resolving interaction events only when they become semantically relevant.
@@ -389,6 +389,7 @@ The new underdetermined-world slice is likewise intentionally narrow: it current
 
 These limitations point directly to the next research steps.
 One path is implementation-driven: richer geometry, multiple surfaces, better simultaneous-event handling, and a stronger diagrammatic interface.
+The first geometry slice now underway is a visibility law, where line-of-sight between entities is treated as a world-level condition rather than as ad hoc update logic.
 Another path is semantics-driven: extending the current Phase I slice from candidate selection toward a fuller convergence model for underdetermined worlds.
 Another path is evaluation-driven: comparisons against imperative baselines, analysis of specification size and clarity, and studies of representational alignment for human users.
 

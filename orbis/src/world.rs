@@ -98,6 +98,10 @@ pub enum Constraint {
         sphere_index: usize,
         policy: RepairPolicy,
     },
+    Visible {
+        observer_index: usize,
+        target_index: usize,
+    },
     ElasticCollision { left_index: usize, right_index: usize },
 }
 
@@ -1425,6 +1429,12 @@ pub enum SimulationError {
     MissingRegionBounds(String),
     VelocityLimitExceeded { sphere: String, speed: f64, limit: f64 },
     EnteredForbiddenRegion { sphere: String, region: String, time: f64 },
+    VisibilityOccluded {
+        observer: String,
+        target: String,
+        region: String,
+        time: f64,
+    },
     SphereNotFound(String),
     InvalidActionCandidate(String),
 }
@@ -1453,6 +1463,15 @@ impl fmt::Display for SimulationError {
             Self::EnteredForbiddenRegion { sphere, region, time } => write!(
                 f,
                 "sphere `{sphere}` entered forbidden region `{region}` at t={time:.3}"
+            ),
+            Self::VisibilityOccluded {
+                observer,
+                target,
+                region,
+                time,
+            } => write!(
+                f,
+                "`{observer}` cannot see `{target}` through region `{region}` at t={time:.3}"
             ),
             Self::SphereNotFound(name) => write!(f, "unknown sphere `{name}`"),
             Self::InvalidActionCandidate(message) => write!(f, "{message}"),
@@ -2396,6 +2415,27 @@ impl Constraint {
                 repaired_count: trace.repaired_count,
                 contradicted_count: trace.contradicted_count,
             },
+            Self::Visible {
+                observer_index,
+                target_index,
+            } => ConstraintSummary {
+                kind: "visible".to_string(),
+                category: self.category().as_str().to_string(),
+                targets: vec![
+                    world.spheres[*observer_index].name.clone(),
+                    world.spheres[*target_index].name.clone(),
+                ],
+                policy: "implicit".to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
+            },
             Self::ElasticCollision {
                 left_index,
                 right_index,
@@ -2424,7 +2464,7 @@ impl Constraint {
         match self {
             Self::VelocityLimit { .. } => ConstraintCategory::Invariant,
             Self::ReflectOnCollision { .. } | Self::NotInside { .. } => ConstraintCategory::Boundary,
-            Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
+            Self::Visible { .. } | Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
         }
     }
 
@@ -2434,7 +2474,9 @@ impl Constraint {
             Self::NotInside { .. } => {
                 vec![RepairPolicy::Reject, RepairPolicy::Clamp, RepairPolicy::Reflect]
             }
-            Self::ReflectOnCollision { .. } | Self::ElasticCollision { .. } => Vec::new(),
+            Self::ReflectOnCollision { .. }
+            | Self::Visible { .. }
+            | Self::ElasticCollision { .. } => Vec::new(),
         }
     }
 
@@ -2525,6 +2567,10 @@ impl Constraint {
                     policy,
                 })
             }
+            [name, observer, target] if name == "visible" => Ok(Self::Visible {
+                observer_index: ensure_sphere_exists(context.spheres, observer)?,
+                target_index: ensure_sphere_exists(context.spheres, target)?,
+            }),
             [name, left, right] if name == "elastic_collision" => Ok(Self::ElasticCollision {
                 left_index: ensure_sphere_exists(context.spheres, left)?,
                 right_index: ensure_sphere_exists(context.spheres, right)?,
@@ -2601,6 +2647,25 @@ impl Constraint {
                 }
                 Ok(false)
             }
+            Self::Visible {
+                observer_index,
+                target_index,
+            } => {
+                let Some(region) = world.region.as_ref() else {
+                    return Ok(false);
+                };
+                let observer = &world.spheres[*observer_index];
+                let target = &world.spheres[*target_index];
+                if line_segment_intersects_box(observer.position, target.position, region.min, region.max) {
+                    return Err(SimulationError::VisibilityOccluded {
+                        observer: observer.name.clone(),
+                        target: target.name.clone(),
+                        region: region.name.clone(),
+                        time: world.current_time(),
+                    });
+                }
+                Ok(false)
+            }
         }
     }
 
@@ -2611,7 +2676,7 @@ impl Constraint {
                 time_to_plane_collision(sphere, &world.plane)
                     .map(|dt| Event::plane(constraint_index, *sphere_index, dt))
             }
-            Self::VelocityLimit { .. } => None,
+            Self::VelocityLimit { .. } | Self::Visible { .. } => None,
             Self::NotInside { sphere_index, .. } => {
                 let region = world.region.as_ref()?;
                 let sphere = &world.spheres[*sphere_index];
@@ -3246,6 +3311,37 @@ fn time_to_box_entry(position: Vec3, velocity: Vec3, min: Vec3, max: Vec3) -> Op
     }
 }
 
+fn line_segment_intersects_box(start: Vec3, end: Vec3, min: Vec3, max: Vec3) -> bool {
+    let delta = end - start;
+    let mut t_min: f64 = 0.0;
+    let mut t_max: f64 = 1.0;
+
+    for (origin, direction, axis_min, axis_max) in [
+        (start.x, delta.x, min.x, max.x),
+        (start.y, delta.y, min.y, max.y),
+        (start.z, delta.z, min.z, max.z),
+    ] {
+        if direction.abs() <= EPSILON {
+            if origin < axis_min || origin > axis_max {
+                return false;
+            }
+            continue;
+        }
+
+        let t1 = (axis_min - origin) / direction;
+        let t2 = (axis_max - origin) / direction;
+        let axis_entry = t1.min(t2);
+        let axis_exit = t1.max(t2);
+        t_min = t_min.max(axis_entry);
+        t_max = t_max.min(axis_exit);
+        if t_min > t_max {
+            return false;
+        }
+    }
+
+    t_max >= 0.0 && t_min <= 1.0
+}
+
 fn clamp_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
     let distances = [
         (sphere.position.x - min.x, 0usize, min.x - EPSILON),
@@ -3488,6 +3584,62 @@ observe:
         let sphere = &report.snapshots[0].spheres[0];
         assert!(sphere.position.x < 2.0 || sphere.position.x > 4.0);
         assert_eq!(sphere.velocity.x, -1.0);
+    }
+
+    #[test]
+    fn visibility_law_allows_clear_line_of_sight() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (0, 4, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall) = (2, 1, -1)
+max(wall) = (3, 3, 1)
+constraint:
+    visible(A, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let summary = report
+            .constraints
+            .iter()
+            .find(|constraint| constraint.kind == "visible")
+            .expect("visible summary should exist");
+        assert_eq!(summary.category, "interaction");
+        assert_eq!(summary.outcome, "idle");
+    }
+
+    #[test]
+    fn visibility_law_reports_occlusion_as_contradiction() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+constraint:
+    visible(A, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        assert!(error.to_string().contains("cannot see"));
     }
 
     #[test]

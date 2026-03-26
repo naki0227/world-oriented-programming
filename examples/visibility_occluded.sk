@@ -1,0 +1,21 @@
+sphere A
+sphere B
+plane floor
+region wall
+
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+
+constraint:
+    visible(A, B)
+
+observe:
+    snapshot at 0

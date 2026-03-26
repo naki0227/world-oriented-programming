@@ -419,6 +419,29 @@ fn parse_constraint_alias(line: &str, line_no: usize) -> Result<Option<Vec<Strin
         return Ok(Some(parsed));
     }
 
+    if let Some(rest) = body.strip_prefix("visible(") {
+        let inner = rest
+            .strip_suffix(')')
+            .ok_or_else(|| ParseError::new(line_no, "visible constraint is missing `)`"))?;
+        let args = inner
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        if args.len() != 2 {
+            return Err(ParseError::new(
+                line_no,
+                "visible requires exactly 2 arguments",
+            ));
+        }
+        let mut parsed = vec!["visible".to_string(), args[0].clone(), args[1].clone()];
+        if let Some(policy) = policy {
+            parsed.push(policy.to_string());
+        }
+        return Ok(Some(parsed));
+    }
+
     Ok(None)
 }
 

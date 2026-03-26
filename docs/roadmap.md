@@ -204,7 +204,7 @@ Topics:
 
 Status:
 
-- not started
+- in progress with a first executable visibility-law slice
 
 ## Phase G. Time And Event Semantics
 
