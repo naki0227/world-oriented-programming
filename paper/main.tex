@@ -294,6 +294,33 @@ It now also includes a first branching visibility world, where the same geometry
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show that the center of expression shifts from step-by-step update procedure to world definition and admissibility law.
 
+\subsection{Structural Comparison Snapshot}
+
+The current Phase K scaffold also provides a small structural comparison against compact imperative baselines.
+Table~\ref{tab:baseline-snapshot} reports three representative cases: basic world evolution, underdetermined convergence, and geometry-conditioned branching.
+These numbers are intentionally modest rather than exhaustive.
+They are included to show that the evaluation is already reproducible and that the current corpus consistently shifts specification effort away from loops, branches, and explicit update bookkeeping.
+
+\begin{table}[t]
+  \caption{Representative structural comparison between \emph{sekai} and compact imperative baselines.}
+  \label{tab:baseline-snapshot}
+  \centering
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    Scenario & LOC$_s$ & LOC$_i$ & Density$_s$ & Branch$_i$ \\
+    \midrule
+    bounce & 15 & 32 & 0.867 & 3 \\
+    candidate deferred & 13 & 36 & 0.846 & 4 \\
+    visibility pursuit world & 20 & 56 & 0.900 & 8 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Across this first corpus, \emph{sekai} remains shorter and more declarative in structure, while the imperative versions spend more of their specification budget on explicit control and state-management machinery.
+The point is not that these initial baselines are definitive.
+It is that even the first scaffold already supports a stable narrative: once space, time, admissibility, and convergence are made first-class, the center of expression moves away from update logic and toward world description.
+
 \subsection{Minimal Declarative Evolution}
 
 The first scenario is a bouncing sphere described in the \emph{bounce} example.
@@ -412,6 +439,7 @@ It can also begin to represent worlds whose next admissible development is chose
 
 The current prototype supports the paper's central conceptual claims.
 It shows that declarative world description can drive execution, that admissibility can be modeled as a world law, that interaction can be localized rather than globally synchronized, and that a first visual-to-execution loop is already implementable.
+It also now shows that the same prototype line can be evaluated structurally against compact imperative baselines and extended into a first richer-geometry pillar without abandoning the original world-oriented formulation.
 
 \section{Discussion and Future Work}
 
