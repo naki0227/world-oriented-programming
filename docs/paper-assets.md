@@ -44,15 +44,15 @@ This document lists the current executable assets that can already be cited in a
 
 ### Visibility Set
 
-- image: `figures/viewer-visibility-01-clear-run.png`
+- image: `figures/viewer-visibility-01-clear-run-paper.png`
 - caption source: `docs/paper-figures-captions.md`
 - role: visibility-conditioned pursuit in the clear-line-of-sight case
 
-- image: `figures/viewer-visibility-02-occluded-preset.png`
+- image: `figures/viewer-visibility-02-occluded-preset-paper.png`
 - caption source: `docs/paper-figures-captions.md`
 - role: draft-editor preset for a visibility-conditioned world
 
-- image: `figures/viewer-visibility-03-occluded-run.png`
+- image: `figures/viewer-visibility-03-occluded-run-paper.png`
 - caption source: `docs/paper-figures-captions.md`
 - role: visibility-conditioned branching toward search in the occluded case
 

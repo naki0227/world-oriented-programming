@@ -8,6 +8,12 @@ Registered the first dedicated visibility screenshots as paper-track assets.
 - `figures/viewer-visibility-02-occluded-preset.png`
 - `figures/viewer-visibility-03-occluded-run.png`
 
+## Paper-ready crops
+
+- `figures/viewer-visibility-01-clear-run-paper.png`
+- `figures/viewer-visibility-02-occluded-preset-paper.png`
+- `figures/viewer-visibility-03-occluded-run-paper.png`
+
 ## Documentation updates
 
 - `docs/screenshots.md`
