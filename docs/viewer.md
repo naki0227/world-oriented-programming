@@ -34,6 +34,7 @@ and provides:
 - quick comparison between clear and occluded `visible(A, B)` worlds
 - quick comparison between clear and occluded visibility-conditioned pursuit worlds
 - quick comparison between clear and occluded pursuit-world branching
+- draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - a minimal diagram-aware draft editor in `xy` mode
 - automatic `.sk` draft generation from placed spheres and floor settings
 - automatic constraint candidate suggestion with user-controlled adoption

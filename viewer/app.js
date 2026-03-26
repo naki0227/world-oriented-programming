@@ -1656,16 +1656,28 @@ function generateDraftDSL() {
     lines.push("");
   }
 
-  lines.push("constraint:");
-  const accepted = buildCandidateConstraints().filter((candidate) =>
+  const accepted = buildDraftCandidates().filter((candidate) =>
     state.editor.acceptedConstraints.has(candidate.id),
   );
-  if (accepted.length > 0) {
-    accepted.forEach((candidate) => {
-      lines.push(`    ${candidate.expression}`);
+
+  const acceptedConstraints = accepted.filter((candidate) => candidate.section === "constraint");
+  const acceptedActions = accepted.filter((candidate) => candidate.section === "action");
+
+  lines.push("constraint:");
+  if (acceptedConstraints.length > 0) {
+    acceptedConstraints.forEach((candidate) => {
+      candidate.lines.forEach((line) => lines.push(`    ${line}`));
     });
   } else {
     lines.push("    # add constraints here");
+  }
+
+  if (acceptedActions.length > 0) {
+    lines.push("");
+    lines.push("action:");
+    acceptedActions.forEach((candidate) => {
+      candidate.lines.forEach((line) => lines.push(`    ${line}`));
+    });
   }
 
   lines.push("");
@@ -1723,7 +1735,7 @@ function normalizedRegion() {
 }
 
 function renderConstraintCandidates() {
-  const candidates = buildCandidateConstraints();
+  const candidates = buildDraftCandidates();
   constraintCandidates.innerHTML = "";
 
   if (candidates.length === 0) {
@@ -1839,6 +1851,66 @@ function buildCandidateConstraints() {
   }
 
   return candidates;
+}
+
+function buildDraftCandidates() {
+  const candidates = buildCandidateConstraints().map((candidate) => ({
+    ...candidate,
+    section: "constraint",
+    lines: [candidate.expression],
+  }));
+
+  if (state.editor.spheres.length >= 2 && state.editor.regionEnabled) {
+    for (let i = 0; i < state.editor.spheres.length; i += 1) {
+      for (let j = i + 1; j < state.editor.spheres.length; j += 1) {
+        const actor = state.editor.spheres[i];
+        const target = state.editor.spheres[j];
+        const pursuit = pursuitVector(actor, target);
+        const search = searchVector(pursuit);
+        candidates.push({
+          id: `visible:${actor.id}:${target.id}`,
+          section: "constraint",
+          expression: `visible(${actor.name}, ${target.name})`,
+          lines: [`visible(${actor.name}, ${target.name})`],
+          reason: `${actor.name} can be constrained to maintain line of sight to ${target.name} across the occluding region.`,
+        });
+        candidates.push({
+          id: `visibility-world:${actor.id}:${target.id}`,
+          section: "action",
+          expression: `visibility_pursuit_world(${actor.name}, ${target.name})`,
+          lines: [
+            `candidate_velocity(${actor.name}, hold) = (0, 0, 0) score 5`,
+            `candidate_velocity(${actor.name}, pursue) = (${formatNum(pursuit.x)}, ${formatNum(pursuit.y)}, 0) score 5`,
+            `candidate_velocity(${actor.name}, search) = (${formatNum(search.x)}, ${formatNum(search.y)}, 0) score 5`,
+            `prefer_candidate_if_visible(${actor.name}, pursue, ${target.name})`,
+            `prefer_candidate_if_occluded(${actor.name}, search, ${target.name})`,
+          ],
+          reason: `This turns visibility into a world-level branch: ${actor.name} pursues ${target.name} when visible and searches when occluded.`,
+        });
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function pursuitVector(actor, target) {
+  const dx = target.position.x - actor.position.x;
+  const dy = target.position.y - actor.position.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-6) {
+    return { x: 1, y: 0 };
+  }
+  return { x: dx / length, y: dy / length };
+}
+
+function searchVector(direction) {
+  const perpendicular = { x: -direction.y, y: direction.x };
+  const length = Math.hypot(perpendicular.x, perpendicular.y);
+  if (length < 1e-6) {
+    return { x: 0, y: 1 };
+  }
+  return { x: perpendicular.x / length, y: perpendicular.y / length };
 }
 
 function isPairApproaching(left, right) {
