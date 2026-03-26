@@ -1,0 +1,22 @@
+{
+  "title": "sekai / World-Oriented Programming",
+  "description": "Research and prototype implementation for sekai, an experimental world-oriented programming language where programs describe executable worlds through space, time, and constraints rather than through instruction sequences.",
+  "creators": [
+    {
+      "name": "Nagase, Ibuki",
+      "affiliation": "Osaka Electro-Communication University"
+    }
+  ],
+  "keywords": [
+    "programming languages",
+    "domain-specific languages",
+    "simulation",
+    "constraints",
+    "semantics",
+    "visual programming",
+    "world modeling"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open"
+}
