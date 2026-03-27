@@ -32,6 +32,7 @@ and provides:
 - support for multi-entity Phase I reports with more than one candidate-resolution card
 - quick comparison between forbidden-region `reject`, `clamp`, and `reflect` samples
 - quick comparison between clear and occluded `visible(A, B)` worlds
+- quick comparison between single-occluder and multi-occluder visibility worlds
 - quick comparison between clear and occluded visibility-conditioned pursuit worlds
 - quick comparison between clear and occluded pursuit-world branching
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
@@ -99,6 +100,8 @@ cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_occluded.sk > viewer/samples/visibility_occluded.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_multi_occluder_clear.sk > viewer/samples/visibility_multi_occluder_clear.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_multi_occluder_occluded.sk > viewer/samples/visibility_multi_occluder_occluded.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_clear.sk > viewer/samples/visibility_pursuit_clear.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_occluded.sk > viewer/samples/visibility_pursuit_occluded.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_world_clear.sk > viewer/samples/visibility_pursuit_world_clear.json

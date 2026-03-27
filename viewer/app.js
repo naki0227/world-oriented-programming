@@ -91,6 +91,8 @@ const POLICY_COMPARISON_SAMPLES = [
 const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "clear", path: "./samples/visibility_clear.json" },
   { label: "occluded", path: "./samples/visibility_occluded.json" },
+  { label: "multi clear", path: "./samples/visibility_multi_occluder_clear.json" },
+  { label: "multi occluded", path: "./samples/visibility_multi_occluder_occluded.json" },
   { label: "pursuit clear", path: "./samples/visibility_pursuit_clear.json" },
   { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
   { label: "world clear", path: "./samples/visibility_pursuit_world_clear.json" },
@@ -1407,6 +1409,10 @@ function renderVisibilityComparison() {
         ? "The line of sight is unobstructed, so the visibility law remains admissible."
         : sample.label === "occluded"
           ? "An occluding region intersects the line of sight, so the world contradicts at the observation frontier."
+          : sample.label === "multi clear"
+            ? "Multiple occluding regions are present, but none intersects the current line of sight."
+            : sample.label === "multi occluded"
+              ? "The line of sight is blocked by more than one occluding region, so visibility fails as a multi-obstacle condition."
           : sample.label === "pursuit clear"
             ? "Visibility now changes candidate selection, so the pursuit-like continuation is preferred."
             : sample.label === "pursuit occluded"

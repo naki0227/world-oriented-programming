@@ -117,6 +117,7 @@ pub struct World {
     pub spheres: Vec<Sphere>,
     pub plane: Plane,
     pub region: Option<Region>,
+    pub occluder_regions: Vec<Region>,
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
     pub candidate_resolutions: Vec<CandidateResolution>,
@@ -1670,7 +1671,11 @@ impl World {
             .iter()
             .find(|entity| entity.kind == "plane")
             .ok_or(SimulationError::MissingPlane)?;
-        let region_decl = program.entities.iter().find(|entity| entity.kind == "region");
+        let region_decls = program
+            .entities
+            .iter()
+            .filter(|entity| entity.kind == "region")
+            .collect::<Vec<_>>();
 
         let mut spheres = Vec::new();
         for sphere_decl in sphere_decls {
@@ -1700,21 +1705,20 @@ impl World {
             offset: program.number_property("offset", &plane_name).unwrap_or(0.0),
         };
 
-        let region = match region_decl {
-            Some(region_decl) => {
-                let region_name = region_decl.name.clone();
-                Some(Region {
-                    name: region_name.clone(),
-                    min: program
-                        .vec3_property("min", &region_name)
-                        .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
-                    max: program
-                        .vec3_property("max", &region_name)
-                        .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
-                })
-            }
-            None => None,
-        };
+        let mut occluder_regions = Vec::new();
+        for region_decl in &region_decls {
+            let region_name = region_decl.name.clone();
+            occluder_regions.push(Region {
+                name: region_name.clone(),
+                min: program
+                    .vec3_property("min", &region_name)
+                    .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
+                max: program
+                    .vec3_property("max", &region_name)
+                    .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
+            });
+        }
+        let region = occluder_regions.first().cloned();
 
         let build_context = ConstraintBuildContext {
             spheres: &spheres,
@@ -1730,6 +1734,7 @@ impl World {
             spheres,
             plane,
             region,
+            occluder_regions,
             constraints,
             constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
             candidate_resolutions: Vec::new(),
@@ -2046,9 +2051,9 @@ impl World {
     }
 
     fn entity_can_see(&self, observer_name: &str, target_name: &str) -> bool {
-        let Some(region) = &self.region else {
+        if self.occluder_regions.is_empty() {
             return true;
-        };
+        }
         let Ok(observer_index) = ensure_sphere_exists(&self.spheres, observer_name) else {
             return false;
         };
@@ -2056,12 +2061,19 @@ impl World {
             return false;
         };
 
-        !line_segment_intersects_box(
-            self.spheres[observer_index].position,
-            self.spheres[target_index].position,
-            region.min,
-            region.max,
-        )
+        self.occluding_regions_between(observer_index, target_index).is_empty()
+    }
+
+    fn occluding_regions_between(&self, observer_index: usize, target_index: usize) -> Vec<String> {
+        let observer = &self.spheres[observer_index];
+        let target = &self.spheres[target_index];
+        self.occluder_regions
+            .iter()
+            .filter(|region| {
+                line_segment_intersects_box(observer.position, target.position, region.min, region.max)
+            })
+            .map(|region| region.name.clone())
+            .collect()
     }
 
     fn resolve_candidates_for_entity(
@@ -2703,16 +2715,17 @@ impl Constraint {
                 observer_index,
                 target_index,
             } => {
-                let Some(region) = world.region.as_ref() else {
+                if world.occluder_regions.is_empty() {
                     return Ok(false);
-                };
-                let observer = &world.spheres[*observer_index];
-                let target = &world.spheres[*target_index];
-                if line_segment_intersects_box(observer.position, target.position, region.min, region.max) {
+                }
+                let blocking_regions = world.occluding_regions_between(*observer_index, *target_index);
+                if !blocking_regions.is_empty() {
+                    let observer = &world.spheres[*observer_index];
+                    let target = &world.spheres[*target_index];
                     return Err(SimulationError::VisibilityOccluded {
                         observer: observer.name.clone(),
                         target: target.name.clone(),
-                        region: region.name.clone(),
+                        region: blocking_regions.join(", "),
                         time: world.current_time(),
                     });
                 }
@@ -3756,6 +3769,69 @@ observe:
         let program = parse_program(source).expect("program should parse");
         let error = simulate_program(&program).expect_err("simulation should fail");
         assert!(error.to_string().contains("cannot see"));
+    }
+
+    #[test]
+    fn visibility_law_allows_multiple_clear_occluders() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall_left
+region wall_right
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (0, 4, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_left) = (2, 0, -1)
+max(wall_left) = (3, 1, 1)
+min(wall_right) = (-3, 2.5, -1)
+max(wall_right) = (-2, 3.5, 1)
+constraint:
+    visible(A, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let summary = report
+            .constraints
+            .iter()
+            .find(|constraint| constraint.kind == "visible")
+            .expect("visible summary should exist");
+        assert_eq!(summary.outcome, "idle");
+    }
+
+    #[test]
+    fn visibility_law_reports_first_multi_occluder_hit_set() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall_left
+region wall_right
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_left) = (0.5, -1, -1)
+max(wall_left) = (1.5, 1, 1)
+min(wall_right) = (2.5, -1, -1)
+max(wall_right) = (3.5, 1, 1)
+constraint:
+    visible(A, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        let message = error.to_string();
+        assert!(message.contains("wall_left"));
+        assert!(message.contains("wall_right"));
     }
 
     #[test]

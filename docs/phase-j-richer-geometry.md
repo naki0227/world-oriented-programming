@@ -17,8 +17,8 @@ The first Phase J slice is a visibility law:
 
 - `visible(A, B)`
 
-In the current prototype, the law is evaluated against a declared axis-aligned occluding `region`.
-If the line segment between `A` and `B` intersects that region at an observation frontier,
+In the current prototype, the law is evaluated against declared axis-aligned occluding `region`s.
+If the line segment between `A` and `B` intersects one or more of those regions at an observation frontier,
 the world reports contradiction.
 
 This slice is intentionally small, but strategically important:
@@ -26,6 +26,9 @@ This slice is intentionally small, but strategically important:
 - it moves the project beyond collision-only geometry
 - it gives Phase K a more compelling future comparison target
 - it makes visibility a world-level condition instead of scattered update logic
+
+The next incremental step is multi-occluder visibility.
+The runtime can now keep line of sight admissible across several declared blocking regions and report the blocking set when visibility fails.
 
 ## Next Geometry-Behavior Slice
 
