@@ -33,6 +33,7 @@ This now supports a first corridor-style world, where side walls preserve a narr
 It also supports a first time-varying corridor slice, where a moving target can later enter or leave that channel and thereby resolve a deferred world.
 It now also supports a first multi-target visibility handoff, where the same deferred world can resolve toward one of several pursuit continuations depending on which target later becomes visible.
 It now also supports a first multi-agent visibility coordination slice, where one visibility change can resolve more than one candidate-bearing entity at the same frontier.
+It now also supports a first visibility network slice, where the same geometry assigns several agents to target-specific roles rather than only flipping one local branch.
 
 ## Next Geometry-Behavior Slice
 
@@ -51,6 +52,7 @@ This matters because:
 - a deferred corridor world can now resolve differently when line of sight changes at a later observation frontier
 - a multi-target world can now hand off convergence between several pursuit continuations as visibility changes
 - a shared visibility change can now coordinate several candidate-bearing entities at once
+- a visibility network can now assign target-specific roles across several agents
 
 ## Near-Term Targets
 

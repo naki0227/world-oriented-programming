@@ -39,6 +39,7 @@ and provides:
 - quick comparison between deferred corridor worlds that later become visible or later become occluded
 - paired handoff worlds where the same deferred setup resolves toward `pursue_b` or `pursue_c`
 - coordination worlds where two deferred entities resolve together when the same target becomes visible or occluded
+- visibility network worlds where two agents jointly resolve toward target-specific roles for `B` or `C`
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
@@ -118,6 +119,8 @@ cargo run -p sekai-cli -- simulate-report examples/visibility_handoff_deferred_b
 cargo run -p sekai-cli -- simulate-report examples/visibility_handoff_deferred_c.sk > viewer/samples/visibility_handoff_deferred_c.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_visible.sk > viewer/samples/visibility_coordination_visible.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_occluded.sk > viewer/samples/visibility_coordination_occluded.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_network_roles_b.sk > viewer/samples/visibility_network_roles_b.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_network_roles_c.sk > viewer/samples/visibility_network_roles_c.json
 ```
 
 ## Why This Viewer Exists

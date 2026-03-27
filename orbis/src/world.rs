@@ -5158,4 +5158,130 @@ observe:
         assert_eq!(d.resolved_at_observation_time.as_deref(), Some("1.000"));
         assert_eq!(report.observation_summary.status, "determinate");
     }
+
+    #[test]
+    fn visibility_network_can_assign_roles_toward_b() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.5, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 0.5
+position(C) = (6, -2, 0)
+velocity(C) = (0, 0, 0)
+radius(C) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_b) = (1, 1, 0) score 5
+    candidate_velocity(D, support_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_visible(D, support_b, B)
+    prefer_candidate_if_visible(D, support_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_b"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_b"));
+        assert_eq!(a.preferred_label.as_deref(), Some("pursue_b"));
+        assert_eq!(d.preferred_label.as_deref(), Some("support_b"));
+    }
+
+    #[test]
+    fn visibility_network_can_assign_roles_toward_c() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.5, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 0.5
+position(C) = (6, -2, 0)
+velocity(C) = (0, 2, 0)
+radius(C) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_b) = (1, 1, 0) score 5
+    candidate_velocity(D, support_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_visible(D, support_b, B)
+    prefer_candidate_if_visible(D, support_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_c"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_c"));
+        assert_eq!(a.preferred_label.as_deref(), Some("pursue_c"));
+        assert_eq!(d.preferred_label.as_deref(), Some("support_c"));
+    }
 }

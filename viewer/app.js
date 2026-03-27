@@ -105,6 +105,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "handoff C", path: "./samples/visibility_handoff_deferred_c.json" },
   { label: "coord visible", path: "./samples/visibility_coordination_visible.json" },
   { label: "coord occluded", path: "./samples/visibility_coordination_occluded.json" },
+  { label: "network B", path: "./samples/visibility_network_roles_b.json" },
+  { label: "network C", path: "./samples/visibility_network_roles_c.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1443,7 +1445,11 @@ function renderVisibilityComparison() {
                               ? "The same deferred world now hands off toward pursue_c when C becomes visible through the corridor."
                               : sample.label === "coord visible"
                                 ? "The same visibility change now resolves several deferred entities together toward pursuit-like continuations."
-                                : "The same occlusion change now resolves several deferred entities together toward search/cover continuations.";
+                                : sample.label === "coord occluded"
+                                  ? "The same occlusion change now resolves several deferred entities together toward search/cover continuations."
+                                  : sample.label === "network B"
+                                    ? "The same visibility network now assigns several agents to B-specific roles."
+                                    : "The same visibility network now assigns several agents to C-specific roles.";
 
     const button = document.createElement("button");
     button.type = "button";
