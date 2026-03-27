@@ -97,6 +97,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
   { label: "world clear", path: "./samples/visibility_pursuit_world_clear.json" },
   { label: "world occluded", path: "./samples/visibility_pursuit_world_occluded.json" },
+  { label: "corridor clear", path: "./samples/visibility_corridor_world_clear.json" },
+  { label: "corridor occluded", path: "./samples/visibility_corridor_world_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1419,7 +1421,11 @@ function renderVisibilityComparison() {
               ? "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected."
               : sample.label === "world clear"
                 ? "A clear line of sight now branches the world toward pursuit rather than hold or search."
-                : "An occluded line of sight now branches the same world toward search instead of pursuit.";
+                : sample.label === "world occluded"
+                  ? "An occluded line of sight now branches the same world toward search instead of pursuit."
+                  : sample.label === "corridor clear"
+                    ? "A corridor geometry preserves line of sight across several walls, so the world still prefers pursuit."
+                    : "A corridor blocker closes the line of sight, so the same corridor world now branches toward search.";
 
     const button = document.createElement("button");
     button.type = "button";

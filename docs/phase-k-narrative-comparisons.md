@@ -101,6 +101,17 @@ Narrative reading:
 - `sekai` foregrounds visibility as a geometric branching condition on world evolution.
 - the imperative baseline foregrounds control flow, visibility checks, and ranking updates.
 
+## Visibility Corridor World Occluded
+
+This pair turns the same visibility idea into a more recognizable geometry situation.
+`sekai` can state corridor walls, an optional blocker, and the visibility-conditioned branch in the same world description.
+The imperative baseline must iterate through several blocking volumes, determine whether the corridor still preserves line of sight, and then manually route control toward search when the blocker closes the path.
+
+Narrative reading:
+
+- `sekai` foregrounds corridor geometry and the law-conditioned branch together.
+- the imperative baseline foregrounds multi-box visibility checks and procedural routing.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

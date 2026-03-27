@@ -29,6 +29,7 @@ This slice is intentionally small, but strategically important:
 
 The next incremental step is multi-occluder visibility.
 The runtime can now keep line of sight admissible across several declared blocking regions and report the blocking set when visibility fails.
+This now supports a first corridor-style world, where side walls preserve a narrow visibility channel and an inserted blocker closes it.
 
 ## Next Geometry-Behavior Slice
 
@@ -43,6 +44,7 @@ This matters because:
 - line of sight begins to influence candidate-world convergence
 - Phase J starts to connect directly to Phase I underdetermined worlds
 - a world can switch between pursuit-like and search-like continuations without exposing update logic
+- a corridor-shaped world can now branch differently when its visibility channel is preserved or blocked
 
 ## Near-Term Targets
 

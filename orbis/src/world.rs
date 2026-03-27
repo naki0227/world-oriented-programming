@@ -4788,4 +4788,82 @@ observe:
         assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
         assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
     }
+
+    #[test]
+    fn visibility_corridor_world_can_switch_between_pursue_and_search() {
+        let clear = r#"
+sphere A
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    candidate_velocity(A, search) = (0, 1, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+"#;
+        let clear_program = parse_program(clear).expect("clear corridor program should parse");
+        let clear_report =
+            simulate_program(&clear_program).expect("clear corridor simulation should succeed");
+        let clear_resolution = clear_report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("clear corridor candidate resolution should be present");
+        assert_eq!(clear_resolution.selected_candidate.as_deref(), Some("pursue"));
+
+        let occluded = r#"
+sphere A
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+region blocker
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+min(blocker) = (2.5, -0.5, -1)
+max(blocker) = (3.5, 0.5, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    candidate_velocity(A, search) = (0, 1, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+"#;
+        let occluded_program =
+            parse_program(occluded).expect("occluded corridor program should parse");
+        let occluded_report = simulate_program(&occluded_program)
+            .expect("occluded corridor simulation should succeed");
+        let occluded_resolution = occluded_report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("occluded corridor candidate resolution should be present");
+        assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
+        assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
+    }
 }

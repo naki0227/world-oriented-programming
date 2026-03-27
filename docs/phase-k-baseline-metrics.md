@@ -101,6 +101,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 18 | 0 |
 | declarative density | 0.900 | 0.000 |
 
+## Visibility Corridor World Occluded
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 26 | 64 |
+| token count | 197 | 785 |
+| branch keywords | 0 | 8 |
+| loop keywords | 0 | 4 |
+| state-assignment lines | 14 | 24 |
+| declarative lines | 23 | 0 |
+| declarative density | 0.885 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -109,4 +121,5 @@ but they make the evaluation phase concrete and reproducible.
 - The first visibility slice keeps the same pattern while moving the corpus toward richer geometry.
 - The visibility-pursuit pair keeps the same structural pattern even when geometry changes candidate selection rather than only causing contradiction.
 - The branching visibility-pursuit world keeps the same pattern even when geometry selects between continuation families such as pursuit and search.
+- The corridor visibility world keeps the same pattern even when several regions must jointly preserve or block line of sight.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.
