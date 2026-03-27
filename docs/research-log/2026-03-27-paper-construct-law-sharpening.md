@@ -14,3 +14,5 @@ The goal was to make the paper's main contrast more legible:
 \emph{sekai} keeps world construction and world law explicit, whereas imperative baselines tend to bury both inside update procedures and guard logic.
 
 This should make the seed paper read less like a broad paradigm sketch and more like an executable claim about representation and execution.
+
+A final micro-pass then pushed the same center into the title and evaluation framing, so the paper more directly presents itself as a claim about executable world construction under explicit law.

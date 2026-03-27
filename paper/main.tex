@@ -8,7 +8,7 @@
 
 \begin{document}
 
-\title{World-Oriented Programming:\\Executable World Description Through Space, Time, and Constraints}
+\title{World-Oriented Programming:\\Executable World Construction and Law Through Space, Time, and Constraints}
 \shorttitle{World-Oriented Programming}
 
 % Anonymous review package:
@@ -17,12 +17,12 @@
 % replace the anonymous class option and add author/affiliation blocks here.
 
 \begin{abstract}
-This paper proposes World-Oriented Programming, a programming paradigm in which executable systems are described as worlds rather than as instruction sequences.
+This paper proposes World-Oriented Programming, a programming paradigm in which executable systems are constructed as worlds with explicit laws rather than authored as instruction sequences.
 The proposal is motivated by a persistent mismatch between human spatial-temporal reasoning and conventional programming practice, especially in domains such as simulation, geometry, interactive environments, and world-based game logic.
 In the proposed model, programs construct worlds by declaring entities, spatial relations, temporal development, and logical constraints directly, while execution is treated as the admissible evolution of those worlds over time.
 
 The contribution of this paper is not a claim of mature generality.
-Rather, it is a claim that world construction and world law are already coherent enough to be instantiated together in a small executable system.
+Rather, it is a claim that executable world construction and explicit world law are already coherent enough to be instantiated together in a small executable system.
 The current prototype combines declarative world description, update-free temporal progression, constraint-first validity handling, and local synchronization at interaction points.
 Three executable scenarios and a minimal visual round-trip are used as worked examples: a bouncing-sphere world, a forbidden-region world, a two-body collision world, and a viewer path from diagrammatic drafting to execution.
 Together they show that simple spatial-temporal systems can already be expressed by constructing worlds and stating laws rather than by authoring update procedures, that contradictions can be modeled as violations of world laws, that independently evolving entities can synchronize only when interaction occurs, and that visual arrangement can already participate in the same execution pipeline.
@@ -262,7 +262,7 @@ It is evidence that one world model can already support inspection, drafting, lo
 
 This evaluation is intentionally modest.
 It is not an attempt to prove that World-Oriented Programming is already superior to mature programming paradigms.
-Rather, it asks whether the paradigm is coherent enough to support a first executable system whose behavior genuinely reflects the ideas it claims to embody.
+Rather, it asks whether explicit world construction plus explicit world law are coherent enough to support a first executable system whose behavior genuinely reflects the ideas the paper claims to embody.
 
 The evaluation is organized around three questions:
 \begin{enumerate}
