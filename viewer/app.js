@@ -99,6 +99,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "world occluded", path: "./samples/visibility_pursuit_world_occluded.json" },
   { label: "corridor clear", path: "./samples/visibility_corridor_world_clear.json" },
   { label: "corridor occluded", path: "./samples/visibility_corridor_world_occluded.json" },
+  { label: "deferred visible", path: "./samples/visibility_corridor_deferred_visible.json" },
+  { label: "deferred occluded", path: "./samples/visibility_corridor_deferred_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1424,8 +1426,12 @@ function renderVisibilityComparison() {
                 : sample.label === "world occluded"
                   ? "An occluded line of sight now branches the same world toward search instead of pursuit."
                   : sample.label === "corridor clear"
-                    ? "A corridor geometry preserves line of sight across several walls, so the world still prefers pursuit."
-                    : "A corridor blocker closes the line of sight, so the same corridor world now branches toward search.";
+                  ? "A corridor geometry preserves line of sight across several walls, so the world still prefers pursuit."
+                    : sample.label === "corridor occluded"
+                      ? "A corridor blocker closes the line of sight, so the same corridor world now branches toward search."
+                      : sample.label === "deferred visible"
+                        ? "A moving target enters the corridor's visibility channel later, so a deferred world resolves toward pursuit at the next frontier."
+                        : "A moving target leaves the corridor's visibility channel later, so a deferred world resolves toward search at the next frontier.";
 
     const button = document.createElement("button");
     button.type = "button";

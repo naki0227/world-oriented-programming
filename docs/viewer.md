@@ -36,6 +36,7 @@ and provides:
 - quick comparison between clear and occluded visibility-conditioned pursuit worlds
 - quick comparison between clear and occluded pursuit-world branching
 - quick comparison between clear and blocked corridor-style visibility worlds
+- quick comparison between deferred corridor worlds that later become visible or later become occluded
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
@@ -109,6 +110,8 @@ cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_world_clea
 cargo run -p sekai-cli -- simulate-report examples/visibility_pursuit_world_occluded.sk > viewer/samples/visibility_pursuit_world_occluded.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_corridor_world_clear.sk > viewer/samples/visibility_corridor_world_clear.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_corridor_world_occluded.sk > viewer/samples/visibility_corridor_world_occluded.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_corridor_deferred_visible.sk > viewer/samples/visibility_corridor_deferred_visible.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_corridor_deferred_occluded.sk > viewer/samples/visibility_corridor_deferred_occluded.json
 ```
 
 ## Why This Viewer Exists

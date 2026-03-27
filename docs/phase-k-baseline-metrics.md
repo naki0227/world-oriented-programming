@@ -105,13 +105,13 @@ but they make the evaluation phase concrete and reproducible.
 
 | metric | sekai | imperative baseline |
 | --- | ---: | ---: |
-| logical LOC | 26 | 64 |
-| token count | 197 | 785 |
-| branch keywords | 0 | 8 |
+| logical LOC | 28 | 62 |
+| token count | 233 | 760 |
+| branch keywords | 0 | 9 |
 | loop keywords | 0 | 4 |
-| state-assignment lines | 14 | 24 |
-| declarative lines | 23 | 0 |
-| declarative density | 0.885 | 0.000 |
+| state-assignment lines | 17 | 20 |
+| declarative lines | 26 | 0 |
+| declarative density | 0.929 | 0.000 |
 
 ## Reading
 
