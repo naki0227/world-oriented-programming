@@ -5042,4 +5042,120 @@ observe:
         assert_eq!(resolution.preferred_label.as_deref(), Some("pursue_c"));
         assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
     }
+
+    #[test]
+    fn visibility_coordination_can_resolve_multiple_entities_when_target_becomes_visible() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_a) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_a, B)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_d) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_visible(D, support_d, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.convergence_mode, "resolved_after_preference");
+        assert_eq!(d.convergence_mode, "resolved_after_preference");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_a"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_d"));
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(d.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.observation_summary.status, "determinate");
+    }
+
+    #[test]
+    fn visibility_coordination_can_resolve_multiple_entities_when_target_becomes_occluded() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 0, 0)
+velocity(B) = (0, 2, 0)
+radius(B) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, search_a) = (0, 1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_occluded(A, search_a, B)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, cover_d) = (0, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_occluded(D, cover_d, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.convergence_mode, "resolved_after_preference");
+        assert_eq!(d.convergence_mode, "resolved_after_preference");
+        assert_eq!(a.selected_candidate.as_deref(), Some("search_a"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("cover_d"));
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(d.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.observation_summary.status, "determinate");
+    }
 }

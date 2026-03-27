@@ -103,6 +103,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "deferred occluded", path: "./samples/visibility_corridor_deferred_occluded.json" },
   { label: "handoff B", path: "./samples/visibility_handoff_deferred_b.json" },
   { label: "handoff C", path: "./samples/visibility_handoff_deferred_c.json" },
+  { label: "coord visible", path: "./samples/visibility_coordination_visible.json" },
+  { label: "coord occluded", path: "./samples/visibility_coordination_occluded.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1435,9 +1437,13 @@ function renderVisibilityComparison() {
                         ? "A moving target enters the corridor's visibility channel later, so a deferred world resolves toward pursuit at the next frontier."
                         : sample.label === "deferred occluded"
                           ? "A moving target leaves the corridor's visibility channel later, so a deferred world resolves toward search at the next frontier."
-                          : sample.label === "handoff B"
+                        : sample.label === "handoff B"
                             ? "The same deferred world now hands off toward pursue_b when B becomes visible through the corridor."
-                            : "The same deferred world now hands off toward pursue_c when C becomes visible through the corridor.";
+                            : sample.label === "handoff C"
+                              ? "The same deferred world now hands off toward pursue_c when C becomes visible through the corridor."
+                              : sample.label === "coord visible"
+                                ? "The same visibility change now resolves several deferred entities together toward pursuit-like continuations."
+                                : "The same occlusion change now resolves several deferred entities together toward search/cover continuations.";
 
     const button = document.createElement("button");
     button.type = "button";
