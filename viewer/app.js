@@ -93,6 +93,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "occluded", path: "./samples/visibility_occluded.json" },
   { label: "pursuit clear", path: "./samples/visibility_pursuit_clear.json" },
   { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
+  { label: "becomes visible", path: "./samples/visibility_deferred_becomes_visible.json" },
+  { label: "becomes occluded", path: "./samples/visibility_deferred_becomes_occluded.json" },
   { label: "world clear", path: "./samples/visibility_pursuit_world_clear.json" },
   { label: "world occluded", path: "./samples/visibility_pursuit_world_occluded.json" },
 ];

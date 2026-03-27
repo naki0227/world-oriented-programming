@@ -41,6 +41,14 @@ This matters because:
 - Phase J starts to connect directly to Phase I underdetermined worlds
 - a world can switch between pursuit-like and search-like continuations without exposing update logic
 
+The next dynamic extension is now also executable:
+
+- a world can defer an ambiguous continuation at one observation frontier
+- visibility can change as entities move
+- the deferred world can then resolve at a later frontier when line of sight clears or is lost
+
+This is important because it turns visibility into a temporal geometry condition rather than only a static spatial predicate.
+
 ## Near-Term Targets
 
 - richer surfaces beyond a single plane

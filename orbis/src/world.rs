@@ -4712,4 +4712,84 @@ observe:
         assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
         assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
     }
+
+    #[test]
+    fn deferred_visibility_can_resolve_when_line_of_sight_clears() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 0, 0)
+velocity(B) = (0, 8, 0)
+radius(B) = 1
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (0, 1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("pursue"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[1].status, "determinate");
+    }
+
+    #[test]
+    fn deferred_visibility_can_resolve_when_line_of_sight_is_lost() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 8, 0)
+velocity(B) = (0, -8, 0)
+radius(B) = 1
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, search) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("search"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("search"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[1].status, "determinate");
+    }
 }

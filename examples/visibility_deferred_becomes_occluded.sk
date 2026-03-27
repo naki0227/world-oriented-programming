@@ -1,0 +1,26 @@
+sphere A
+sphere B
+plane floor
+region wall
+
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+position(B) = (4, 8, 0)
+velocity(B) = (0, -8, 0)
+radius(B) = 1
+
+min(wall) = (1, -1, -1)
+max(wall) = (3, 1, 1)
+
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, search) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_occluded(A, search, B)
+
+observe:
+    snapshot at 0
+    snapshot at 1
