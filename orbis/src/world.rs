@@ -101,6 +101,17 @@ pub enum Constraint {
         sphere_index: usize,
         policy: RepairPolicy,
     },
+    BetweenPlanes {
+        sphere_index: usize,
+        lower_plane_index: usize,
+        upper_plane_index: usize,
+        policy: RepairPolicy,
+    },
+    InsidePlanes {
+        sphere_index: usize,
+        plane_indices: Vec<usize>,
+        policy: RepairPolicy,
+    },
     Visible {
         observer_index: usize,
         target_index: usize,
@@ -1447,6 +1458,17 @@ pub enum SimulationError {
     MissingRegionBounds(String),
     VelocityLimitExceeded { sphere: String, speed: f64, limit: f64 },
     EnteredForbiddenRegion { sphere: String, region: String, time: f64 },
+    LeftPlaneChannel {
+        sphere: String,
+        lower_plane: String,
+        upper_plane: String,
+        time: f64,
+    },
+    LeftBoundedPlaneSet {
+        sphere: String,
+        planes: Vec<String>,
+        time: f64,
+    },
     VisibilityOccluded {
         observer: String,
         target: String,
@@ -1481,6 +1503,20 @@ impl fmt::Display for SimulationError {
             Self::EnteredForbiddenRegion { sphere, region, time } => write!(
                 f,
                 "sphere `{sphere}` entered forbidden region `{region}` at t={time:.3}"
+            ),
+            Self::LeftPlaneChannel {
+                sphere,
+                lower_plane,
+                upper_plane,
+                time,
+            } => write!(
+                f,
+                "sphere `{sphere}` left plane-bounded space between `{lower_plane}` and `{upper_plane}` at t={time:.3}"
+            ),
+            Self::LeftBoundedPlaneSet { sphere, planes, time } => write!(
+                f,
+                "sphere `{sphere}` left plane-bounded space bounded by `{}` at t={time:.3}",
+                planes.join(", ")
             ),
             Self::VisibilityOccluded {
                 observer,
@@ -2500,6 +2536,55 @@ impl Constraint {
                 repaired_count: trace.repaired_count,
                 contradicted_count: trace.contradicted_count,
             },
+            Self::BetweenPlanes {
+                sphere_index,
+                lower_plane_index,
+                upper_plane_index,
+                policy,
+            } => ConstraintSummary {
+                kind: "between_planes".to_string(),
+                category: self.category().as_str().to_string(),
+                targets: vec![
+                    world.spheres[*sphere_index].name.clone(),
+                    world.planes[*lower_plane_index].name.clone(),
+                    world.planes[*upper_plane_index].name.clone(),
+                ],
+                policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
+            },
+            Self::InsidePlanes {
+                sphere_index,
+                plane_indices,
+                policy,
+            } => ConstraintSummary {
+                kind: "inside_planes".to_string(),
+                category: self.category().as_str().to_string(),
+                targets: std::iter::once(world.spheres[*sphere_index].name.clone())
+                    .chain(
+                        plane_indices
+                            .iter()
+                            .map(|plane_index| world.planes[*plane_index].name.clone()),
+                    )
+                    .collect(),
+                policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
+            },
             Self::Visible {
                 observer_index,
                 target_index,
@@ -2548,7 +2633,10 @@ impl Constraint {
     fn category(&self) -> ConstraintCategory {
         match self {
             Self::VelocityLimit { .. } => ConstraintCategory::Invariant,
-            Self::ReflectOnCollision { .. } | Self::NotInside { .. } => ConstraintCategory::Boundary,
+            Self::ReflectOnCollision { .. }
+            | Self::NotInside { .. }
+            | Self::BetweenPlanes { .. }
+            | Self::InsidePlanes { .. } => ConstraintCategory::Boundary,
             Self::Visible { .. } | Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
         }
     }
@@ -2559,6 +2647,8 @@ impl Constraint {
             Self::NotInside { .. } => {
                 vec![RepairPolicy::Reject, RepairPolicy::Clamp, RepairPolicy::Reflect]
             }
+            Self::BetweenPlanes { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
+            Self::InsidePlanes { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
             Self::ReflectOnCollision { .. }
             | Self::Visible { .. }
             | Self::ElasticCollision { .. } => Vec::new(),
@@ -2661,6 +2751,66 @@ impl Constraint {
                 observer_index: ensure_sphere_exists(context.spheres, observer)?,
                 target_index: ensure_sphere_exists(context.spheres, target)?,
             }),
+            [name, sphere_ref, lower_plane_ref, upper_plane_ref] if name == "between_planes" => {
+                let lower_plane_index = ensure_plane_exists(context.planes, lower_plane_ref)?;
+                let upper_plane_index = ensure_plane_exists(context.planes, upper_plane_ref)?;
+                Ok(Self::BetweenPlanes {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    lower_plane_index,
+                    upper_plane_index,
+                    policy: RepairPolicy::Reject,
+                })
+            }
+            [name, sphere_ref, lower_plane_ref, upper_plane_ref, policy]
+                if name == "between_planes" =>
+            {
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "between_planes",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
+                Ok(Self::BetweenPlanes {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    lower_plane_index: ensure_plane_exists(context.planes, lower_plane_ref)?,
+                    upper_plane_index: ensure_plane_exists(context.planes, upper_plane_ref)?,
+                    policy,
+                })
+            }
+            parts if !parts.is_empty() && parts[0] == "inside_planes" => {
+                let sphere_ref = parts.get(1).ok_or_else(|| {
+                    SimulationError::InvalidConstraint(
+                        "inside_planes requires a sphere and at least two planes".to_string(),
+                    )
+                })?;
+                let (plane_refs, policy) = if let Some(last) = parts.last() {
+                    if let Ok(policy) = parse_repair_policy(last) {
+                        (&parts[2..parts.len() - 1], policy)
+                    } else {
+                        (&parts[2..], RepairPolicy::Reject)
+                    }
+                } else {
+                    (&parts[2..], RepairPolicy::Reject)
+                };
+                if plane_refs.len() < 2 {
+                    return Err(SimulationError::InvalidConstraint(
+                        "inside_planes requires at least two planes".to_string(),
+                    ));
+                }
+                ensure_policy_supported(
+                    "inside_planes",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
+                Ok(Self::InsidePlanes {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    plane_indices: plane_refs
+                        .iter()
+                        .map(|plane_ref| ensure_plane_exists(context.planes, plane_ref))
+                        .collect::<Result<Vec<_>, _>>()?,
+                    policy,
+                })
+            }
             [name, left, right] if name == "elastic_collision" => Ok(Self::ElasticCollision {
                 left_index: ensure_sphere_exists(context.spheres, left)?,
                 right_index: ensure_sphere_exists(context.spheres, right)?,
@@ -2737,6 +2887,103 @@ impl Constraint {
                 }
                 Ok(false)
             }
+            Self::BetweenPlanes {
+                sphere_index,
+                lower_plane_index,
+                upper_plane_index,
+                policy,
+            } => {
+                let sphere = &mut world.spheres[*sphere_index];
+                let mut repaired = false;
+                loop {
+                    let lower_plane = world.planes[*lower_plane_index].clone();
+                    let upper_plane = world.planes[*upper_plane_index].clone();
+                    let lower_margin =
+                        lower_plane.normal.dot(sphere.position) - lower_plane.offset - sphere.radius;
+                    let upper_margin =
+                        upper_plane.normal.dot(sphere.position) - upper_plane.offset - sphere.radius;
+                    let violating_plane =
+                        if lower_margin < -EPSILON && lower_margin <= upper_margin {
+                            Some((lower_margin, lower_plane))
+                        } else if upper_margin < -EPSILON {
+                            Some((upper_margin, upper_plane))
+                        } else {
+                            None
+                        };
+
+                    let Some((margin, plane)) = violating_plane else {
+                        break;
+                    };
+                    match policy {
+                        RepairPolicy::Reject => {
+                            return Err(SimulationError::LeftPlaneChannel {
+                                sphere: sphere.name.clone(),
+                                lower_plane: world.planes[*lower_plane_index].name.clone(),
+                                upper_plane: world.planes[*upper_plane_index].name.clone(),
+                                time: sphere.last_update_time,
+                            });
+                        }
+                        RepairPolicy::Clamp => {
+                            clamp_sphere_inside_halfspace(sphere, &plane, margin);
+                            repaired = true;
+                        }
+                        RepairPolicy::Reflect => {
+                            return Err(SimulationError::InvalidConstraint(
+                                "between_planes does not support reflect policy".to_string(),
+                            ));
+                        }
+                    }
+                }
+                Ok(repaired)
+            }
+            Self::InsidePlanes {
+                sphere_index,
+                plane_indices,
+                policy,
+            } => {
+                let sphere = &mut world.spheres[*sphere_index];
+                let mut repaired = false;
+                loop {
+                    let violating_plane = plane_indices
+                        .iter()
+                        .map(|plane_index| {
+                            let plane = world.planes[*plane_index].clone();
+                            let margin =
+                                plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
+                            (margin, plane)
+                        })
+                        .filter(|(margin, _)| *margin < -EPSILON)
+                        .min_by(|(left_margin, _), (right_margin, _)| {
+                            left_margin.total_cmp(right_margin)
+                        });
+
+                    let Some((margin, plane)) = violating_plane else {
+                        break;
+                    };
+                    match policy {
+                        RepairPolicy::Reject => {
+                            return Err(SimulationError::LeftBoundedPlaneSet {
+                                sphere: sphere.name.clone(),
+                                planes: plane_indices
+                                    .iter()
+                                    .map(|plane_index| world.planes[*plane_index].name.clone())
+                                    .collect(),
+                                time: sphere.last_update_time,
+                            });
+                        }
+                        RepairPolicy::Clamp => {
+                            clamp_sphere_inside_halfspace(sphere, &plane, margin);
+                            repaired = true;
+                        }
+                        RepairPolicy::Reflect => {
+                            return Err(SimulationError::InvalidConstraint(
+                                "inside_planes does not support reflect policy".to_string(),
+                            ));
+                        }
+                    }
+                }
+                Ok(repaired)
+            }
             Self::Visible {
                 observer_index,
                 target_index,
@@ -2771,7 +3018,12 @@ impl Constraint {
                     Event::plane(constraint_index, *sphere_index, *plane_index, dt)
                 })
             }
-            Self::VelocityLimit { .. } | Self::Visible { .. } => None,
+            Self::VelocityLimit { .. }
+            | Self::BetweenPlanes { .. }
+            | Self::InsidePlanes { .. }
+            | Self::Visible { .. } => {
+                None
+            }
             Self::NotInside { sphere_index, .. } => {
                 let region = world.region.as_ref()?;
                 let sphere = &world.spheres[*sphere_index];
@@ -2942,6 +3194,17 @@ fn ensure_sphere_exists(spheres: &[Sphere], sphere_name: &str) -> Result<usize, 
         .iter()
         .position(|sphere| sphere.name == sphere_name)
         .ok_or_else(|| SimulationError::SphereNotFound(sphere_name.to_string()))
+}
+
+fn ensure_plane_exists(planes: &[Plane], plane_name: &str) -> Result<usize, SimulationError> {
+    planes
+        .iter()
+        .position(|plane| plane.name == plane_name)
+        .ok_or_else(|| {
+            SimulationError::InvalidConstraint(format!(
+                "unknown plane in constraint: {plane_name}"
+            ))
+        })
 }
 
 fn parse_repair_policy(policy: &str) -> Result<RepairPolicy, SimulationError> {
@@ -3390,6 +3653,15 @@ fn time_to_plane_collision(sphere: &Sphere, plane: &Plane) -> Option<f64> {
     if hit_dt >= 0.0 { Some(hit_dt) } else { None }
 }
 
+fn clamp_sphere_inside_halfspace(sphere: &mut Sphere, plane: &Plane, margin: f64) {
+    let correction = -margin + EPSILON;
+    sphere.position = sphere.position + plane.normal * correction;
+    let normal_speed = sphere.velocity.dot(plane.normal);
+    if normal_speed < 0.0 {
+        sphere.velocity = sphere.velocity - plane.normal * normal_speed;
+    }
+}
+
 fn time_to_sphere_collision(left: &Sphere, right: &Sphere) -> Option<f64> {
     let delta_position = left.position - right.position;
     let delta_velocity = left.velocity - right.velocity;
@@ -3568,7 +3840,7 @@ fn reflect_sphere_outside_box(sphere: &mut Sphere, min: Vec3, max: Vec3) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        SimulationEnvelope, analyze_program, parse_program, simulate_program,
+        SimulationEnvelope, Vec3, analyze_program, parse_program, simulate_program,
         simulate_program_envelope,
     };
 
@@ -3629,6 +3901,87 @@ observe:
             .map(|constraint| constraint.targets[1].clone())
             .collect::<Vec<_>>();
         assert_eq!(reflect_targets, vec!["floor".to_string(), "ceiling".to_string()]);
+    }
+
+    #[test]
+    fn plane_bounded_space_can_clamp_inside_a_surface_wedge() {
+        let source = r#"
+sphere A
+plane floor
+plane ceiling
+position(A) = (0, 2, 0)
+velocity(A) = (2, 1, 0)
+radius(A) = 1
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+normal(ceiling) = (-0.5, -1, 0)
+offset(ceiling) = -4
+constraint:
+    between_planes(A, floor, ceiling, clamp)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.constraints.len(), 1);
+        assert_eq!(report.constraints[0].kind, "between_planes");
+        assert_eq!(report.constraints[0].targets, vec!["A", "floor", "ceiling"]);
+        assert_eq!(report.constraints[0].policy, "clamp");
+        assert_eq!(report.constraints[0].outcome, "repaired");
+        let final_sphere = &report.snapshots[2].spheres[0];
+        assert!(final_sphere.position.y < 2.1);
+        assert!(final_sphere.velocity.y <= 0.2);
+    }
+
+    #[test]
+    fn bounded_plane_set_can_clamp_inside_a_surface_room() {
+        let source = r#"
+sphere A
+plane floor
+plane ceiling
+plane left_wall
+plane right_wall
+position(A) = (1.2, 2.6, 0)
+velocity(A) = (-1.2, 1.0, 0)
+radius(A) = 0.8
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+normal(ceiling) = (-0.5, -1, 0)
+offset(ceiling) = -4
+normal(left_wall) = (1, 0, 0)
+offset(left_wall) = 0
+normal(right_wall) = (-1, 0, 0)
+offset(right_wall) = -5
+constraint:
+    inside_planes(A, floor, ceiling, left_wall, right_wall, clamp)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.constraints.len(), 1);
+        assert_eq!(report.constraints[0].kind, "inside_planes");
+        assert_eq!(
+            report.constraints[0].targets,
+            vec!["A", "floor", "ceiling", "left_wall", "right_wall"]
+        );
+        assert_eq!(report.constraints[0].policy, "clamp");
+        assert_eq!(report.constraints[0].outcome, "repaired");
+        let final_sphere = &report.snapshots[2].spheres[0];
+        assert!(final_sphere.position.x >= 0.79);
+        assert!(final_sphere.position.x <= 4.21);
+        assert!(final_sphere.position.y >= 0.79);
+        let ceiling_margin = Vec3::new(-0.5, -1.0, 0.0)
+            .normalized()
+            .expect("plane normal should normalize")
+            .dot(final_sphere.position)
+            - (-4.0)
+            - 0.8;
+        assert!(ceiling_margin >= -0.001);
     }
 
     #[test]

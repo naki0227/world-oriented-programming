@@ -53,6 +53,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_channel.sk",
         ROOT / "benchmarks" / "imperative" / "surface_channel.py",
     ),
+    (
+        "surface_room_clamped",
+        ROOT / "examples" / "surface_room_clamped.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_room_clamped.py",
+    ),
 ]
 
 

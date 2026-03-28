@@ -42,6 +42,8 @@ and provides:
 - visibility network worlds where two agents jointly resolve toward target-specific roles for `B` or `C`
 - a staggered visibility network world where role assignment changes across observation frontiers
 - a first multi-surface channel world where one sphere reflects between several declared planes
+- a first plane-bounded wedge world where a slanted surface channel clamps motion back into an admissible volume
+- a first bounded surface room where several planes together keep a sphere inside a repaired admissible pocket
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
@@ -104,6 +106,8 @@ cargo run -p sekai-cli -- analyze examples/candidate_velocity_deferred.sk > view
 cargo run -p sekai-cli -- analyze examples/candidate_velocity_preferred_resolve.sk > viewer/samples/candidate_velocity_preferred_resolve_analyze.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
 cargo run -p sekai-cli -- simulate-report examples/surface_channel.sk > viewer/samples/surface_channel.json
+cargo run -p sekai-cli -- simulate-report examples/surface_wedge_clamped.sk > viewer/samples/surface_wedge_clamped.json
+cargo run -p sekai-cli -- simulate-report examples/surface_room_clamped.sk > viewer/samples/surface_room_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json

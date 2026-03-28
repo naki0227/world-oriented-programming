@@ -36,6 +36,8 @@ It now also supports a first multi-agent visibility coordination slice, where on
 It now also supports a first visibility network slice, where the same geometry assigns several agents to target-specific roles rather than only flipping one local branch.
 It now also supports a first staggered visibility network slice, where different agents resolve at different observation frontiers as the visibility graph changes over time.
 Alongside that visibility pillar, the runtime now also supports a first richer-surface slice, where one world can declare several planes and bind collision laws to each of them independently.
+It now also supports a first plane-bounded wedge slice, where a sphere is kept inside a slanted admissible channel by a law over two declared planes rather than by an axis-aligned region.
+It now also supports a first bounded surface room slice, where several declared planes jointly define an admissible pocket and a sphere can be repaired back inside that non-axis-aligned space.
 
 ## Next Geometry-Behavior Slice
 
@@ -57,6 +59,8 @@ This matters because:
 - a visibility network can now assign target-specific roles across several agents
 - a visibility network can now reconfigure role assignment across observation frontiers
 - a first multi-surface world can now evolve inside a declared channel rather than against a single floor
+- a first plane-bounded wedge can now repair motion inside a non-axis-aligned admissible space
+- a first bounded surface room can now keep a sphere inside a small polyhedral pocket built from several planes
 
 ## Near-Term Targets
 

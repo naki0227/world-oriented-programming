@@ -125,6 +125,20 @@ Narrative reading:
 - `sekai` foregrounds the declared surfaces and the contact laws.
 - the imperative baseline foregrounds surface bookkeeping and repeated update logic.
 
+## Surface Room Clamped
+
+This pair pushes the same geometry family into bounded spaces.
+`sekai` can declare several planes and state one `inside_planes(...)` law that keeps a sphere
+inside the resulting admissible pocket, even when one of the planes is slanted.
+The imperative baseline must instead keep a stepping loop, evaluate signed distance against each
+plane, choose the most violated boundary, and manually clamp both position and velocity back
+toward the interior.
+
+Narrative reading:
+
+- `sekai` foregrounds the bounded space as world geometry plus one explicit admissibility law.
+- the imperative baseline foregrounds plane-distance bookkeeping and repair mechanics.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

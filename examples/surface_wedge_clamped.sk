@@ -1,0 +1,21 @@
+sphere A
+plane floor
+plane ceiling
+
+position(A) = (0, 2, 0)
+velocity(A) = (2, 1, 0)
+radius(A) = 1
+
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+normal(ceiling) = (-0.5, -1, 0)
+offset(ceiling) = -4
+
+constraint:
+    between_planes(A, floor, ceiling, clamp)
+
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
