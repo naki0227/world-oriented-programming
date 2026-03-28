@@ -152,6 +152,20 @@ Narrative reading:
 - `sekai` foregrounds the bounded room and its contact laws.
 - the imperative baseline foregrounds repeated boundary checks and velocity-repair logic.
 
+## Surface Gate Clamped
+
+This pair turns the same geometry family from closed rooms into connected spaces.
+`sekai` can declare one wall plane, one named door aperture, and one `through_gate(...)`
+law that makes the boundary traversable only at that opening.
+The imperative baseline must instead keep a stepping loop, evaluate signed distance to the wall,
+check whether the sphere's tangential position still lies inside the door aperture,
+and manually clamp the sphere back to the allowed side when it misses the gate.
+
+Narrative reading:
+
+- `sekai` foregrounds the wall, the door, and the admissible crossing law.
+- the imperative baseline foregrounds aperture checks and explicit correction mechanics.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

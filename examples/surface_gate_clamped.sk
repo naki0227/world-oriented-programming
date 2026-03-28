@@ -1,0 +1,25 @@
+sphere A
+plane floor
+plane wall
+region door
+
+position(A) = (2, 4, 0)
+velocity(A) = (-2, 0, 0)
+radius(A) = 0.5
+
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+
+min(door) = (-0.5, 1, -1)
+max(door) = (0.5, 3, 1)
+
+constraint:
+    through_gate(A, wall, door, clamp)
+
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2

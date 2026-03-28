@@ -26,6 +26,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/surface_channel.sk`
 - `examples/surface_room_clamped.sk`
 - `examples/surface_room_reflective.sk`
+- `examples/surface_gate_clamped.sk`
 
 Imperative reference baselines live in:
 
@@ -41,6 +42,7 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/surface_channel.py`
 - `benchmarks/imperative/surface_room_clamped.py`
 - `benchmarks/imperative/surface_room_reflective.py`
+- `benchmarks/imperative/surface_gate_clamped.py`
 
 ## Initial Metrics
 
@@ -82,5 +84,6 @@ The first recorded output is summarized in:
 - extend that same visibility line into a branching world comparison where geometry changes which continuation family is taken
 - add a non-visibility geometry pair so Phase J is not represented by occlusion alone
 - add scenario-specific narrative comparisons for each pair
+- add a gate / doorway pair so bounded spaces can be connected rather than only closed
 - connect these structural metrics to cognitive-load hypotheses
 - decide whether a lightweight user study is feasible

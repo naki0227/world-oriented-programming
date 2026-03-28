@@ -149,6 +149,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 22 | 0 |
 | declarative density | 0.846 | 0.000 |
 
+## Surface Gate Clamped
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 19 | 49 |
+| token count | 121 | 444 |
+| branch keywords | 0 | 4 |
+| loop keywords | 0 | 4 |
+| state-assignment lines | 9 | 17 |
+| declarative lines | 18 | 0 |
+| declarative density | 0.947 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -161,4 +173,5 @@ but they make the evaluation phase concrete and reproducible.
 - The first multi-surface channel keeps the same pattern even when one world carries several distinct contact surfaces.
 - The first bounded surface room keeps the same pattern even when admissibility is defined by several planes rather than by one region or one contact surface.
 - The first reflective surface room keeps the same pattern even when several declared contact boundaries must all remain active at once.
+- The first gated-surface slice keeps the same pattern even when one wall becomes traversable only through an explicit geometric aperture.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

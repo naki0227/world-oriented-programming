@@ -110,6 +110,8 @@ cargo run -p sekai-cli -- simulate-report examples/surface_channel.sk > viewer/s
 cargo run -p sekai-cli -- simulate-report examples/surface_wedge_clamped.sk > viewer/samples/surface_wedge_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/surface_room_clamped.sk > viewer/samples/surface_room_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/surface_room_reflective.sk > viewer/samples/surface_room_reflective.json
+cargo run -p sekai-cli -- simulate-report examples/surface_gate_clear.sk > viewer/samples/surface_gate_clear.json
+cargo run -p sekai-cli -- simulate-report examples/surface_gate_clamped.sk > viewer/samples/surface_gate_clamped.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json

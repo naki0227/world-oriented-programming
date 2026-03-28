@@ -1,0 +1,108 @@
+{
+  "source": "examples/surface_gate_clear.sk",
+  "status": "ok",
+  "error": null,
+  "analytics": {
+    "total_constraints": 1,
+    "invariant_constraints": 0,
+    "boundary_constraints": 1,
+    "interaction_constraints": 0,
+    "idle_constraints": 1,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+    {
+      "kind": "through_gate",
+      "category": "boundary",
+      "targets": ["A", "wall", "door"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    }
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "deferred_entities": 0,
+    "preference_resolved_entities": 0,
+    "law_updated_entities": 0,
+    "rescore_resolved_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
+  },
+  "observation_timeline": [
+    {
+      "time": 0.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    },
+    {
+      "time": 1.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    },
+    {
+      "time": 2.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    }
+  ],
+  "candidate_resolutions": [
+  ],
+  "activities": [
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 2.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": -2.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 1.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": -2.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 2.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": -2.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": -2.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}

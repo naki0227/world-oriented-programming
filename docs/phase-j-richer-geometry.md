@@ -39,6 +39,7 @@ Alongside that visibility pillar, the runtime now also supports a first richer-s
 It now also supports a first plane-bounded wedge slice, where a sphere is kept inside a slanted admissible channel by a law over two declared planes rather than by an axis-aligned region.
 It now also supports a first bounded surface room slice, where several declared planes jointly define an admissible pocket and a sphere can be repaired back inside that non-axis-aligned space.
 It now also supports a first reflective surface room slice, where one sphere can bounce between several declared planar boundaries rather than between only a floor and a ceiling.
+It now also supports a first gated-surface slice, where one declared plane becomes traversable only through a named door aperture rather than as a uniform boundary.
 
 ## Next Geometry-Behavior Slice
 
@@ -63,6 +64,7 @@ This matters because:
 - a first plane-bounded wedge can now repair motion inside a non-axis-aligned admissible space
 - a first bounded surface room can now keep a sphere inside a small polyhedral pocket built from several planes
 - a first reflective surface room can now express contact-rich bounded motion over several declared surfaces
+- a first gate law can now connect bounded spaces through one explicit geometric aperture
 
 ## Near-Term Targets
 
@@ -80,6 +82,7 @@ These are the first geometry scenarios that should be expressible before Phase J
 - view-dependent interaction through line-of-sight
 - path following with spatial constraints
 - multiple surfaces with contact rules
+- connected rooms and gates
 
 ## Design Principles
 
