@@ -107,6 +107,7 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "coord occluded", path: "./samples/visibility_coordination_occluded.json" },
   { label: "network B", path: "./samples/visibility_network_roles_b.json" },
   { label: "network C", path: "./samples/visibility_network_roles_c.json" },
+  { label: "network staggered", path: "./samples/visibility_network_staggered.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1449,7 +1450,9 @@ function renderVisibilityComparison() {
                                   ? "The same occlusion change now resolves several deferred entities together toward search/cover continuations."
                                   : sample.label === "network B"
                                     ? "The same visibility network now assigns several agents to B-specific roles."
-                                    : "The same visibility network now assigns several agents to C-specific roles.";
+                                    : sample.label === "network C"
+                                      ? "The same visibility network now assigns several agents to C-specific roles."
+                                      : "The same visibility network now reassigns different agents across observation frontiers as different targets become visible.";
 
     const button = document.createElement("button");
     button.type = "button";

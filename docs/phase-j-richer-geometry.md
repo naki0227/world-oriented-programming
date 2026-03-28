@@ -34,6 +34,7 @@ It also supports a first time-varying corridor slice, where a moving target can 
 It now also supports a first multi-target visibility handoff, where the same deferred world can resolve toward one of several pursuit continuations depending on which target later becomes visible.
 It now also supports a first multi-agent visibility coordination slice, where one visibility change can resolve more than one candidate-bearing entity at the same frontier.
 It now also supports a first visibility network slice, where the same geometry assigns several agents to target-specific roles rather than only flipping one local branch.
+It now also supports a first staggered visibility network slice, where different agents resolve at different observation frontiers as the visibility graph changes over time.
 
 ## Next Geometry-Behavior Slice
 
@@ -53,6 +54,7 @@ This matters because:
 - a multi-target world can now hand off convergence between several pursuit continuations as visibility changes
 - a shared visibility change can now coordinate several candidate-bearing entities at once
 - a visibility network can now assign target-specific roles across several agents
+- a visibility network can now reconfigure role assignment across observation frontiers
 
 ## Near-Term Targets
 
