@@ -88,7 +88,10 @@ pub struct Region {
 
 #[derive(Clone, Debug)]
 pub enum Constraint {
-    ReflectOnCollision { sphere_index: usize },
+    ReflectOnCollision {
+        sphere_index: usize,
+        plane_index: usize,
+    },
     VelocityLimit {
         sphere_index: usize,
         max_speed: f64,
@@ -115,7 +118,7 @@ pub enum RepairPolicy {
 #[derive(Clone, Debug)]
 pub struct World {
     pub spheres: Vec<Sphere>,
-    pub plane: Plane,
+    pub planes: Vec<Plane>,
     pub region: Option<Region>,
     pub occluder_regions: Vec<Region>,
     pub constraints: Vec<Constraint>,
@@ -1458,7 +1461,7 @@ impl fmt::Display for SimulationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingSphere => write!(f, "program requires at least one sphere"),
-            Self::MissingPlane => write!(f, "program requires exactly one plane"),
+            Self::MissingPlane => write!(f, "program requires at least one plane"),
             Self::MissingPosition(name) => write!(f, "missing position for entity `{name}`"),
             Self::MissingVelocity(name) => write!(f, "missing velocity for entity `{name}`"),
             Self::InvalidRadius(name) => write!(f, "missing or invalid radius for sphere `{name}`"),
@@ -1666,11 +1669,14 @@ impl World {
             return Err(SimulationError::MissingSphere);
         }
 
-        let plane_decl = program
+        let plane_decls = program
             .entities
             .iter()
-            .find(|entity| entity.kind == "plane")
-            .ok_or(SimulationError::MissingPlane)?;
+            .filter(|entity| entity.kind == "plane")
+            .collect::<Vec<_>>();
+        if plane_decls.is_empty() {
+            return Err(SimulationError::MissingPlane);
+        }
         let region_decls = program
             .entities
             .iter()
@@ -1695,15 +1701,18 @@ impl World {
             });
         }
 
-        let plane_name = plane_decl.name.clone();
-        let plane = Plane {
-            name: plane_name.clone(),
-            normal: program
-                .vec3_property("normal", &plane_name)
-                .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
-                .normalized()?,
-            offset: program.number_property("offset", &plane_name).unwrap_or(0.0),
-        };
+        let mut planes = Vec::new();
+        for plane_decl in plane_decls {
+            let plane_name = plane_decl.name.clone();
+            planes.push(Plane {
+                name: plane_name.clone(),
+                normal: program
+                    .vec3_property("normal", &plane_name)
+                    .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
+                    .normalized()?,
+                offset: program.number_property("offset", &plane_name).unwrap_or(0.0),
+            });
+        }
 
         let mut occluder_regions = Vec::new();
         for region_decl in &region_decls {
@@ -1722,7 +1731,7 @@ impl World {
 
         let build_context = ConstraintBuildContext {
             spheres: &spheres,
-            plane_name: &plane.name,
+            planes: &planes,
             region_name: region.as_ref().map(|decl| decl.name.as_str()),
         };
         let mut constraints = Vec::new();
@@ -1732,7 +1741,7 @@ impl World {
 
         let mut world = Self {
             spheres,
-            plane,
+            planes,
             region,
             occluder_regions,
             constraints,
@@ -2328,11 +2337,14 @@ struct Event {
 }
 
 impl Event {
-    fn plane(constraint_index: usize, sphere_index: usize, dt: f64) -> Self {
+    fn plane(constraint_index: usize, sphere_index: usize, plane_index: usize, dt: f64) -> Self {
         Self {
             constraint_index,
             dt,
-            kind: EventKind::PlaneCollision { sphere_index },
+            kind: EventKind::PlaneCollision {
+                sphere_index,
+                plane_index,
+            },
         }
     }
 
@@ -2363,7 +2375,10 @@ impl Event {
 
 #[derive(Clone, Copy, Debug)]
 enum EventKind {
-    PlaneCollision { sphere_index: usize },
+    PlaneCollision {
+        sphere_index: usize,
+        plane_index: usize,
+    },
     ForbiddenRegionEntry { sphere_index: usize },
     SphereCollision { left_index: usize, right_index: usize },
 }
@@ -2371,8 +2386,11 @@ enum EventKind {
 impl EventKind {
     fn apply(self, world: &mut World) -> Result<(), SimulationError> {
         match self {
-            Self::PlaneCollision { sphere_index } => {
-                let normal = world.plane.normal;
+            Self::PlaneCollision {
+                sphere_index,
+                plane_index,
+            } => {
+                let normal = world.planes[plane_index].normal;
                 let sphere = &mut world.spheres[sphere_index];
                 let reflected = sphere.velocity - normal * (2.0 * sphere.velocity.dot(normal));
                 sphere.velocity = reflected;
@@ -2392,7 +2410,7 @@ impl EventKind {
 
 struct ConstraintBuildContext<'a> {
     spheres: &'a [Sphere],
-    plane_name: &'a str,
+    planes: &'a [Plane],
     region_name: Option<&'a str>,
 }
 
@@ -2417,12 +2435,15 @@ impl Constraint {
 
     fn summary(&self, world: &World, trace: &ConstraintTrace) -> ConstraintSummary {
         match self {
-            Self::ReflectOnCollision { sphere_index } => ConstraintSummary {
+            Self::ReflectOnCollision {
+                sphere_index,
+                plane_index,
+            } => ConstraintSummary {
                 kind: "reflect_on_collision".to_string(),
                 category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*sphere_index].name.clone(),
-                    world.plane.name.clone(),
+                    world.planes[*plane_index].name.clone(),
                 ],
                 policy: "implicit".to_string(),
                 supported_policies: self
@@ -2550,13 +2571,18 @@ impl Constraint {
     ) -> Result<Self, SimulationError> {
         match parts {
             [name, sphere_ref, plane_ref] if name == "reflect_on_collision" => {
-                if plane_ref != context.plane_name {
-                    return Err(SimulationError::InvalidConstraint(format!(
-                        "unknown plane in reflect_on_collision: {plane_ref}"
-                    )));
-                }
+                let plane_index = context
+                    .planes
+                    .iter()
+                    .position(|plane| plane.name == *plane_ref)
+                    .ok_or_else(|| {
+                        SimulationError::InvalidConstraint(format!(
+                            "unknown plane in reflect_on_collision: {plane_ref}"
+                        ))
+                    })?;
                 Ok(Self::ReflectOnCollision {
                     sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    plane_index,
                 })
             }
             [name, sphere_ref, limit] if name == "velocity_limit" => {
@@ -2736,10 +2762,14 @@ impl Constraint {
 
     fn candidate_event(&self, world: &World, constraint_index: usize) -> Option<Event> {
         match self {
-            Self::ReflectOnCollision { sphere_index } => {
+            Self::ReflectOnCollision {
+                sphere_index,
+                plane_index,
+            } => {
                 let sphere = &world.spheres[*sphere_index];
-                time_to_plane_collision(sphere, &world.plane)
-                    .map(|dt| Event::plane(constraint_index, *sphere_index, dt))
+                time_to_plane_collision(sphere, &world.planes[*plane_index]).map(|dt| {
+                    Event::plane(constraint_index, *sphere_index, *plane_index, dt)
+                })
             }
             Self::VelocityLimit { .. } | Self::Visible { .. } => None,
             Self::NotInside { sphere_index, .. } => {
@@ -3559,6 +3589,46 @@ observe:
         let report = simulate_program(&program).expect("simulation should succeed");
         assert_eq!(report.snapshots[0].spheres[0].position.y, 1.0);
         assert_eq!(report.snapshots[0].spheres[0].velocity.y, 3.0);
+    }
+
+    #[test]
+    fn bounce_can_reflect_between_floor_and_ceiling() {
+        let source = r#"
+sphere A
+plane floor
+plane ceiling
+position(A) = (0, 2, 0)
+velocity(A) = (1, 2, 0)
+radius(A) = 1
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+normal(ceiling) = (0, -1, 0)
+offset(ceiling) = -4
+constraint:
+    reflect_on_collision(A, floor)
+    reflect_on_collision(A, ceiling)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots.len(), 4);
+        assert_eq!(report.snapshots[1].spheres[0].position.y, 2.0);
+        assert_eq!(report.snapshots[1].spheres[0].velocity.y, -2.0);
+        assert_eq!(report.snapshots[2].spheres[0].position.y, 2.0);
+        assert_eq!(report.snapshots[2].spheres[0].velocity.y, 2.0);
+        assert_eq!(report.snapshots[3].spheres[0].position.y, 2.0);
+        assert_eq!(report.snapshots[3].spheres[0].velocity.y, -2.0);
+        let reflect_targets = report
+            .constraints
+            .iter()
+            .filter(|constraint| constraint.kind == "reflect_on_collision")
+            .map(|constraint| constraint.targets[1].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(reflect_targets, vec!["floor".to_string(), "ceiling".to_string()]);
     }
 
     #[test]

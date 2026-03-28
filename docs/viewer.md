@@ -41,6 +41,7 @@ and provides:
 - coordination worlds where two deferred entities resolve together when the same target becomes visible or occluded
 - visibility network worlds where two agents jointly resolve toward target-specific roles for `B` or `C`
 - a staggered visibility network world where role assignment changes across observation frontiers
+- a first multi-surface channel world where one sphere reflects between several declared planes
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
@@ -102,6 +103,7 @@ cargo run -p sekai-cli -- simulate-report examples/candidate_velocity_two_entity
 cargo run -p sekai-cli -- analyze examples/candidate_velocity_deferred.sk > viewer/samples/candidate_velocity_deferred_analyze.json
 cargo run -p sekai-cli -- analyze examples/candidate_velocity_preferred_resolve.sk > viewer/samples/candidate_velocity_preferred_resolve_analyze.json
 cargo run -p sekai-cli -- simulate-report examples/reflected_region.sk > viewer/samples/reflected_region.json
+cargo run -p sekai-cli -- simulate-report examples/surface_channel.sk > viewer/samples/surface_channel.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json

@@ -113,6 +113,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 26 | 0 |
 | declarative density | 0.929 | 0.000 |
 
+## Surface Channel
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 18 | 34 |
+| token count | 100 | 346 |
+| branch keywords | 0 | 4 |
+| loop keywords | 0 | 3 |
+| state-assignment lines | 7 | 17 |
+| declarative lines | 16 | 0 |
+| declarative density | 0.889 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -122,4 +134,5 @@ but they make the evaluation phase concrete and reproducible.
 - The visibility-pursuit pair keeps the same structural pattern even when geometry changes candidate selection rather than only causing contradiction.
 - The branching visibility-pursuit world keeps the same pattern even when geometry selects between continuation families such as pursuit and search.
 - The corridor visibility world keeps the same pattern even when several regions must jointly preserve or block line of sight.
+- The first multi-surface channel keeps the same pattern even when one world carries several distinct contact surfaces.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

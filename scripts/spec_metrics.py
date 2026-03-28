@@ -48,6 +48,11 @@ SCENARIOS = [
         ROOT / "examples" / "visibility_corridor_world_occluded.sk",
         ROOT / "benchmarks" / "imperative" / "visibility_corridor_world_occluded.py",
     ),
+    (
+        "surface_channel",
+        ROOT / "examples" / "surface_channel.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_channel.py",
+    ),
 ]
 
 

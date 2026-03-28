@@ -35,6 +35,7 @@ It now also supports a first multi-target visibility handoff, where the same def
 It now also supports a first multi-agent visibility coordination slice, where one visibility change can resolve more than one candidate-bearing entity at the same frontier.
 It now also supports a first visibility network slice, where the same geometry assigns several agents to target-specific roles rather than only flipping one local branch.
 It now also supports a first staggered visibility network slice, where different agents resolve at different observation frontiers as the visibility graph changes over time.
+Alongside that visibility pillar, the runtime now also supports a first richer-surface slice, where one world can declare several planes and bind collision laws to each of them independently.
 
 ## Next Geometry-Behavior Slice
 
@@ -55,6 +56,7 @@ This matters because:
 - a shared visibility change can now coordinate several candidate-bearing entities at once
 - a visibility network can now assign target-specific roles across several agents
 - a visibility network can now reconfigure role assignment across observation frontiers
+- a first multi-surface world can now evolve inside a declared channel rather than against a single floor
 
 ## Near-Term Targets
 

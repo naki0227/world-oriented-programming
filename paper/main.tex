@@ -297,6 +297,7 @@ It now also includes a first multi-target visibility handoff, where the same def
 It now also includes a first multi-agent visibility coordination slice, where one shared visibility change resolves several candidate-bearing entities at the same observation frontier.
 It now also includes a first visibility network slice, where the same geometry assigns several agents to target-specific roles.
 It now also includes a first staggered visibility network slice, where those role assignments can change across observation frontiers as line of sight changes.
+It also now includes a first multi-surface channel world, where one sphere can reflect between several declared planes rather than only one global floor.
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show a consistent relocation of semantic burden: \emph{sekai} keeps world construction and admissibility law explicit, while imperative baselines bury both inside update loops, guard logic, and control-flow bookkeeping.
 
@@ -320,6 +321,7 @@ They are included to show that the evaluation is already reproducible and that t
     candidate deferred & 13 & 36 & 0.846 & 4 \\
     visibility pursuit world & 20 & 56 & 0.900 & 8 \\
     visibility corridor world & 28 & 62 & 0.929 & 9 \\
+    surface channel & 18 & 34 & 0.889 & 4 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -400,6 +402,7 @@ The same setup can now also hand off convergence between several target-specific
 It can now also coordinate more than one deferred entity at once, so line of sight begins to look like a shared world condition that can align several continuations without introducing imperative synchronization logic.
 The next small step beyond that is already visible in the prototype: geometry can assign several agents to target-specific roles inside the same visibility network, which makes line of sight look less like a local branch and more like a routing condition over world development.
 That role assignment can now also be staggered across frontiers, so a visibility network need not collapse in one step; different agents can resolve at different times as the geometry evolves.
+In parallel, a second geometry family is now beginning to appear: multiple surfaces with contact rules. The current prototype can already declare a small surface channel with a floor and ceiling and bind reflection laws to each plane independently, which moves Phase J past the older assumption that the world contains only one meaningful contact surface.
 
 Figure~\ref{fig:visibility-pursuit} shows this emerging geometry path in one visual sequence.
 The center panel is the editor-side world candidate, while the left and right panels show executed reports for the clear and occluded cases.
@@ -465,6 +468,7 @@ The next natural extension is already visible in embryo: multi-target handoff, w
 The same line of work is now also beginning to show small visibility-driven coordination worlds, where one change in line of sight resolves several deferred entities together.
 It is also beginning to show small visibility networks, where the same geometric condition distributes role-specific continuations across several agents.
 Those networks are now starting to vary across observation frontiers as well, which suggests a plausible stopping point for this first visibility pillar before moving on to a different geometry family.
+That next family is now beginning as a multi-surface slice, where a sphere can evolve between several declared planes under explicit contact laws rather than against a single fixed floor.
 Another path is semantics-driven: extending the current Phase I slice from candidate selection toward a fuller convergence model for underdetermined worlds.
 Another path is evaluation-driven: comparisons against imperative baselines, analysis of specification size and clarity, and studies of representational alignment for human users.
 

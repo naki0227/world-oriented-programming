@@ -112,6 +112,19 @@ Narrative reading:
 - `sekai` foregrounds corridor geometry and the law-conditioned branch together.
 - the imperative baseline foregrounds multi-box visibility checks and procedural routing.
 
+## Surface Channel
+
+This pair begins a second geometry family beyond visibility.
+`sekai` can state two declared planes and bind a separate `reflect_on_collision(...)`
+law to each of them, so the channel is still written as world structure plus contact laws.
+The imperative baseline must instead keep a stepping loop, detect contact with both
+surfaces, clamp the sphere back to each boundary, and manually flip velocity signs.
+
+Narrative reading:
+
+- `sekai` foregrounds the declared surfaces and the contact laws.
+- the imperative baseline foregrounds surface bookkeeping and repeated update logic.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:
