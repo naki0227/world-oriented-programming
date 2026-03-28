@@ -1,0 +1,171 @@
+{
+  "source": "examples/surface_room_reflective.sk",
+  "status": "ok",
+  "error": null,
+  "analytics": {
+    "total_constraints": 4,
+    "invariant_constraints": 0,
+    "boundary_constraints": 4,
+    "interaction_constraints": 0,
+    "idle_constraints": 2,
+    "fired_constraints": 2,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+    {
+      "kind": "reflect_on_collision",
+      "category": "boundary",
+      "targets": ["A", "floor"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "reflect_on_collision",
+      "category": "boundary",
+      "targets": ["A", "ceiling"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "outcome": "fired",
+      "fired_count": 1,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "reflect_on_collision",
+      "category": "boundary",
+      "targets": ["A", "left_wall"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "reflect_on_collision",
+      "category": "boundary",
+      "targets": ["A", "right_wall"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "outcome": "fired",
+      "fired_count": 1,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    }
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "deferred_entities": 0,
+    "preference_resolved_entities": 0,
+    "law_updated_entities": 0,
+    "rescore_resolved_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
+  },
+  "observation_timeline": [
+    {
+      "time": 0.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    },
+    {
+      "time": 1.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    },
+    {
+      "time": 2.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    },
+    {
+      "time": 3.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    }
+  ],
+  "candidate_resolutions": [
+  ],
+  "activities": [
+    {
+      "time": 1.500000,
+      "kind": "reflect_on_collision",
+      "targets": ["A", "ceiling"],
+      "policy": "implicit",
+      "action": "fired"
+    },
+    {
+      "time": 1.666667,
+      "kind": "reflect_on_collision",
+      "targets": ["A", "right_wall"],
+      "policy": "implicit",
+      "action": "fired"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 2.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 1.500000, "y": 1.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 1.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 3.500000, "y": 3.000000, "z": 0.000000 },
+          "velocity": { "x": 1.500000, "y": 1.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 2.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 4.000000, "y": 3.000000, "z": 0.000000 },
+          "velocity": { "x": -1.500000, "y": -1.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 3.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 2.500000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": -1.500000, "y": -1.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}

@@ -137,6 +137,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 21 | 0 |
 | declarative density | 0.955 | 0.000 |
 
+## Surface Room Reflective
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 26 | 41 |
+| token count | 152 | 419 |
+| branch keywords | 0 | 6 |
+| loop keywords | 0 | 3 |
+| state-assignment lines | 11 | 19 |
+| declarative lines | 22 | 0 |
+| declarative density | 0.846 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -148,4 +160,5 @@ but they make the evaluation phase concrete and reproducible.
 - The corridor visibility world keeps the same pattern even when several regions must jointly preserve or block line of sight.
 - The first multi-surface channel keeps the same pattern even when one world carries several distinct contact surfaces.
 - The first bounded surface room keeps the same pattern even when admissibility is defined by several planes rather than by one region or one contact surface.
+- The first reflective surface room keeps the same pattern even when several declared contact boundaries must all remain active at once.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

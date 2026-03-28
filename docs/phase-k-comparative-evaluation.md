@@ -25,6 +25,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/visibility_corridor_world_occluded.sk`
 - `examples/surface_channel.sk`
 - `examples/surface_room_clamped.sk`
+- `examples/surface_room_reflective.sk`
 
 Imperative reference baselines live in:
 
@@ -39,6 +40,7 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/visibility_corridor_world_occluded.py`
 - `benchmarks/imperative/surface_channel.py`
 - `benchmarks/imperative/surface_room_clamped.py`
+- `benchmarks/imperative/surface_room_reflective.py`
 
 ## Initial Metrics
 

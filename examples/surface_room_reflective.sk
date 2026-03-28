@@ -1,0 +1,33 @@
+sphere A
+plane floor
+plane ceiling
+plane left_wall
+plane right_wall
+
+position(A) = (2.0, 2.0, 0)
+velocity(A) = (1.5, 1.0, 0)
+radius(A) = 0.5
+
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+normal(ceiling) = (0, -1, 0)
+offset(ceiling) = -4
+
+normal(left_wall) = (1, 0, 0)
+offset(left_wall) = 0
+
+normal(right_wall) = (-1, 0, 0)
+offset(right_wall) = -5
+
+constraint:
+    reflect_on_collision(A, floor)
+    reflect_on_collision(A, ceiling)
+    reflect_on_collision(A, left_wall)
+    reflect_on_collision(A, right_wall)
+
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3

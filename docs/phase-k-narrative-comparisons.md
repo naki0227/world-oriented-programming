@@ -139,6 +139,19 @@ Narrative reading:
 - `sekai` foregrounds the bounded space as world geometry plus one explicit admissibility law.
 - the imperative baseline foregrounds plane-distance bookkeeping and repair mechanics.
 
+## Surface Room Reflective
+
+This pair pushes the same geometry family into bounded contact worlds.
+`sekai` can declare four planes and bind a separate `reflect_on_collision(...)` law to each of them,
+so the room is still written as world geometry plus explicit surface laws.
+The imperative baseline must instead keep a stepping loop, check all four boundaries after each move,
+repair penetration, and manually flip the relevant velocity component.
+
+Narrative reading:
+
+- `sekai` foregrounds the bounded room and its contact laws.
+- the imperative baseline foregrounds repeated boundary checks and velocity-repair logic.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

@@ -58,6 +58,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_room_clamped.sk",
         ROOT / "benchmarks" / "imperative" / "surface_room_clamped.py",
     ),
+    (
+        "surface_room_reflective",
+        ROOT / "examples" / "surface_room_reflective.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_room_reflective.py",
+    ),
 ]
 
 

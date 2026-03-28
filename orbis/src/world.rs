@@ -3985,6 +3985,61 @@ observe:
     }
 
     #[test]
+    fn bounce_can_reflect_inside_a_surface_room() {
+        let source = r#"
+sphere A
+plane floor
+plane ceiling
+plane left_wall
+plane right_wall
+position(A) = (2.0, 2.0, 0)
+velocity(A) = (1.5, 1.0, 0)
+radius(A) = 0.5
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+normal(ceiling) = (0, -1, 0)
+offset(ceiling) = -4
+normal(left_wall) = (1, 0, 0)
+offset(left_wall) = 0
+normal(right_wall) = (-1, 0, 0)
+offset(right_wall) = -5
+constraint:
+    reflect_on_collision(A, floor)
+    reflect_on_collision(A, ceiling)
+    reflect_on_collision(A, left_wall)
+    reflect_on_collision(A, right_wall)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        assert_eq!(report.snapshots.len(), 4);
+        let final_sphere = &report.snapshots[3].spheres[0];
+        assert!(final_sphere.position.x >= 0.5);
+        assert!(final_sphere.position.x <= 4.5);
+        assert!(final_sphere.position.y >= 0.5);
+        assert!(final_sphere.position.y <= 3.5);
+        let reflect_targets = report
+            .constraints
+            .iter()
+            .filter(|constraint| constraint.kind == "reflect_on_collision")
+            .map(|constraint| constraint.targets[1].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            reflect_targets,
+            vec![
+                "floor".to_string(),
+                "ceiling".to_string(),
+                "left_wall".to_string(),
+                "right_wall".to_string()
+            ]
+        );
+    }
+
+    #[test]
     fn elastic_collision_swaps_velocities() {
         let source = r#"
 sphere A
