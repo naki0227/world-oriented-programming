@@ -1,0 +1,40 @@
+sphere A
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 1
+
+position(C) = (6, -2, 0)
+velocity(C) = (0, 0, 0)
+radius(C) = 1
+
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+
+observe:
+    snapshot at 0
+    snapshot at 1

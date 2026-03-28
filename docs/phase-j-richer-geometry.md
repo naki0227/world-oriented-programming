@@ -17,8 +17,8 @@ The first Phase J slice is a visibility law:
 
 - `visible(A, B)`
 
-In the current prototype, the law is evaluated against a declared axis-aligned occluding `region`.
-If the line segment between `A` and `B` intersects that region at an observation frontier,
+In the current prototype, the law is evaluated against declared axis-aligned occluding `region`s.
+If the line segment between `A` and `B` intersects one or more of those regions at an observation frontier,
 the world reports contradiction.
 
 This slice is intentionally small, but strategically important:
@@ -26,6 +26,15 @@ This slice is intentionally small, but strategically important:
 - it moves the project beyond collision-only geometry
 - it gives Phase K a more compelling future comparison target
 - it makes visibility a world-level condition instead of scattered update logic
+
+The next incremental step is multi-occluder visibility.
+The runtime can now keep line of sight admissible across several declared blocking regions and report the blocking set when visibility fails.
+This now supports a first corridor-style world, where side walls preserve a narrow visibility channel and an inserted blocker closes it.
+It also supports a first time-varying corridor slice, where a moving target can later enter or leave that channel and thereby resolve a deferred world.
+It now also supports a first multi-target visibility handoff, where the same deferred world can resolve toward one of several pursuit continuations depending on which target later becomes visible.
+It now also supports a first multi-agent visibility coordination slice, where one visibility change can resolve more than one candidate-bearing entity at the same frontier.
+It now also supports a first visibility network slice, where the same geometry assigns several agents to target-specific roles rather than only flipping one local branch.
+It now also supports a first staggered visibility network slice, where different agents resolve at different observation frontiers as the visibility graph changes over time.
 
 ## Next Geometry-Behavior Slice
 
@@ -40,6 +49,12 @@ This matters because:
 - line of sight begins to influence candidate-world convergence
 - Phase J starts to connect directly to Phase I underdetermined worlds
 - a world can switch between pursuit-like and search-like continuations without exposing update logic
+- a corridor-shaped world can now branch differently when its visibility channel is preserved or blocked
+- a deferred corridor world can now resolve differently when line of sight changes at a later observation frontier
+- a multi-target world can now hand off convergence between several pursuit continuations as visibility changes
+- a shared visibility change can now coordinate several candidate-bearing entities at once
+- a visibility network can now assign target-specific roles across several agents
+- a visibility network can now reconfigure role assignment across observation frontiers
 
 ## Near-Term Targets
 

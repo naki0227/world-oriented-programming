@@ -117,6 +117,7 @@ pub struct World {
     pub spheres: Vec<Sphere>,
     pub plane: Plane,
     pub region: Option<Region>,
+    pub occluder_regions: Vec<Region>,
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
     pub candidate_resolutions: Vec<CandidateResolution>,
@@ -1670,7 +1671,11 @@ impl World {
             .iter()
             .find(|entity| entity.kind == "plane")
             .ok_or(SimulationError::MissingPlane)?;
-        let region_decl = program.entities.iter().find(|entity| entity.kind == "region");
+        let region_decls = program
+            .entities
+            .iter()
+            .filter(|entity| entity.kind == "region")
+            .collect::<Vec<_>>();
 
         let mut spheres = Vec::new();
         for sphere_decl in sphere_decls {
@@ -1700,21 +1705,20 @@ impl World {
             offset: program.number_property("offset", &plane_name).unwrap_or(0.0),
         };
 
-        let region = match region_decl {
-            Some(region_decl) => {
-                let region_name = region_decl.name.clone();
-                Some(Region {
-                    name: region_name.clone(),
-                    min: program
-                        .vec3_property("min", &region_name)
-                        .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
-                    max: program
-                        .vec3_property("max", &region_name)
-                        .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
-                })
-            }
-            None => None,
-        };
+        let mut occluder_regions = Vec::new();
+        for region_decl in &region_decls {
+            let region_name = region_decl.name.clone();
+            occluder_regions.push(Region {
+                name: region_name.clone(),
+                min: program
+                    .vec3_property("min", &region_name)
+                    .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
+                max: program
+                    .vec3_property("max", &region_name)
+                    .ok_or_else(|| SimulationError::MissingRegionBounds(region_name.clone()))?,
+            });
+        }
+        let region = occluder_regions.first().cloned();
 
         let build_context = ConstraintBuildContext {
             spheres: &spheres,
@@ -1730,6 +1734,7 @@ impl World {
             spheres,
             plane,
             region,
+            occluder_regions,
             constraints,
             constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
             candidate_resolutions: Vec::new(),
@@ -2046,9 +2051,9 @@ impl World {
     }
 
     fn entity_can_see(&self, observer_name: &str, target_name: &str) -> bool {
-        let Some(region) = &self.region else {
+        if self.occluder_regions.is_empty() {
             return true;
-        };
+        }
         let Ok(observer_index) = ensure_sphere_exists(&self.spheres, observer_name) else {
             return false;
         };
@@ -2056,12 +2061,19 @@ impl World {
             return false;
         };
 
-        !line_segment_intersects_box(
-            self.spheres[observer_index].position,
-            self.spheres[target_index].position,
-            region.min,
-            region.max,
-        )
+        self.occluding_regions_between(observer_index, target_index).is_empty()
+    }
+
+    fn occluding_regions_between(&self, observer_index: usize, target_index: usize) -> Vec<String> {
+        let observer = &self.spheres[observer_index];
+        let target = &self.spheres[target_index];
+        self.occluder_regions
+            .iter()
+            .filter(|region| {
+                line_segment_intersects_box(observer.position, target.position, region.min, region.max)
+            })
+            .map(|region| region.name.clone())
+            .collect()
     }
 
     fn resolve_candidates_for_entity(
@@ -2703,16 +2715,17 @@ impl Constraint {
                 observer_index,
                 target_index,
             } => {
-                let Some(region) = world.region.as_ref() else {
+                if world.occluder_regions.is_empty() {
                     return Ok(false);
-                };
-                let observer = &world.spheres[*observer_index];
-                let target = &world.spheres[*target_index];
-                if line_segment_intersects_box(observer.position, target.position, region.min, region.max) {
+                }
+                let blocking_regions = world.occluding_regions_between(*observer_index, *target_index);
+                if !blocking_regions.is_empty() {
+                    let observer = &world.spheres[*observer_index];
+                    let target = &world.spheres[*target_index];
                     return Err(SimulationError::VisibilityOccluded {
                         observer: observer.name.clone(),
                         target: target.name.clone(),
-                        region: region.name.clone(),
+                        region: blocking_regions.join(", "),
                         time: world.current_time(),
                     });
                 }
@@ -3759,6 +3772,69 @@ observe:
     }
 
     #[test]
+    fn visibility_law_allows_multiple_clear_occluders() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall_left
+region wall_right
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (0, 4, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_left) = (2, 0, -1)
+max(wall_left) = (3, 1, 1)
+min(wall_right) = (-3, 2.5, -1)
+max(wall_right) = (-2, 3.5, 1)
+constraint:
+    visible(A, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let summary = report
+            .constraints
+            .iter()
+            .find(|constraint| constraint.kind == "visible")
+            .expect("visible summary should exist");
+        assert_eq!(summary.outcome, "idle");
+    }
+
+    #[test]
+    fn visibility_law_reports_first_multi_occluder_hit_set() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall_left
+region wall_right
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (4, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_left) = (0.5, -1, -1)
+max(wall_left) = (1.5, 1, 1)
+min(wall_right) = (2.5, -1, -1)
+max(wall_right) = (3.5, 1, 1)
+constraint:
+    visible(A, B)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        let message = error.to_string();
+        assert!(message.contains("wall_left"));
+        assert!(message.contains("wall_right"));
+    }
+
+    #[test]
     fn report_serializes_to_json() {
         let source = r#"
 sphere A
@@ -4711,5 +4787,571 @@ observe:
             .expect("occluded candidate resolution should be present");
         assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
         assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
+    }
+
+    #[test]
+    fn visibility_corridor_world_can_switch_between_pursue_and_search() {
+        let clear = r#"
+sphere A
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    candidate_velocity(A, search) = (0, 1, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+"#;
+        let clear_program = parse_program(clear).expect("clear corridor program should parse");
+        let clear_report =
+            simulate_program(&clear_program).expect("clear corridor simulation should succeed");
+        let clear_resolution = clear_report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("clear corridor candidate resolution should be present");
+        assert_eq!(clear_resolution.selected_candidate.as_deref(), Some("pursue"));
+
+        let occluded = r#"
+sphere A
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+region blocker
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 0, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+min(blocker) = (2.5, -0.5, -1)
+max(blocker) = (3.5, 0.5, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    candidate_velocity(A, search) = (0, 1, 0) score 5
+    prefer_candidate_if_visible(A, pursue, B)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+"#;
+        let occluded_program =
+            parse_program(occluded).expect("occluded corridor program should parse");
+        let occluded_report = simulate_program(&occluded_program)
+            .expect("occluded corridor simulation should succeed");
+        let occluded_resolution = occluded_report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("occluded corridor candidate resolution should be present");
+        assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
+        assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
+    }
+
+    #[test]
+    fn visibility_corridor_can_resolve_after_becoming_visible() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("pursue"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+    }
+
+    #[test]
+    fn visibility_corridor_can_resolve_after_becoming_occluded() {
+        let source = r#"
+sphere A
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 0, 0)
+velocity(B) = (0, 2, 0)
+radius(B) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, search) = (0, 1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_occluded(A, search, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("search"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("search"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+    }
+
+    #[test]
+    fn visibility_handoff_can_resolve_toward_b() {
+        let source = r#"
+sphere A
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 1
+position(C) = (6, -2, 0)
+velocity(C) = (0, 0, 0)
+radius(C) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue_b"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("pursue_b"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+    }
+
+    #[test]
+    fn visibility_handoff_can_resolve_toward_c() {
+        let source = r#"
+sphere A
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 1
+position(B) = (6, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 1
+position(C) = (6, -2, 0)
+velocity(C) = (0, 2, 0)
+radius(C) = 1
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("candidate resolution should be present");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue_c"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("pursue_c"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+    }
+
+    #[test]
+    fn visibility_coordination_can_resolve_multiple_entities_when_target_becomes_visible() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_a) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_a, B)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_d) = (1, 0, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_visible(D, support_d, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.convergence_mode, "resolved_after_preference");
+        assert_eq!(d.convergence_mode, "resolved_after_preference");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_a"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_d"));
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(d.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.observation_summary.status, "determinate");
+    }
+
+    #[test]
+    fn visibility_coordination_can_resolve_multiple_entities_when_target_becomes_occluded() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.0, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 0, 0)
+velocity(B) = (0, 2, 0)
+radius(B) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, search_a) = (0, 1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_occluded(A, search_a, B)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, cover_d) = (0, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_occluded(D, cover_d, B)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.convergence_mode, "resolved_after_preference");
+        assert_eq!(d.convergence_mode, "resolved_after_preference");
+        assert_eq!(a.selected_candidate.as_deref(), Some("search_a"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("cover_d"));
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(d.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.observation_summary.status, "determinate");
+    }
+
+    #[test]
+    fn visibility_network_can_assign_roles_toward_b() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.5, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 0.5
+position(C) = (6, -2, 0)
+velocity(C) = (0, 0, 0)
+radius(C) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_b) = (1, 1, 0) score 5
+    candidate_velocity(D, support_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_visible(D, support_b, B)
+    prefer_candidate_if_visible(D, support_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_b"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_b"));
+        assert_eq!(a.preferred_label.as_deref(), Some("pursue_b"));
+        assert_eq!(d.preferred_label.as_deref(), Some("support_b"));
+    }
+
+    #[test]
+    fn visibility_network_can_assign_roles_toward_c() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.5, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 0.5
+position(C) = (6, -2, 0)
+velocity(C) = (0, 2, 0)
+radius(C) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_b) = (1, 1, 0) score 5
+    candidate_velocity(D, support_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 1)
+    prefer_candidate_if_visible(D, support_b, B)
+    prefer_candidate_if_visible(D, support_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_c"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_c"));
+        assert_eq!(a.preferred_label.as_deref(), Some("pursue_c"));
+        assert_eq!(d.preferred_label.as_deref(), Some("support_c"));
+    }
+
+    #[test]
+    fn visibility_network_can_assign_roles_across_staggered_frontiers() {
+        let source = r#"
+sphere A
+sphere D
+sphere B
+sphere C
+plane floor
+region wall_top
+region wall_bottom
+position(A) = (0, 0.5, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(D) = (0, -0.5, 0)
+velocity(D) = (0, 0, 0)
+radius(D) = 0.5
+position(B) = (6, 2, 0)
+velocity(B) = (0, -2, 0)
+radius(B) = 0.5
+position(C) = (6, -4, 0)
+velocity(C) = (0, 2, 0)
+radius(C) = 0.5
+min(wall_top) = (1, 1, -1)
+max(wall_top) = (5, 3, 1)
+min(wall_bottom) = (1, -3, -1)
+max(wall_bottom) = (5, -1, 1)
+action:
+    candidate_velocity(A, hold_a) = (0, 0, 0) score 5
+    candidate_velocity(A, pursue_b) = (1, 1, 0) score 5
+    candidate_velocity(A, pursue_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_visible(A, pursue_b, B)
+    prefer_candidate_if_visible(A, pursue_c, C)
+    candidate_velocity(D, hold_d) = (0, 0, 0) score 5
+    candidate_velocity(D, support_b) = (1, 1, 0) score 5
+    candidate_velocity(D, support_c) = (1, -1, 0) score 5
+    defer_on_ambiguous_top(D)
+    resolve_deferred_at(D, 2)
+    prefer_candidate_if_visible(D, support_b, B)
+    prefer_candidate_if_visible(D, support_c, C)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+        assert_eq!(report.observation_timeline.len(), 3);
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[1].status, "unresolved");
+        assert_eq!(report.observation_timeline[2].status, "determinate");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_b"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_c"));
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(d.resolved_at_observation_time.as_deref(), Some("2.000"));
+        assert_eq!(a.preferred_label.as_deref(), Some("pursue_b"));
+        assert_eq!(d.preferred_label.as_deref(), Some("support_c"));
     }
 }

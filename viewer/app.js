@@ -91,10 +91,23 @@ const POLICY_COMPARISON_SAMPLES = [
 const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "clear", path: "./samples/visibility_clear.json" },
   { label: "occluded", path: "./samples/visibility_occluded.json" },
+  { label: "multi clear", path: "./samples/visibility_multi_occluder_clear.json" },
+  { label: "multi occluded", path: "./samples/visibility_multi_occluder_occluded.json" },
   { label: "pursuit clear", path: "./samples/visibility_pursuit_clear.json" },
   { label: "pursuit occluded", path: "./samples/visibility_pursuit_occluded.json" },
   { label: "world clear", path: "./samples/visibility_pursuit_world_clear.json" },
   { label: "world occluded", path: "./samples/visibility_pursuit_world_occluded.json" },
+  { label: "corridor clear", path: "./samples/visibility_corridor_world_clear.json" },
+  { label: "corridor occluded", path: "./samples/visibility_corridor_world_occluded.json" },
+  { label: "deferred visible", path: "./samples/visibility_corridor_deferred_visible.json" },
+  { label: "deferred occluded", path: "./samples/visibility_corridor_deferred_occluded.json" },
+  { label: "handoff B", path: "./samples/visibility_handoff_deferred_b.json" },
+  { label: "handoff C", path: "./samples/visibility_handoff_deferred_c.json" },
+  { label: "coord visible", path: "./samples/visibility_coordination_visible.json" },
+  { label: "coord occluded", path: "./samples/visibility_coordination_occluded.json" },
+  { label: "network B", path: "./samples/visibility_network_roles_b.json" },
+  { label: "network C", path: "./samples/visibility_network_roles_c.json" },
+  { label: "network staggered", path: "./samples/visibility_network_staggered.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -1407,13 +1420,39 @@ function renderVisibilityComparison() {
         ? "The line of sight is unobstructed, so the visibility law remains admissible."
         : sample.label === "occluded"
           ? "An occluding region intersects the line of sight, so the world contradicts at the observation frontier."
+          : sample.label === "multi clear"
+            ? "Multiple occluding regions are present, but none intersects the current line of sight."
+            : sample.label === "multi occluded"
+              ? "The line of sight is blocked by more than one occluding region, so visibility fails as a multi-obstacle condition."
           : sample.label === "pursuit clear"
             ? "Visibility now changes candidate selection, so the pursuit-like continuation is preferred."
             : sample.label === "pursuit occluded"
               ? "Occlusion suppresses the pursuit preference, so the neutral candidate remains selected."
               : sample.label === "world clear"
                 ? "A clear line of sight now branches the world toward pursuit rather than hold or search."
-                : "An occluded line of sight now branches the same world toward search instead of pursuit.";
+                : sample.label === "world occluded"
+                  ? "An occluded line of sight now branches the same world toward search instead of pursuit."
+                  : sample.label === "corridor clear"
+                  ? "A corridor geometry preserves line of sight across several walls, so the world still prefers pursuit."
+                    : sample.label === "corridor occluded"
+                      ? "A corridor blocker closes the line of sight, so the same corridor world now branches toward search."
+                      : sample.label === "deferred visible"
+                        ? "A moving target enters the corridor's visibility channel later, so a deferred world resolves toward pursuit at the next frontier."
+                        : sample.label === "deferred occluded"
+                          ? "A moving target leaves the corridor's visibility channel later, so a deferred world resolves toward search at the next frontier."
+                        : sample.label === "handoff B"
+                            ? "The same deferred world now hands off toward pursue_b when B becomes visible through the corridor."
+                            : sample.label === "handoff C"
+                              ? "The same deferred world now hands off toward pursue_c when C becomes visible through the corridor."
+                              : sample.label === "coord visible"
+                                ? "The same visibility change now resolves several deferred entities together toward pursuit-like continuations."
+                                : sample.label === "coord occluded"
+                                  ? "The same occlusion change now resolves several deferred entities together toward search/cover continuations."
+                                  : sample.label === "network B"
+                                    ? "The same visibility network now assigns several agents to B-specific roles."
+                                    : sample.label === "network C"
+                                      ? "The same visibility network now assigns several agents to C-specific roles."
+                                      : "The same visibility network now reassigns different agents across observation frontiers as different targets become visible.";
 
     const button = document.createElement("button");
     button.type = "button";
