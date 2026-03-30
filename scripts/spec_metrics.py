@@ -83,6 +83,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_gate_route_right.sk",
         ROOT / "benchmarks" / "imperative" / "surface_gate_route_right.py",
     ),
+    (
+        "surface_gate_network_staggered",
+        ROOT / "examples" / "surface_gate_network_staggered.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_gate_network_staggered.py",
+    ),
 ]
 
 

@@ -199,6 +199,17 @@ Narrative reading:
 - `sekai` foregrounds connected-space geometry as a routing condition.
 - the imperative baseline foregrounds multi-branch schedule handling and per-wall control flow.
 
+## Surface Gate Network Staggered
+
+This pair pushes the same connected-space family from one routed entity into a small room network.
+`sekai` can keep two entities deferred and let four gate laws resolve them at different observation frontiers without changing the underlying world description style.
+The imperative baseline must coordinate separate schedules, separate routing choices, and separate per-wall enforcement logic for both entities inside one step loop.
+
+Narrative reading:
+
+- `sekai` foregrounds the room network as explicit connected-space law.
+- the imperative baseline foregrounds multi-entity schedule bookkeeping and routing control flow.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

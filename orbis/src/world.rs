@@ -4804,6 +4804,96 @@ observe:
     }
 
     #[test]
+    fn gate_network_can_resolve_entities_at_staggered_frontiers() {
+        let source = r#"
+sphere A
+sphere B
+plane left_wall
+plane right_wall
+region left_door_a
+region right_door_a
+region left_door_b
+region right_door_b
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+position(B) = (0, -2, 0)
+velocity(B) = (0, 0, 0)
+radius(B) = 0.5
+normal(left_wall) = (1, 0, 0)
+offset(left_wall) = -4
+normal(right_wall) = (-1, 0, 0)
+offset(right_wall) = -4
+min(left_door_a) = (-4.5, 1, -1)
+max(left_door_a) = (-3.5, 3, 1)
+min(right_door_a) = (3.5, 1, -1)
+max(right_door_a) = (4.5, 3, 1)
+min(left_door_b) = (-4.5, -3, -1)
+max(left_door_b) = (-3.5, -1, 1)
+min(right_door_b) = (3.5, -3, -1)
+max(right_door_b) = (4.5, -1, 1)
+action:
+    candidate_velocity(A, wait_a) = (0, 0, 0) score 5
+    candidate_velocity(A, enter_left_a) = (-3, 0, 0) score 5
+    candidate_velocity(A, enter_right_a) = (3, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter_left_a, left_door_a)
+    prefer_candidate_if_gate_open(A, enter_right_a, right_door_a)
+    candidate_velocity(B, wait_b) = (0, 0, 0) score 5
+    candidate_velocity(B, enter_left_b) = (-3, 0, 0) score 5
+    candidate_velocity(B, enter_right_b) = (3, 0, 0) score 5
+    defer_on_ambiguous_top(B)
+    resolve_deferred_at(B, 2)
+    prefer_candidate_if_gate_open(B, enter_left_b, left_door_b)
+    prefer_candidate_if_gate_open(B, enter_right_b, right_door_b)
+constraint:
+    through_gate_after(A, left_wall, left_door_a, 1)
+    through_gate_after(A, right_wall, right_door_a, 4, clamp)
+    through_gate_after(B, left_wall, left_door_b, 4, clamp)
+    through_gate_after(B, right_wall, right_door_b, 2)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let a_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("resolution for A");
+        let b_resolution = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "B")
+            .expect("resolution for B");
+        assert_eq!(a_resolution.selected_candidate.as_deref(), Some("enter_left_a"));
+        assert_eq!(a_resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(b_resolution.selected_candidate.as_deref(), Some("enter_right_b"));
+        assert_eq!(b_resolution.resolved_at_observation_time.as_deref(), Some("2.000"));
+        let final_snapshot = report
+            .snapshots
+            .iter()
+            .find(|snapshot| (snapshot.time - 3.0).abs() < 0.001)
+            .expect("snapshot at t=3");
+        let a = final_snapshot
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "A")
+            .expect("sphere A exists");
+        let b = final_snapshot
+            .spheres
+            .iter()
+            .find(|sphere| sphere.name == "B")
+            .expect("sphere B exists");
+        assert!(a.position.x < -4.0);
+        assert!(b.position.x > 2.5);
+    }
+
+    #[test]
     fn elastic_collision_swaps_velocities() {
         let source = r#"
 sphere A

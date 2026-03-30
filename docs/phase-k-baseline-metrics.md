@@ -197,6 +197,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 26 | 0 |
 | declarative density | 0.812 | 0.000 |
 
+## Surface Gate Network Staggered
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 51 | 83 |
+| token count | 418 | 720 |
+| branch keywords | 0 | 20 |
+| loop keywords | 0 | 3 |
+| state-assignment lines | 24 | 22 |
+| declarative lines | 39 | 0 |
+| declarative density | 0.765 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
