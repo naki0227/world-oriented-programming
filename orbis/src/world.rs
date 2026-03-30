@@ -118,6 +118,13 @@ pub enum Constraint {
         gate_region_index: usize,
         policy: RepairPolicy,
     },
+    ThroughGateAfter {
+        sphere_index: usize,
+        plane_index: usize,
+        gate_region_index: usize,
+        open_time: f64,
+        policy: RepairPolicy,
+    },
     Visible {
         observer_index: usize,
         target_index: usize,
@@ -1481,6 +1488,13 @@ pub enum SimulationError {
         gate: String,
         time: f64,
     },
+    ClosedGateCrossing {
+        sphere: String,
+        plane: String,
+        gate: String,
+        open_time: f64,
+        time: f64,
+    },
     VisibilityOccluded {
         observer: String,
         target: String,
@@ -1538,6 +1552,16 @@ impl fmt::Display for SimulationError {
             } => write!(
                 f,
                 "sphere `{sphere}` crossed plane `{plane}` outside gate `{gate}` at t={time:.3}"
+            ),
+            Self::ClosedGateCrossing {
+                sphere,
+                plane,
+                gate,
+                open_time,
+                time,
+            } => write!(
+                f,
+                "sphere `{sphere}` reached plane `{plane}` before gate `{gate}` opened at t={open_time:.3} (current t={time:.3})"
             ),
             Self::VisibilityOccluded {
                 observer,
@@ -2632,6 +2656,31 @@ impl Constraint {
                 repaired_count: trace.repaired_count,
                 contradicted_count: trace.contradicted_count,
             },
+            Self::ThroughGateAfter {
+                sphere_index,
+                plane_index,
+                gate_region_index,
+                policy,
+                ..
+            } => ConstraintSummary {
+                kind: "through_gate_after".to_string(),
+                category: self.category().as_str().to_string(),
+                targets: vec![
+                    world.spheres[*sphere_index].name.clone(),
+                    world.planes[*plane_index].name.clone(),
+                    world.occluder_regions[*gate_region_index].name.clone(),
+                ],
+                policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
+            },
             Self::Visible {
                 observer_index,
                 target_index,
@@ -2684,7 +2733,8 @@ impl Constraint {
             | Self::NotInside { .. }
             | Self::BetweenPlanes { .. }
             | Self::InsidePlanes { .. }
-            | Self::ThroughGate { .. } => ConstraintCategory::Boundary,
+            | Self::ThroughGate { .. }
+            | Self::ThroughGateAfter { .. } => ConstraintCategory::Boundary,
             Self::Visible { .. } | Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
         }
     }
@@ -2697,7 +2747,9 @@ impl Constraint {
             }
             Self::BetweenPlanes { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
             Self::InsidePlanes { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
-            Self::ThroughGate { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
+            Self::ThroughGate { .. } | Self::ThroughGateAfter { .. } => {
+                vec![RepairPolicy::Reject, RepairPolicy::Clamp]
+            }
             Self::ReflectOnCollision { .. }
             | Self::Visible { .. }
             | Self::ElasticCollision { .. } => Vec::new(),
@@ -2879,6 +2931,40 @@ impl Constraint {
                     sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
                     plane_index: ensure_plane_exists(context.planes, plane_ref)?,
                     gate_region_index: ensure_region_exists(context.regions, gate_ref)?,
+                    policy,
+                })
+            }
+            [name, sphere_ref, plane_ref, gate_ref, open_time] if name == "through_gate_after" => {
+                Ok(Self::ThroughGateAfter {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    plane_index: ensure_plane_exists(context.planes, plane_ref)?,
+                    gate_region_index: ensure_region_exists(context.regions, gate_ref)?,
+                    open_time: open_time.parse::<f64>().map_err(|_| {
+                        SimulationError::InvalidConstraint(format!(
+                            "invalid gate open time: {open_time}"
+                        ))
+                    })?,
+                    policy: RepairPolicy::Reject,
+                })
+            }
+            [name, sphere_ref, plane_ref, gate_ref, open_time, policy]
+                if name == "through_gate_after" =>
+            {
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "through_gate_after",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
+                Ok(Self::ThroughGateAfter {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    plane_index: ensure_plane_exists(context.planes, plane_ref)?,
+                    gate_region_index: ensure_region_exists(context.regions, gate_ref)?,
+                    open_time: open_time.parse::<f64>().map_err(|_| {
+                        SimulationError::InvalidConstraint(format!(
+                            "invalid gate open time: {open_time}"
+                        ))
+                    })?,
                     policy,
                 })
             }
@@ -3095,6 +3181,72 @@ impl Constraint {
                 }
                 Ok(false)
             }
+            Self::ThroughGateAfter {
+                sphere_index,
+                plane_index,
+                gate_region_index,
+                open_time,
+                policy,
+            } => {
+                let current_time = world.current_time();
+                let plane = world.planes[*plane_index].clone();
+                let gate = world.occluder_regions[*gate_region_index].clone();
+                let sphere = &mut world.spheres[*sphere_index];
+                let margin = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
+                if margin < -EPSILON {
+                    if current_time + EPSILON < *open_time {
+                        match policy {
+                            RepairPolicy::Reject => {
+                                return Err(SimulationError::ClosedGateCrossing {
+                                    sphere: sphere.name.clone(),
+                                    plane: plane.name,
+                                    gate: gate.name,
+                                    open_time: *open_time,
+                                    time: sphere.last_update_time,
+                                });
+                            }
+                            RepairPolicy::Clamp => {
+                                clamp_sphere_inside_halfspace(sphere, &plane, margin);
+                                return Ok(true);
+                            }
+                            RepairPolicy::Reflect => {
+                                return Err(SimulationError::InvalidConstraint(
+                                    "through_gate_after does not support reflect policy"
+                                        .to_string(),
+                                ));
+                            }
+                        }
+                    }
+                    if !point_inside_gate_aperture(
+                        sphere.position,
+                        plane.normal,
+                        gate.min,
+                        gate.max,
+                    ) {
+                        match policy {
+                            RepairPolicy::Reject => {
+                                return Err(SimulationError::MissedGateCrossing {
+                                    sphere: sphere.name.clone(),
+                                    plane: plane.name,
+                                    gate: gate.name,
+                                    time: sphere.last_update_time,
+                                });
+                            }
+                            RepairPolicy::Clamp => {
+                                clamp_sphere_inside_halfspace(sphere, &plane, margin);
+                                return Ok(true);
+                            }
+                            RepairPolicy::Reflect => {
+                                return Err(SimulationError::InvalidConstraint(
+                                    "through_gate_after does not support reflect policy"
+                                        .to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                Ok(false)
+            }
             Self::Visible {
                 observer_index,
                 target_index,
@@ -3133,6 +3285,7 @@ impl Constraint {
             | Self::BetweenPlanes { .. }
             | Self::InsidePlanes { .. }
             | Self::ThroughGate { .. }
+            | Self::ThroughGateAfter { .. }
             | Self::Visible { .. } => {
                 None
             }
@@ -4247,6 +4400,82 @@ observe:
         assert_eq!(report.constraints[0].policy, "clamp");
         assert_eq!(report.constraints[0].outcome, "repaired");
         assert!(report.snapshots[0].spheres[0].position.x >= 0.5 - 0.001);
+    }
+
+    #[test]
+    fn gate_constraint_can_resolve_deferred_entry_after_opening() {
+        let source = r#"
+sphere A
+plane wall
+region door
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+min(door) = (-0.5, 1, -1)
+max(door) = (0.5, 3, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_at(A, enter, 1)
+constraint:
+    through_gate_after(A, wall, door, 1)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.entity, "A");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("enter"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert!(report.snapshots[3].spheres[0].position.x < 0.0);
+    }
+
+    #[test]
+    fn gate_constraint_can_clamp_deferred_entry_if_the_gate_opens_too_late() {
+        let source = r#"
+sphere A
+plane wall
+region door
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+min(door) = (-0.5, 1, -1)
+max(door) = (0.5, 3, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_at(A, enter, 1)
+constraint:
+    through_gate_after(A, wall, door, 4, clamp)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.entity, "A");
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("enter"));
+        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(report.constraints[0].policy, "clamp");
+        assert_eq!(report.constraints[0].outcome, "repaired");
+        assert!(report.snapshots[3].spheres[0].position.x >= 0.5 - 0.001);
     }
 
     #[test]

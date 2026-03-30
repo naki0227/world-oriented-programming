@@ -40,6 +40,7 @@ It now also supports a first plane-bounded wedge slice, where a sphere is kept i
 It now also supports a first bounded surface room slice, where several declared planes jointly define an admissible pocket and a sphere can be repaired back inside that non-axis-aligned space.
 It now also supports a first reflective surface room slice, where one sphere can bounce between several declared planar boundaries rather than between only a floor and a ceiling.
 It now also supports a first gated-surface slice, where one declared plane becomes traversable only through a named door aperture rather than as a uniform boundary.
+It now also supports a first time-varying gate slice, where that same doorway can open only after a named observation frontier and thereby change whether a deferred continuation later passes through the boundary or is repaired back to the allowed side.
 
 ## Next Geometry-Behavior Slice
 
@@ -65,6 +66,7 @@ This matters because:
 - a first bounded surface room can now keep a sphere inside a small polyhedral pocket built from several planes
 - a first reflective surface room can now express contact-rich bounded motion over several declared surfaces
 - a first gate law can now connect bounded spaces through one explicit geometric aperture
+- a first time-varying gate law can now make that aperture open or remain closed across observation frontiers
 
 ## Near-Term Targets
 

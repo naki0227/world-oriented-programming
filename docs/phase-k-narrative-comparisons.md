@@ -166,6 +166,17 @@ Narrative reading:
 - `sekai` foregrounds the wall, the door, and the admissible crossing law.
 - the imperative baseline foregrounds aperture checks and explicit correction mechanics.
 
+## Surface Gate Deferred Closed
+
+This pair pushes the same gate idea into time-varying geometry.
+`sekai` can keep a deferred continuation unresolved, later prefer entry, and still state that the wall only becomes traversable after one explicit opening time through `through_gate_after(...)`.
+The imperative baseline must instead carry the gate schedule through the stepping loop, activate the chosen continuation at the right time, and repeatedly enforce the still-closed boundary until the opening time is reached.
+
+Narrative reading:
+
+- `sekai` foregrounds the room transition law and the opening schedule together.
+- the imperative baseline foregrounds time bookkeeping, stepping, and late repair mechanics.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

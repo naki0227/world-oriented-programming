@@ -161,6 +161,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 18 | 0 |
 | declarative density | 0.947 | 0.000 |
 
+## Surface Gate Deferred Closed
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 23 | 67 |
+| token count | 158 | 523 |
+| branch keywords | 0 | 7 |
+| loop keywords | 0 | 3 |
+| state-assignment lines | 9 | 25 |
+| declarative lines | 19 | 0 |
+| declarative density | 0.826 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -174,4 +186,5 @@ but they make the evaluation phase concrete and reproducible.
 - The first bounded surface room keeps the same pattern even when admissibility is defined by several planes rather than by one region or one contact surface.
 - The first reflective surface room keeps the same pattern even when several declared contact boundaries must all remain active at once.
 - The first gated-surface slice keeps the same pattern even when one wall becomes traversable only through an explicit geometric aperture.
+- The first time-varying gate slice keeps the same pattern even when admissible room transitions depend on an opening schedule across observation frontiers.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

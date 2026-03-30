@@ -68,6 +68,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_gate_clamped.sk",
         ROOT / "benchmarks" / "imperative" / "surface_gate_clamped.py",
     ),
+    (
+        "surface_gate_deferred_closed",
+        ROOT / "examples" / "surface_gate_deferred_closed.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_gate_deferred_closed.py",
+    ),
 ]
 
 
