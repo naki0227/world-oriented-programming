@@ -307,6 +307,7 @@ It now also includes a first gate-conditioned branching slice, where the opening
 It now also includes a first multi-gate routing slice, where several delayed apertures can steer the same deferred world toward different exits.
 It now also includes a first staggered room-network slice, where several entities can resolve through different gates at different observation frontiers.
 It now also includes a first shifted-gate slice, where the aperture itself can later move into or out of alignment and thereby change whether a deferred world crosses the boundary or remains in place.
+It now also includes a first shifted-gate network slice, where several entities can resolve through different translated apertures at different frontiers in the same connected-space family.
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show a consistent relocation of semantic burden: \emph{sekai} keeps world construction and admissibility law explicit, while imperative baselines bury both inside update loops, guard logic, and control-flow bookkeeping.
 
@@ -339,6 +340,7 @@ They are included to show that the evaluation is already reproducible and that t
     surface gate route & 32 & 55 & 0.812 & 12 \\
     surface gate network & 51 & 83 & 0.765 & 20 \\
     surface gate shifted & 24 & 45 & 0.792 & 6 \\
+    surface gate shifted network & 51 & 88 & 0.765 & 17 \\
     \bottomrule
   \end{tabular}
 \end{table}

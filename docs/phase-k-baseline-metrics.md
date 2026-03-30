@@ -221,6 +221,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 19 | 0 |
 | declarative density | 0.792 | 0.000 |
 
+## Surface Gate Network Shifted
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 51 | 88 |
+| token count | 442 | 773 |
+| branch keywords | 0 | 17 |
+| loop keywords | 0 | 3 |
+| state-assignment lines | 24 | 22 |
+| declarative lines | 39 | 0 |
+| declarative density | 0.765 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -237,4 +249,5 @@ but they make the evaluation phase concrete and reproducible.
 - The first time-varying gate slice keeps the same pattern even when admissible room transitions depend on an opening schedule across observation frontiers.
 - The first gate-conditioned branching slice keeps the same pattern even when geometry directly prefers `enter` or `wait` as the world crosses a deferred frontier.
 - The first shifted-gate slice keeps the same pattern even when the aperture itself moves into or out of alignment across later frontiers.
+- The first shifted-gate network keeps the same pattern even when several translated apertures resolve several entities across different frontiers in one connected-space family.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

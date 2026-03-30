@@ -32,6 +32,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/surface_gate_route_right.sk`
 - `examples/surface_gate_network_staggered.sk`
 - `examples/surface_gate_shifted_closed.sk`
+- `examples/surface_gate_network_shifted.sk`
 
 Imperative reference baselines live in:
 
@@ -53,6 +54,7 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/surface_gate_route_right.py`
 - `benchmarks/imperative/surface_gate_network_staggered.py`
 - `benchmarks/imperative/surface_gate_shifted_closed.py`
+- `benchmarks/imperative/surface_gate_network_shifted.py`
 
 ## Initial Metrics
 
@@ -100,5 +102,6 @@ The first recorded output is summarized in:
 - extend that connected-space line into multi-gate routing where geometry chooses which exit becomes active
 - extend that connected-space line into staggered room networks where several entities resolve through different gates at different frontiers
 - extend that connected-space line into shifted-gate worlds where the aperture itself can later move into or out of alignment
+- extend that moving-aperture line into shifted-gate networks where several entities resolve through different translated apertures
 - connect these structural metrics to cognitive-load hypotheses
 - decide whether a lightweight user study is feasible

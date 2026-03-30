@@ -221,6 +221,17 @@ Narrative reading:
 - `sekai` foregrounds moving aperture geometry as part of the admissible room-transition law.
 - the imperative baseline foregrounds shifting bounds, schedule checks, and explicit correction mechanics.
 
+## Surface Gate Network Shifted
+
+This pair pushes the same moving-aperture family from one waiting entity into a connected-space network.
+`sekai` can keep two entities deferred and let several translated apertures resolve them at different frontiers without changing the underlying world-description style.
+The imperative baseline must instead coordinate separate moving gate-bounds functions, separate route choices, and separate per-wall enforcement logic for both entities inside one stepping loop.
+
+Narrative reading:
+
+- `sekai` foregrounds the moving connected-space network as explicit geometry law.
+- the imperative baseline foregrounds multi-entity aperture motion bookkeeping and routing control flow.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:
