@@ -153,6 +153,7 @@ pub struct World {
     pub deferred_resolution_times: BTreeMap<String, f64>,
     pub deferred_preference_triggers: BTreeMap<String, DeferredPreferenceTrigger>,
     pub visibility_preference_triggers: BTreeMap<String, Vec<VisibilityPreferenceTrigger>>,
+    pub gate_preference_triggers: BTreeMap<String, Vec<GatePreferenceTrigger>>,
     pub deferred_score_adjustments: BTreeMap<String, Vec<DeferredScoreAdjustment>>,
     pub deferred_speed_limit_updates: BTreeMap<String, DeferredSpeedLimitUpdate>,
 }
@@ -234,6 +235,18 @@ pub struct VisibilityPreferenceTrigger {
 pub enum VisibilityCondition {
     Visible,
     Occluded,
+}
+
+#[derive(Clone, Debug)]
+pub struct GatePreferenceTrigger {
+    pub label: String,
+    pub condition: GateCondition,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GateCondition {
+    Open,
+    Closed,
 }
 
 #[derive(Clone, Debug)]
@@ -1840,6 +1853,9 @@ impl World {
             visibility_preference_triggers: visibility_preference_triggers_from_action_directives(
                 &program.action_directives,
             ),
+            gate_preference_triggers: gate_preference_triggers_from_action_directives(
+                &program.action_directives,
+            ),
             deferred_score_adjustments: deferred_score_adjustments_from_action_directives(
                 &program.action_directives,
             ),
@@ -2009,7 +2025,7 @@ impl World {
                 deferred_entities.contains(&sphere_name),
                 false,
                 None,
-                self.visibility_conditioned_preference(&sphere_name).as_deref(),
+                self.conditioned_preference(&sphere_name, None).as_deref(),
                 &[],
                 &[],
             )?;
@@ -2054,7 +2070,7 @@ impl World {
                 .get(&entity)
                 .filter(|trigger| observation_time + EPSILON >= trigger.time)
                 .map(|trigger| trigger.label.clone())
-                .or_else(|| self.visibility_conditioned_preference(&entity));
+                .or_else(|| self.conditioned_preference(&entity, Some(observation_time)));
             let score_adjustments = self
                 .deferred_score_adjustments
                 .get(&entity)
@@ -2089,6 +2105,15 @@ impl World {
         Ok(())
     }
 
+    fn conditioned_preference(
+        &self,
+        sphere_name: &str,
+        observation_time: Option<f64>,
+    ) -> Option<String> {
+        self.visibility_conditioned_preference(sphere_name)
+            .or_else(|| self.gate_conditioned_preference(sphere_name, observation_time))
+    }
+
     fn visibility_conditioned_preference(&self, sphere_name: &str) -> Option<String> {
         self.visibility_preference_triggers
             .get(sphere_name)
@@ -2102,6 +2127,45 @@ impl World {
                     matches.then(|| trigger.label.clone())
                 })
             })
+    }
+
+    fn gate_conditioned_preference(
+        &self,
+        sphere_name: &str,
+        observation_time: Option<f64>,
+    ) -> Option<String> {
+        let current_time = observation_time.unwrap_or_else(|| self.current_time());
+        self.gate_preference_triggers
+            .get(sphere_name)
+            .and_then(|triggers| {
+                triggers.iter().find_map(|trigger| {
+                    let gate_open = self.entity_gate_is_open_at(sphere_name, current_time);
+                    let matches = match trigger.condition {
+                        GateCondition::Open => gate_open,
+                        GateCondition::Closed => !gate_open,
+                    };
+                    matches.then(|| trigger.label.clone())
+                })
+            })
+    }
+
+    fn entity_gate_is_open_at(&self, sphere_name: &str, observation_time: f64) -> bool {
+        let Ok(sphere_index) = ensure_sphere_exists(&self.spheres, sphere_name) else {
+            return false;
+        };
+        self.constraints.iter().find_map(|constraint| {
+            if let Constraint::ThroughGateAfter {
+                sphere_index: constrained_sphere_index,
+                open_time,
+                ..
+            } = constraint
+            {
+                if *constrained_sphere_index == sphere_index {
+                    return Some(observation_time + EPSILON >= *open_time);
+                }
+            }
+            None
+        }).unwrap_or(false)
     }
 
     fn apply_deferred_law_updates_at(
@@ -3579,15 +3643,17 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
         .filter(|directive| directive.kind == "defer_on_ambiguous_top")
         .map(|directive| directive.entity.clone())
         .collect::<std::collections::BTreeSet<_>>();
-    let visibility_preferred_entities = program
+    let conditioned_preferred_entities = program
         .action_directives
         .iter()
         .filter(|directive| {
             directive.kind == "prefer_candidate_if_visible"
                 || directive.kind == "prefer_candidate_if_occluded"
+                || directive.kind == "prefer_candidate_if_gate_open"
+                || directive.kind == "prefer_candidate_if_gate_closed"
         })
-        .filter_map(|directive| {
-            directive
+        .filter_map(|directive| match directive.kind.as_str() {
+            "prefer_candidate_if_visible" | "prefer_candidate_if_occluded" => directive
                 .label_argument
                 .as_ref()
                 .zip(directive.target_argument.as_ref())
@@ -3598,7 +3664,19 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                         format!("prefer_{label}_if_occluded_to_{target}")
                     };
                     (directive.entity.clone(), hint)
-                })
+                }),
+            "prefer_candidate_if_gate_open" | "prefer_candidate_if_gate_closed" => directive
+                .label_argument
+                .as_ref()
+                .map(|label| {
+                    let hint = if directive.kind == "prefer_candidate_if_gate_open" {
+                        format!("prefer_{label}_if_gate_open")
+                    } else {
+                        format!("prefer_{label}_if_gate_closed")
+                    };
+                    (directive.entity.clone(), hint)
+                }),
+            _ => None,
         })
         .fold(BTreeMap::<String, Vec<String>>::new(), |mut acc, (entity, hint)| {
             acc.entry(entity).or_default().push(hint);
@@ -3651,7 +3729,7 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 } else {
                     "deferred_on_ambiguous_top".to_string()
                 }
-            } else if let Some(hints) = visibility_preferred_entities.get(&entity) {
+            } else if let Some(hints) = conditioned_preferred_entities.get(&entity) {
                 hints.join("_else_")
             } else if top_score_tied {
                 "deterministic_tie_break".to_string()
@@ -3775,6 +3853,32 @@ fn visibility_preference_triggers_from_action_directives(
     result
 }
 
+fn gate_preference_triggers_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, Vec<GatePreferenceTrigger>> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "prefer_candidate_if_gate_open"
+            || directive.kind == "prefer_candidate_if_gate_closed"
+        {
+            if let Some(label) = &directive.label_argument {
+                result
+                    .entry(directive.entity.clone())
+                    .or_insert_with(Vec::new)
+                    .push(GatePreferenceTrigger {
+                        label: label.clone(),
+                        condition: if directive.kind == "prefer_candidate_if_gate_open" {
+                            GateCondition::Open
+                        } else {
+                            GateCondition::Closed
+                        },
+                    });
+            }
+        }
+    }
+    result
+}
+
 fn deferred_score_adjustments_from_action_directives(
     action_directives: &[ActionDirectiveDecl],
 ) -> BTreeMap<String, Vec<DeferredScoreAdjustment>> {
@@ -3825,6 +3929,20 @@ fn preferred_candidate_labels_from_action_directives(
         if directive.kind == "prefer_candidate_at" {
             if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument) {
                 result.insert(directive.entity.clone(), (label.clone(), time));
+            }
+        } else if directive.kind == "prefer_candidate_if_gate_open" {
+            if let Some(label) = &directive.label_argument {
+                result.insert(
+                    directive.entity.clone(),
+                    (format!("{label}_if_gate_open"), 0.0),
+                );
+            }
+        } else if directive.kind == "prefer_candidate_if_gate_closed" {
+            if let Some(label) = &directive.label_argument {
+                result.insert(
+                    directive.entity.clone(),
+                    (format!("{label}_if_gate_closed"), 0.0),
+                );
             }
         } else if directive.kind == "rescore_candidate_at" {
             if let (Some(label), Some(time), Some(delta)) = (
@@ -3888,6 +4006,10 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
                     (Some(label), Some(target)) => Some(format!("{label}, {target}")),
                     _ => None,
                 }
+            } else if directive.kind == "prefer_candidate_if_gate_open"
+                || directive.kind == "prefer_candidate_if_gate_closed"
+            {
+                directive.label_argument.clone()
             } else {
                 match (&directive.label_argument, directive.time_argument) {
                 (Some(label), Some(time)) => {
@@ -4476,6 +4598,80 @@ observe:
         assert_eq!(report.constraints[0].policy, "clamp");
         assert_eq!(report.constraints[0].outcome, "repaired");
         assert!(report.snapshots[3].spheres[0].position.x >= 0.5 - 0.001);
+    }
+
+    #[test]
+    fn gate_open_condition_can_prefer_entry_after_a_delayed_opening() {
+        let source = r#"
+sphere A
+plane wall
+region door
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+min(door) = (-0.5, 1, -1)
+max(door) = (0.5, 3, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter)
+    prefer_candidate_if_gate_closed(A, wait)
+constraint:
+    through_gate_after(A, wall, door, 1)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("enter"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("enter"));
+        assert!(report.snapshots[3].spheres[0].position.x < 0.0);
+    }
+
+    #[test]
+    fn gate_closed_condition_can_keep_waiting_before_the_gate_opens() {
+        let source = r#"
+sphere A
+plane wall
+region door
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+min(door) = (-0.5, 1, -1)
+max(door) = (0.5, 3, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter)
+    prefer_candidate_if_gate_closed(A, wait)
+constraint:
+    through_gate_after(A, wall, door, 4, clamp)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("wait"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("wait"));
+        assert_eq!(report.snapshots[3].spheres[0].position.x, 2.0);
     }
 
     #[test]

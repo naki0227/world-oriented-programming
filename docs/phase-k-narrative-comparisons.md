@@ -177,6 +177,17 @@ Narrative reading:
 - `sekai` foregrounds the room transition law and the opening schedule together.
 - the imperative baseline foregrounds time bookkeeping, stepping, and late repair mechanics.
 
+## Surface Gate Branch Closed
+
+This pair pushes the same time-varying gate family from later repair into later branching.
+`sekai` can keep `wait` and `enter` as equally scored continuations and then let the gate state itself choose which one should become preferred at the deferred frontier.
+The imperative baseline must explicitly query the opening schedule, branch on that result, activate one continuation manually, and still preserve the late gate-enforcement logic inside the update loop.
+
+Narrative reading:
+
+- `sekai` foregrounds the gate state as a world condition on convergence.
+- the imperative baseline foregrounds schedule checks, control flow, and update management.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

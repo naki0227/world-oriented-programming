@@ -28,6 +28,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/surface_room_reflective.sk`
 - `examples/surface_gate_clamped.sk`
 - `examples/surface_gate_deferred_closed.sk`
+- `examples/surface_gate_branch_closed.sk`
 
 Imperative reference baselines live in:
 
@@ -45,6 +46,7 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/surface_room_reflective.py`
 - `benchmarks/imperative/surface_gate_clamped.py`
 - `benchmarks/imperative/surface_gate_deferred_closed.py`
+- `benchmarks/imperative/surface_gate_branch_closed.py`
 
 ## Initial Metrics
 
@@ -88,5 +90,6 @@ The first recorded output is summarized in:
 - add scenario-specific narrative comparisons for each pair
 - add a gate / doorway pair so bounded spaces can be connected rather than only closed
 - add a time-varying gate pair so geometry can open or close a room transition across frontiers
+- extend that gate pair into a branching world where opening state changes which continuation the world prefers
 - connect these structural metrics to cognitive-load hypotheses
 - decide whether a lightweight user study is feasible
