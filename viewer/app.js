@@ -374,6 +374,7 @@ function normalizeReport(report) {
       action_directive_inventory: report.action_directive_inventory || [],
       candidate_resolutions: report.candidate_resolutions || [],
       activities: report.activities || [],
+      path_inventory: report.path_inventory || [],
       snapshots: report.snapshots || [],
     };
   }
@@ -391,6 +392,7 @@ function normalizeReport(report) {
     action_directive_inventory: report.action_directive_inventory || [],
     candidate_resolutions: report.candidate_resolutions || [],
     activities: report.activities || [],
+    path_inventory: report.path_inventory || [],
     snapshots: report.snapshots || [],
   };
 }
@@ -597,6 +599,7 @@ function drawCanvasFrame() {
 function draw2DScene(snapshot, bounds, plot, projection) {
   drawGrid(plot);
   drawAxes2D(plot);
+  drawPathSegments2D(bounds, plot, projection);
 
   snapshot.spheres.forEach((sphere) => {
     const color = state.colorMap.get(sphere.name) || COLORS[0];
@@ -778,6 +781,22 @@ function draw3DScene(snapshot, bounds, plot) {
     context.fillText(line.label, line.b.x + 8, line.b.y - 4);
   });
 
+  scene.pathLines.forEach((line) => {
+    context.strokeStyle = line.color;
+    context.lineWidth = line.width;
+    context.setLineDash([10, 7]);
+    context.beginPath();
+    context.moveTo(line.a.x, line.a.y);
+    context.lineTo(line.b.x, line.b.y);
+    context.stroke();
+    context.setLineDash([]);
+    if (line.label) {
+      context.fillStyle = line.color;
+      context.font = '16px Georgia, "Times New Roman", serif';
+      context.fillText(line.label, line.b.x + 8, line.b.y - 4);
+    }
+  });
+
   scene.spheres
     .sort((a, b) => a.depth - b.depth)
     .forEach((sphere) => {
@@ -803,6 +822,7 @@ function draw3DScene(snapshot, bounds, plot) {
 function build3DScene(snapshot, bounds, plot) {
   const gridLines = [];
   const axisLines = [];
+  const pathLines = [];
   const spheres = [];
   const gridSteps = 6;
 
@@ -820,6 +840,10 @@ function build3DScene(snapshot, bounds, plot) {
   axisLines.push(make3DLine({ x: min.x, y: min.y, z: min.z }, { x: max.x, y: min.y, z: min.z }, bounds, plot, "#2440af", 2.5, "x"));
   axisLines.push(make3DLine({ x: min.x, y: min.y, z: min.z }, { x: min.x, y: max.y, z: min.z }, bounds, plot, "#1b855f", 2.5, "y"));
   axisLines.push(make3DLine({ x: min.x, y: min.y, z: min.z }, { x: min.x, y: min.y, z: max.z }, bounds, plot, "#c1801c", 2.5, "z"));
+
+  (state.report?.path_inventory || []).forEach((path) => {
+    pathLines.push(make3DLine(path.start, path.end, bounds, plot, "#8b5cf6", 3, path.name));
+  });
 
   snapshot.spheres.forEach((sphere) => {
     const color = state.colorMap.get(sphere.name) || COLORS[0];
@@ -847,8 +871,30 @@ function build3DScene(snapshot, bounds, plot) {
   return {
     gridLines,
     axisLines,
+    pathLines,
     spheres,
   };
+}
+
+function drawPathSegments2D(bounds, plot, projection) {
+  const pathInventory = state.report?.path_inventory || [];
+  pathInventory.forEach((path) => {
+    const a = projectPoint2D(path.start, bounds, plot, projection);
+    const b = projectPoint2D(path.end, bounds, plot, projection);
+    context.save();
+    context.strokeStyle = "#8b5cf6";
+    context.lineWidth = 3;
+    context.setLineDash([10, 7]);
+    context.beginPath();
+    context.moveTo(a.x, a.y);
+    context.lineTo(b.x, b.y);
+    context.stroke();
+    context.setLineDash([]);
+    context.fillStyle = "#6d28d9";
+    context.font = '16px Georgia, "Times New Roman", serif';
+    context.fillText(path.name, b.x + 8, b.y - 4);
+    context.restore();
+  });
 }
 
 function make3DLine(a, b, bounds, plot, color, width, label = "") {
@@ -1474,6 +1520,7 @@ function compute3DBounds(snapshots, draftSpheres = [], floorOffset = null) {
   const points = [
     ...snapshots.flatMap((snapshot) => snapshot.spheres.map((sphere) => sphere.position)),
     ...draftSpheres.map((sphere) => sphere.position),
+    ...((state.report?.path_inventory || []).flatMap((path) => [path.start, path.end])),
   ];
   if (points.length === 0) {
     points.push({ x: -5, y: -5, z: -5 }, { x: 5, y: 5, z: 5 });

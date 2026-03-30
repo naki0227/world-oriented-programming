@@ -87,6 +87,14 @@ pub struct Region {
 }
 
 #[derive(Clone, Debug)]
+pub struct Path {
+    pub name: String,
+    pub start: Vec3,
+    pub end: Vec3,
+    pub width: f64,
+}
+
+#[derive(Clone, Debug)]
 pub enum Constraint {
     ReflectOnCollision {
         sphere_index: usize,
@@ -126,6 +134,11 @@ pub enum Constraint {
         shift: Option<Vec3>,
         policy: RepairPolicy,
     },
+    InsideTube {
+        sphere_index: usize,
+        path_index: usize,
+        policy: RepairPolicy,
+    },
     Visible {
         observer_index: usize,
         target_index: usize,
@@ -144,6 +157,7 @@ pub enum RepairPolicy {
 pub struct World {
     pub spheres: Vec<Sphere>,
     pub planes: Vec<Plane>,
+    pub paths: Vec<Path>,
     pub region: Option<Region>,
     pub occluder_regions: Vec<Region>,
     pub constraints: Vec<Constraint>,
@@ -176,6 +190,7 @@ pub struct Snapshot {
 pub struct SimulationReport {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub path_inventory: Vec<PathSummary>,
     pub convergence_analytics: ConvergenceAnalytics,
     pub observation_summary: ObservationSummary,
     pub observation_timeline: Vec<ObservationCheckpoint>,
@@ -196,8 +211,17 @@ pub struct ObservationCheckpoint {
 pub struct LawInventory {
     pub analytics: LawAnalytics,
     pub constraints: Vec<ConstraintSummary>,
+    pub path_inventory: Vec<PathSummary>,
     pub candidate_inventory: Vec<CandidateInventorySummary>,
     pub action_directive_inventory: Vec<ActionDirectiveSummary>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PathSummary {
+    pub name: String,
+    pub start: Vec3,
+    pub end: Vec3,
+    pub width: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -451,6 +475,26 @@ impl SimulationReport {
             ));
             json.push_str("    }");
             if index + 1 != self.constraints.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"path_inventory\": [\n");
+        for (index, path) in self.path_inventory.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"name\": \"{}\",\n", escape_json(&path.name)));
+            json.push_str(&format!(
+                "      \"start\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                path.start.x, path.start.y, path.start.z
+            ));
+            json.push_str(&format!(
+                "      \"end\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                path.end.x, path.end.y, path.end.z
+            ));
+            json.push_str(&format!("      \"width\": {:.6}\n", path.width));
+            json.push_str("    }");
+            if index + 1 != self.path_inventory.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -876,6 +920,26 @@ impl LawInventory {
             json.push('\n');
         }
         json.push_str("  ],\n");
+        json.push_str("  \"path_inventory\": [\n");
+        for (index, path) in self.path_inventory.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!("      \"name\": \"{}\",\n", escape_json(&path.name)));
+            json.push_str(&format!(
+                "      \"start\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                path.start.x, path.start.y, path.start.z
+            ));
+            json.push_str(&format!(
+                "      \"end\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                path.end.x, path.end.y, path.end.z
+            ));
+            json.push_str(&format!("      \"width\": {:.6}\n", path.width));
+            json.push_str("    }");
+            if index + 1 != self.path_inventory.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
         json.push_str("  \"candidate_inventory\": [\n");
         for (index, candidate_inventory) in self.candidate_inventory.iter().enumerate() {
             json.push_str("    {\n");
@@ -1095,6 +1159,29 @@ impl SimulationEnvelope {
                     ));
                     json.push_str("    }");
                     if index + 1 != report.constraints.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
+                json.push_str("  \"path_inventory\": [\n");
+                for (index, path) in report.path_inventory.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!(
+                        "      \"name\": \"{}\",\n",
+                        escape_json(&path.name)
+                    ));
+                    json.push_str(&format!(
+                        "      \"start\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                        path.start.x, path.start.y, path.start.z
+                    ));
+                    json.push_str(&format!(
+                        "      \"end\": {{ \"x\": {:.6}, \"y\": {:.6}, \"z\": {:.6} }},\n",
+                        path.end.x, path.end.y, path.end.z
+                    ));
+                    json.push_str(&format!("      \"width\": {:.6}\n", path.width));
+                    json.push_str("    }");
+                    if index + 1 != report.path_inventory.len() {
                         json.push(',');
                     }
                     json.push('\n');
@@ -1466,6 +1553,7 @@ impl SimulationEnvelope {
                 json.push_str("  },\n");
                 json.push_str("  \"candidate_resolutions\": [],\n");
                 json.push_str("  \"activities\": [],\n");
+                json.push_str("  \"path_inventory\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
         }
@@ -1478,9 +1566,11 @@ impl SimulationEnvelope {
 pub enum SimulationError {
     MissingSphere,
     MissingPlane,
+    MissingPathEndpoints(String),
     MissingPosition(String),
     MissingVelocity(String),
     InvalidRadius(String),
+    InvalidPathWidth(String),
     InvalidPlaneNormal,
     InvalidConstraint(String),
     MissingRegionBounds(String),
@@ -1510,6 +1600,11 @@ pub enum SimulationError {
         open_time: f64,
         time: f64,
     },
+    LeftPathTube {
+        sphere: String,
+        path: String,
+        time: f64,
+    },
     VisibilityOccluded {
         observer: String,
         target: String,
@@ -1525,9 +1620,15 @@ impl fmt::Display for SimulationError {
         match self {
             Self::MissingSphere => write!(f, "program requires at least one sphere"),
             Self::MissingPlane => write!(f, "program requires at least one plane"),
+            Self::MissingPathEndpoints(name) => {
+                write!(f, "path `{name}` requires both start and end vectors")
+            }
             Self::MissingPosition(name) => write!(f, "missing position for entity `{name}`"),
             Self::MissingVelocity(name) => write!(f, "missing velocity for entity `{name}`"),
             Self::InvalidRadius(name) => write!(f, "missing or invalid radius for sphere `{name}`"),
+            Self::InvalidPathWidth(name) => {
+                write!(f, "path `{name}` requires a positive width")
+            }
             Self::InvalidPlaneNormal => write!(f, "plane normal must be non-zero"),
             Self::InvalidConstraint(message) => write!(f, "{message}"),
             Self::MissingRegionBounds(name) => {
@@ -1578,6 +1679,10 @@ impl fmt::Display for SimulationError {
                 f,
                 "sphere `{sphere}` reached plane `{plane}` before gate `{gate}` opened at t={open_time:.3} (current t={time:.3})"
             ),
+            Self::LeftPathTube { sphere, path, time } => write!(
+                f,
+                "sphere `{sphere}` left path tube `{path}` at t={time:.3}"
+            ),
             Self::VisibilityOccluded {
                 observer,
                 target,
@@ -1625,12 +1730,14 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     }
 
     let constraints = world.constraint_summaries();
+    let path_inventory = world.path_inventory();
     let candidate_resolutions =
         candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
 
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        path_inventory,
         convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
             &candidate_resolutions,
         ),
@@ -1650,6 +1757,7 @@ pub fn analyze_program(program: &Program) -> Result<LawInventory, SimulationErro
     Ok(LawInventory {
         analytics: LawAnalytics::from_constraints(&constraints),
         constraints,
+        path_inventory: world.path_inventory(),
         candidate_inventory: candidate_inventory_from_program(program),
         action_directive_inventory: action_directive_inventory_from_program(program),
     })
@@ -1668,6 +1776,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
     for time in observation_times {
         if let Err(error) = world.advance_to(time) {
             let constraints = world.constraint_summaries();
+            let path_inventory = world.path_inventory();
             let candidate_resolutions =
                 candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
             return SimulationEnvelope::failure_with_report(
@@ -1676,6 +1785,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
+                    path_inventory,
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                         &candidate_resolutions,
                     ),
@@ -1691,6 +1801,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         }
         if let Err(error) = world.resolve_deferred_candidates_at(time) {
             let constraints = world.constraint_summaries();
+            let path_inventory = world.path_inventory();
             let candidate_resolutions =
                 candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
             return SimulationEnvelope::failure_with_report(
@@ -1699,6 +1810,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
+                    path_inventory,
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                         &candidate_resolutions,
                     ),
@@ -1732,6 +1844,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
     }
 
     let constraints = world.constraint_summaries();
+    let path_inventory = world.path_inventory();
     let candidate_resolutions =
         candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
 
@@ -1740,6 +1853,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         SimulationReport {
             analytics: LawAnalytics::from_constraints(&constraints),
             constraints,
+            path_inventory,
             convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                 &candidate_resolutions,
             ),
@@ -1778,6 +1892,11 @@ impl World {
             .iter()
             .filter(|entity| entity.kind == "region")
             .collect::<Vec<_>>();
+        let path_decls = program
+            .entities
+            .iter()
+            .filter(|entity| entity.kind == "path")
+            .collect::<Vec<_>>();
 
         let mut spheres = Vec::new();
         for sphere_decl in sphere_decls {
@@ -1810,6 +1929,25 @@ impl World {
             });
         }
 
+        let mut paths = Vec::new();
+        for path_decl in path_decls {
+            let path_name = path_decl.name.clone();
+            let width = program.number_property("width", &path_name).unwrap_or(1.0);
+            if width <= EPSILON {
+                return Err(SimulationError::InvalidPathWidth(path_name));
+            }
+            paths.push(Path {
+                name: path_decl.name.clone(),
+                start: program
+                    .vec3_property("start", &path_decl.name)
+                    .ok_or_else(|| SimulationError::MissingPathEndpoints(path_decl.name.clone()))?,
+                end: program
+                    .vec3_property("end", &path_decl.name)
+                    .ok_or_else(|| SimulationError::MissingPathEndpoints(path_decl.name.clone()))?,
+                width,
+            });
+        }
+
         let mut occluder_regions = Vec::new();
         for region_decl in &region_decls {
             let region_name = region_decl.name.clone();
@@ -1828,6 +1966,7 @@ impl World {
         let build_context = ConstraintBuildContext {
             spheres: &spheres,
             planes: &planes,
+            paths: &paths,
             regions: &occluder_regions,
             region_name: region.as_ref().map(|decl| decl.name.as_str()),
         };
@@ -1839,6 +1978,7 @@ impl World {
         let mut world = Self {
             spheres,
             planes,
+            paths,
             region,
             occluder_regions,
             constraints,
@@ -1987,6 +2127,18 @@ impl World {
             .iter()
             .enumerate()
             .map(|(index, constraint)| constraint.summary(self, &self.constraint_traces[index]))
+            .collect()
+    }
+
+    fn path_inventory(&self) -> Vec<PathSummary> {
+        self.paths
+            .iter()
+            .map(|path| PathSummary {
+                name: path.name.clone(),
+                start: path.start,
+                end: path.end,
+                width: path.width,
+            })
             .collect()
     }
 
@@ -2577,6 +2729,7 @@ impl EventKind {
 struct ConstraintBuildContext<'a> {
     spheres: &'a [Sphere],
     planes: &'a [Plane],
+    paths: &'a [Path],
     regions: &'a [Region],
     region_name: Option<&'a str>,
 }
@@ -2716,6 +2869,28 @@ impl Constraint {
                 repaired_count: trace.repaired_count,
                 contradicted_count: trace.contradicted_count,
             },
+            Self::InsideTube {
+                sphere_index,
+                path_index,
+                policy,
+            } => ConstraintSummary {
+                kind: "inside_tube".to_string(),
+                category: self.category().as_str().to_string(),
+                targets: vec![
+                    world.spheres[*sphere_index].name.clone(),
+                    world.paths[*path_index].name.clone(),
+                ],
+                policy: policy.as_str().to_string(),
+                supported_policies: self
+                    .supported_policies()
+                    .into_iter()
+                    .map(|policy| policy.as_str().to_string())
+                    .collect(),
+                outcome: trace.outcome().to_string(),
+                fired_count: trace.fired_count,
+                repaired_count: trace.repaired_count,
+                contradicted_count: trace.contradicted_count,
+            },
             Self::ThroughGate {
                 sphere_index,
                 plane_index,
@@ -2822,6 +2997,7 @@ impl Constraint {
             | Self::NotInside { .. }
             | Self::BetweenPlanes { .. }
             | Self::InsidePlanes { .. }
+            | Self::InsideTube { .. }
             | Self::ThroughGate { .. }
             | Self::ThroughGateAfter { .. } => ConstraintCategory::Boundary,
             Self::Visible { .. } | Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
@@ -2836,6 +3012,7 @@ impl Constraint {
             }
             Self::BetweenPlanes { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
             Self::InsidePlanes { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
+            Self::InsideTube { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
             Self::ThroughGate { .. } | Self::ThroughGateAfter { .. } => {
                 vec![RepairPolicy::Reject, RepairPolicy::Clamp]
             }
@@ -2941,6 +3118,24 @@ impl Constraint {
                 observer_index: ensure_sphere_exists(context.spheres, observer)?,
                 target_index: ensure_sphere_exists(context.spheres, target)?,
             }),
+            [name, sphere_ref, path_ref] if name == "inside_tube" => Ok(Self::InsideTube {
+                sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                path_index: ensure_path_exists(context.paths, path_ref)?,
+                policy: RepairPolicy::Reject,
+            }),
+            [name, sphere_ref, path_ref, policy] if name == "inside_tube" => {
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "inside_tube",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
+                Ok(Self::InsideTube {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    path_index: ensure_path_exists(context.paths, path_ref)?,
+                    policy,
+                })
+            }
             [name, sphere_ref, lower_plane_ref, upper_plane_ref] if name == "between_planes" => {
                 let lower_plane_index = ensure_plane_exists(context.planes, lower_plane_ref)?;
                 let upper_plane_index = ensure_plane_exists(context.planes, upper_plane_ref)?;
@@ -3302,6 +3497,37 @@ impl Constraint {
                 }
                 Ok(repaired)
             }
+            Self::InsideTube {
+                sphere_index,
+                path_index,
+                policy,
+            } => {
+                let path = world.paths[*path_index].clone();
+                let sphere = &mut world.spheres[*sphere_index];
+                let (closest_point, distance) =
+                    closest_point_on_segment(sphere.position, path.start, path.end);
+                if distance > path.width + EPSILON {
+                    match policy {
+                        RepairPolicy::Reject => {
+                            return Err(SimulationError::LeftPathTube {
+                                sphere: sphere.name.clone(),
+                                path: path.name,
+                                time: sphere.last_update_time,
+                            });
+                        }
+                        RepairPolicy::Clamp => {
+                            clamp_sphere_inside_tube(sphere, &path, closest_point, distance);
+                            return Ok(true);
+                        }
+                        RepairPolicy::Reflect => {
+                            return Err(SimulationError::InvalidConstraint(
+                                "inside_tube does not support reflect policy".to_string(),
+                            ));
+                        }
+                    }
+                }
+                Ok(false)
+            }
             Self::ThroughGate {
                 sphere_index,
                 plane_index,
@@ -3450,6 +3676,7 @@ impl Constraint {
             Self::VelocityLimit { .. }
             | Self::BetweenPlanes { .. }
             | Self::InsidePlanes { .. }
+            | Self::InsideTube { .. }
             | Self::ThroughGate { .. }
             | Self::ThroughGateAfter { .. }
             | Self::Visible { .. } => {
@@ -3645,6 +3872,17 @@ fn ensure_region_exists(regions: &[Region], region_name: &str) -> Result<usize, 
         .ok_or_else(|| {
             SimulationError::InvalidConstraint(format!(
                 "unknown region in constraint: {region_name}"
+            ))
+        })
+}
+
+fn ensure_path_exists(paths: &[Path], path_name: &str) -> Result<usize, SimulationError> {
+    paths
+        .iter()
+        .position(|path| path.name == path_name)
+        .ok_or_else(|| {
+            SimulationError::InvalidConstraint(format!(
+                "unknown path in constraint: {path_name}"
             ))
         })
 }
@@ -4179,6 +4417,41 @@ fn clamp_sphere_inside_halfspace(sphere: &mut Sphere, plane: &Plane, margin: f64
     let normal_speed = sphere.velocity.dot(plane.normal);
     if normal_speed < 0.0 {
         sphere.velocity = sphere.velocity - plane.normal * normal_speed;
+    }
+}
+
+fn closest_point_on_segment(point: Vec3, start: Vec3, end: Vec3) -> (Vec3, f64) {
+    let segment = end - start;
+    let length_sq = segment.dot(segment);
+    if length_sq <= EPSILON {
+        let distance = (point - start).magnitude();
+        return (start, distance);
+    }
+    let t = ((point - start).dot(segment) / length_sq).clamp(0.0, 1.0);
+    let closest = start + segment * t;
+    let distance = (point - closest).magnitude();
+    (closest, distance)
+}
+
+fn clamp_sphere_inside_tube(sphere: &mut Sphere, path: &Path, closest_point: Vec3, distance: f64) {
+    let offset = sphere.position - closest_point;
+    let direction = if distance <= EPSILON {
+        let segment = path.end - path.start;
+        let fallback = Vec3::new(-segment.y, segment.x, 0.0);
+        if fallback.magnitude() <= EPSILON {
+            Vec3::new(0.0, 1.0, 0.0)
+        } else {
+            fallback.normalized().unwrap_or(Vec3::new(0.0, 1.0, 0.0))
+        }
+    } else {
+        offset * (1.0 / distance)
+    };
+    sphere.position = closest_point + direction * path.width;
+    let segment = path.end - path.start;
+    let length_sq = segment.dot(segment);
+    if length_sq > EPSILON {
+        let along = segment * (sphere.velocity.dot(segment) / length_sq);
+        sphere.velocity = along;
     }
 }
 
@@ -6930,5 +7203,59 @@ observe:
         assert_eq!(d.resolved_at_observation_time.as_deref(), Some("2.000"));
         assert_eq!(a.preferred_label.as_deref(), Some("pursue_b"));
         assert_eq!(d.preferred_label.as_deref(), Some("support_c"));
+    }
+
+    #[test]
+    fn path_tube_can_clamp_a_sphere_back_to_a_declared_lane() {
+        let source = r#"
+sphere A
+plane floor
+path lane
+position(A) = (0, 2, 0)
+velocity(A) = (1, -0.8, 0)
+radius(A) = 0.5
+normal(floor) = (0, 1, 0)
+offset(floor) = -2
+start(lane) = (-2, 0, 0)
+end(lane) = (6, 0, 0)
+width(lane) = 1
+constraint:
+    clamp inside_tube(A, lane)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let final_sphere = &report.snapshots[2].spheres[0];
+        assert!(final_sphere.position.y.abs() <= 1.001);
+        assert!((final_sphere.velocity.y).abs() <= 1e-9);
+        assert_eq!(report.constraints[0].kind, "inside_tube");
+        assert_eq!(report.path_inventory[0].name, "lane");
+    }
+
+    #[test]
+    fn path_tube_can_reject_when_a_sphere_leaves_the_declared_lane() {
+        let source = r#"
+sphere A
+plane floor
+path lane
+position(A) = (0, 2.2, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 0.5
+normal(floor) = (0, 1, 0)
+offset(floor) = -2
+start(lane) = (-2, 0, 0)
+end(lane) = (6, 0, 0)
+width(lane) = 1
+constraint:
+    inside_tube(A, lane)
+observe:
+    snapshot at 0
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let error = simulate_program(&program).expect_err("simulation should fail");
+        assert!(error.to_string().contains("left path tube `lane`"));
     }
 }

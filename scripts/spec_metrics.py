@@ -98,6 +98,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_gate_network_shifted.sk",
         ROOT / "benchmarks" / "imperative" / "surface_gate_network_shifted.py",
     ),
+    (
+        "path_tube_clamped",
+        ROOT / "examples" / "path_tube_clamped.sk",
+        ROOT / "benchmarks" / "imperative" / "path_tube_clamped.py",
+    ),
 ]
 
 
@@ -119,6 +124,7 @@ def metrics_for_sekai(path: Path):
         "sphere ",
         "plane ",
         "region ",
+        "path ",
         "position(",
         "velocity(",
         "radius(",
@@ -126,6 +132,9 @@ def metrics_for_sekai(path: Path):
         "offset(",
         "min(",
         "max(",
+        "start(",
+        "end(",
+        "width(",
         "snapshot at ",
         "candidate_velocity(",
         "constraint:",

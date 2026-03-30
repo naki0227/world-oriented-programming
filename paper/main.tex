@@ -308,6 +308,7 @@ It now also includes a first multi-gate routing slice, where several delayed ape
 It now also includes a first staggered room-network slice, where several entities can resolve through different gates at different observation frontiers.
 It now also includes a first shifted-gate slice, where the aperture itself can later move into or out of alignment and thereby change whether a deferred world crosses the boundary or remains in place.
 It now also includes a first shifted-gate network slice, where several entities can resolve through different translated apertures at different frontiers in the same connected-space family.
+It now also includes a first path-tube slice, where one declared path segment becomes an admissible motion corridor through an explicit geometry law rather than through procedural closest-point code.
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show a consistent relocation of semantic burden: \emph{sekai} keeps world construction and admissibility law explicit, while imperative baselines bury both inside update loops, guard logic, and control-flow bookkeeping.
 
@@ -341,6 +342,7 @@ They are included to show that the evaluation is already reproducible and that t
     surface gate network & 51 & 83 & 0.765 & 20 \\
     surface gate shifted & 24 & 45 & 0.792 & 6 \\
     surface gate shifted network & 51 & 88 & 0.765 & 17 \\
+    path tube & 18 & 54 & 0.944 & 5 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -424,6 +426,7 @@ That role assignment can now also be staggered across frontiers, so a visibility
 In parallel, a second geometry family is now beginning to appear: multiple surfaces with contact rules and plane-bounded spaces. The current prototype can already declare a small surface channel with a floor and ceiling and bind reflection laws to each plane independently, and it can now also keep a sphere inside a slanted plane-bounded wedge, repair it inside a bounded surface room, let it bounce inside that room through explicit geometry laws, or restrict crossing through a wall to one named gate aperture. That moves Phase J past the older assumption that the world contains only one meaningful contact surface or only axis-aligned admissible volumes.
 That same geometry family can now also vary across frontiers, since a gate can remain closed until a later opening time and thereby change whether a deferred continuation eventually passes into the next space or is repaired back to the current side of the wall.
 It can now also steer convergence directly, since the same gate state can decide whether the world keeps waiting or commits to room entry at the deferred frontier.
+Alongside those two geometry lines, a third family is now beginning to appear: explicit path and trajectory primitives. The current prototype can already declare a named path segment with one width parameter and then keep a sphere inside that admissible motion tube through an explicit \texttt{inside\_tube(...)} law. That moves the project beyond regions and surfaces alone, because one world can now state a trajectory corridor directly instead of encoding closest-point projection and tangent-velocity repair as procedural update logic.
 
 Figure~\ref{fig:visibility-pursuit} shows this emerging geometry path in one visual sequence.
 The center panel is the editor-side world candidate, while the left and right panels show executed reports for the clear and occluded cases.
@@ -494,6 +497,7 @@ It is now also beginning to connect to non-axis-aligned bounded spaces, since a 
 It is now also beginning to connect bounded spaces to one another, since a small doorway can already be expressed as one wall plane plus one explicit \texttt{through\_gate(...)} law.
 It is now also beginning to connect those spaces across time, since one small doorway can already be delayed by an explicit \texttt{through\_gate\_after(...)} law.
 It is now also beginning to connect those spaces to branching behavior, since the opening state of that doorway can already be used to prefer \texttt{enter} over \texttt{wait} at a later frontier.
+It is now also beginning to connect to path-like geometry, since one small trajectory corridor can already be declared as a named segment plus an explicit \texttt{inside\_tube(...)} law.
 Another path is semantics-driven: extending the current Phase I slice from candidate selection toward a fuller convergence model for underdetermined worlds.
 Another path is evaluation-driven: comparisons against imperative baselines, analysis of specification size and clarity, and studies of representational alignment for human users.
 

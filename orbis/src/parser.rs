@@ -238,7 +238,7 @@ fn parse_entity_decl(line: &str) -> Option<EntityDecl> {
         return None;
     }
     match kind {
-        "sphere" | "plane" | "region" => Some(EntityDecl {
+        "sphere" | "plane" | "region" | "path" => Some(EntityDecl {
             kind: kind.to_string(),
             name: name.to_string(),
         }),
@@ -437,6 +437,29 @@ fn parse_constraint_alias(line: &str, line_no: usize) -> Result<Option<Vec<Strin
             ));
         }
         let mut parsed = vec!["visible".to_string(), args[0].clone(), args[1].clone()];
+        if let Some(policy) = policy {
+            parsed.push(policy.to_string());
+        }
+        return Ok(Some(parsed));
+    }
+
+    if let Some(rest) = body.strip_prefix("inside_tube(") {
+        let inner = rest
+            .strip_suffix(')')
+            .ok_or_else(|| ParseError::new(line_no, "inside_tube constraint is missing `)`"))?;
+        let args = inner
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        if args.len() != 2 {
+            return Err(ParseError::new(
+                line_no,
+                "inside_tube requires exactly 2 arguments",
+            ));
+        }
+        let mut parsed = vec!["inside_tube".to_string(), args[0].clone(), args[1].clone()];
         if let Some(policy) = policy {
             parsed.push(policy.to_string());
         }

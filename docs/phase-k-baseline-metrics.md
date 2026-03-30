@@ -233,6 +233,18 @@ but they make the evaluation phase concrete and reproducible.
 | declarative lines | 39 | 0 |
 | declarative density | 0.765 | 0.000 |
 
+## Path Tube Clamped
+
+| metric | sekai | imperative baseline |
+| --- | ---: | ---: |
+| logical LOC | 18 | 54 |
+| token count | 107 | 440 |
+| branch keywords | 0 | 5 |
+| loop keywords | 0 | 2 |
+| state-assignment lines | 8 | 17 |
+| declarative lines | 17 | 0 |
+| declarative density | 0.944 | 0.000 |
+
 ## Reading
 
 - In this initial corpus, `sekai` specifications are shorter and structurally more declarative.
@@ -250,4 +262,5 @@ but they make the evaluation phase concrete and reproducible.
 - The first gate-conditioned branching slice keeps the same pattern even when geometry directly prefers `enter` or `wait` as the world crosses a deferred frontier.
 - The first shifted-gate slice keeps the same pattern even when the aperture itself moves into or out of alignment across later frontiers.
 - The first shifted-gate network keeps the same pattern even when several translated apertures resolve several entities across different frontiers in one connected-space family.
+- The first path-tube slice keeps the same pattern even when admissibility is defined by closest-point geometry along one explicit trajectory corridor.
 - These measurements are only a first scaffold; later Phase K work should widen the corpus and refine the metrics.

@@ -1,0 +1,20 @@
+sphere A
+plane floor
+path lane
+
+position(A) = (0, 2.2, 0)
+velocity(A) = (1, 0, 0)
+radius(A) = 0.5
+
+normal(floor) = (0, 1, 0)
+offset(floor) = -2
+
+start(lane) = (-2, 0, 0)
+end(lane) = (6, 0, 0)
+width(lane) = 1
+
+constraint:
+    inside_tube(A, lane)
+
+observe:
+    snapshot at 0

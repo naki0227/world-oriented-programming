@@ -46,6 +46,7 @@ It now also supports a first multi-gate routing slice, where several delayed ape
 It now also supports a first staggered room-network slice, where several entities in the same connected-space family can resolve through different gates at different observation frontiers.
 It now also supports a first shifted-gate slice, where one aperture can later translate into or out of alignment with a waiting entity and thereby change whether the deferred world resolves toward crossing or remaining in place.
 It now also supports a first shifted-gate network slice, where several entities can resolve through different translated apertures at different frontiers in the same connected-space family.
+It now also supports a first path-tube slice, where one declared path segment becomes an admissible motion corridor through an explicit `inside_tube(...)` law rather than through procedural closest-point code.
 
 ## Next Geometry-Behavior Slice
 
@@ -77,12 +78,12 @@ This matters because:
 - a first room network can now let connected-space geometry resolve several entities across staggered frontiers
 - a first shifted-gate world can now let connected-space geometry change admissibility by moving the aperture itself rather than only by opening or closing it
 - a first shifted-gate network can now let moving-aperture geometry resolve several entities across the same room family
+- a first path-tube world can now let trajectory geometry appear as one explicit world law rather than as per-step projection logic
 
 ## Near-Term Targets
 
 - richer surfaces beyond a single plane
 - non-axis-aligned regions and bounded volumes
-- path and trajectory primitives
 - visibility and line-of-sight predicates
 - stronger 3D editing support in the viewer
 
@@ -95,6 +96,7 @@ These are the first geometry scenarios that should be expressible before Phase J
 - path following with spatial constraints
 - multiple surfaces with contact rules
 - connected rooms and gates
+- explicit path tubes and trajectory corridors
 
 ## Design Principles
 

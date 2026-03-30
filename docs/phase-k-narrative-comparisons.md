@@ -232,6 +232,17 @@ Narrative reading:
 - `sekai` foregrounds the moving connected-space network as explicit geometry law.
 - the imperative baseline foregrounds multi-entity aperture motion bookkeeping and routing control flow.
 
+## Path Tube Clamped
+
+This pair begins a third geometry family beyond visibility and bounded surfaces.
+`sekai` can declare a named path segment and state one `inside_tube(A, lane)` law that keeps motion inside a trajectory corridor.
+The imperative baseline must instead compute the closest point on the segment, measure radial deviation, clamp the position back to the tube boundary, and manually project velocity along the path direction inside an update loop.
+
+Narrative reading:
+
+- `sekai` foregrounds the path corridor as explicit world geometry plus one admissibility law.
+- the imperative baseline foregrounds closest-point projection and per-step correction mechanics.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:
