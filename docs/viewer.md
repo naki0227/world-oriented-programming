@@ -45,6 +45,7 @@ and provides:
 - a first plane-bounded wedge world where a slanted surface channel clamps motion back into an admissible volume
 - a first bounded surface room where several planes together keep a sphere inside a repaired admissible pocket
 - a first reflective surface room where one sphere bounces between four declared boundaries
+- a first shifted-gate world where a doorway can later move into or out of alignment with a waiting sphere
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
@@ -119,6 +120,8 @@ cargo run -p sekai-cli -- simulate-report examples/surface_gate_branch_closed.sk
 cargo run -p sekai-cli -- simulate-report examples/surface_gate_route_left.sk > viewer/samples/surface_gate_route_left.json
 cargo run -p sekai-cli -- simulate-report examples/surface_gate_route_right.sk > viewer/samples/surface_gate_route_right.json
 cargo run -p sekai-cli -- simulate-report examples/surface_gate_network_staggered.sk > viewer/samples/surface_gate_network_staggered.json
+cargo run -p sekai-cli -- simulate-report examples/surface_gate_shifted_open.sk > viewer/samples/surface_gate_shifted_open.json
+cargo run -p sekai-cli -- simulate-report examples/surface_gate_shifted_closed.sk > viewer/samples/surface_gate_shifted_closed.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json

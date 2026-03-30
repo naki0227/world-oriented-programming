@@ -1,0 +1,30 @@
+sphere A
+plane wall
+region door
+
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+
+min(door) = (-0.5, 4, -1)
+max(door) = (0.5, 6, 1)
+
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter, door)
+    prefer_candidate_if_gate_closed(A, wait, door)
+
+constraint:
+    through_gate_shift_after(A, wall, door, 1, 0, -3, 0)
+
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3

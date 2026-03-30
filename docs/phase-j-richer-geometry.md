@@ -44,6 +44,7 @@ It now also supports a first time-varying gate slice, where that same doorway ca
 It now also supports a first gate-conditioned branching slice, where one deferred world can later prefer `enter` when the gate is open or `wait` when the gate remains closed.
 It now also supports a first multi-gate routing slice, where several delayed apertures can steer the same deferred world toward different exits.
 It now also supports a first staggered room-network slice, where several entities in the same connected-space family can resolve through different gates at different observation frontiers.
+It now also supports a first shifted-gate slice, where one aperture can later translate into or out of alignment with a waiting entity and thereby change whether the deferred world resolves toward crossing or remaining in place.
 
 ## Next Geometry-Behavior Slice
 
@@ -73,6 +74,7 @@ This matters because:
 - a first gate-conditioned branch can now let room connectivity choose between several continuation families
 - a first multi-gate route can now let connected-space geometry choose which exit becomes the preferred continuation
 - a first room network can now let connected-space geometry resolve several entities across staggered frontiers
+- a first shifted-gate world can now let connected-space geometry change admissibility by moving the aperture itself rather than only by opening or closing it
 
 ## Near-Term Targets
 

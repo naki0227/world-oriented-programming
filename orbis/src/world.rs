@@ -123,6 +123,7 @@ pub enum Constraint {
         plane_index: usize,
         gate_region_index: usize,
         open_time: f64,
+        shift: Option<Vec3>,
         policy: RepairPolicy,
     },
     Visible {
@@ -2743,10 +2744,15 @@ impl Constraint {
                 sphere_index,
                 plane_index,
                 gate_region_index,
+                shift,
                 policy,
                 ..
             } => ConstraintSummary {
-                kind: "through_gate_after".to_string(),
+                kind: if shift.is_some() {
+                    "through_gate_shift_after".to_string()
+                } else {
+                    "through_gate_after".to_string()
+                },
                 category: self.category().as_str().to_string(),
                 targets: vec![
                     world.spheres[*sphere_index].name.clone(),
@@ -3027,6 +3033,7 @@ impl Constraint {
                             "invalid gate open time: {open_time}"
                         ))
                     })?,
+                    shift: None,
                     policy: RepairPolicy::Reject,
                 })
             }
@@ -3048,6 +3055,77 @@ impl Constraint {
                             "invalid gate open time: {open_time}"
                         ))
                     })?,
+                    shift: None,
+                    policy,
+                })
+            }
+            [name, sphere_ref, plane_ref, gate_ref, shift_time, dx, dy, dz]
+                if name == "through_gate_shift_after" =>
+            {
+                Ok(Self::ThroughGateAfter {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    plane_index: ensure_plane_exists(context.planes, plane_ref)?,
+                    gate_region_index: ensure_region_exists(context.regions, gate_ref)?,
+                    open_time: shift_time.parse::<f64>().map_err(|_| {
+                        SimulationError::InvalidConstraint(format!(
+                            "invalid gate shift time: {shift_time}"
+                        ))
+                    })?,
+                    shift: Some(Vec3::new(
+                        dx.parse::<f64>().map_err(|_| {
+                            SimulationError::InvalidConstraint(format!(
+                                "invalid gate shift x: {dx}"
+                            ))
+                        })?,
+                        dy.parse::<f64>().map_err(|_| {
+                            SimulationError::InvalidConstraint(format!(
+                                "invalid gate shift y: {dy}"
+                            ))
+                        })?,
+                        dz.parse::<f64>().map_err(|_| {
+                            SimulationError::InvalidConstraint(format!(
+                                "invalid gate shift z: {dz}"
+                            ))
+                        })?,
+                    )),
+                    policy: RepairPolicy::Reject,
+                })
+            }
+            [name, sphere_ref, plane_ref, gate_ref, shift_time, dx, dy, dz, policy]
+                if name == "through_gate_shift_after" =>
+            {
+                let policy = parse_repair_policy(policy)?;
+                ensure_policy_supported(
+                    "through_gate_shift_after",
+                    policy,
+                    &[RepairPolicy::Reject, RepairPolicy::Clamp],
+                )?;
+                Ok(Self::ThroughGateAfter {
+                    sphere_index: ensure_sphere_exists(context.spheres, sphere_ref)?,
+                    plane_index: ensure_plane_exists(context.planes, plane_ref)?,
+                    gate_region_index: ensure_region_exists(context.regions, gate_ref)?,
+                    open_time: shift_time.parse::<f64>().map_err(|_| {
+                        SimulationError::InvalidConstraint(format!(
+                            "invalid gate shift time: {shift_time}"
+                        ))
+                    })?,
+                    shift: Some(Vec3::new(
+                        dx.parse::<f64>().map_err(|_| {
+                            SimulationError::InvalidConstraint(format!(
+                                "invalid gate shift x: {dx}"
+                            ))
+                        })?,
+                        dy.parse::<f64>().map_err(|_| {
+                            SimulationError::InvalidConstraint(format!(
+                                "invalid gate shift y: {dy}"
+                            ))
+                        })?,
+                        dz.parse::<f64>().map_err(|_| {
+                            SimulationError::InvalidConstraint(format!(
+                                "invalid gate shift z: {dz}"
+                            ))
+                        })?,
+                    )),
                     policy,
                 })
             }
@@ -3269,11 +3347,12 @@ impl Constraint {
                 plane_index,
                 gate_region_index,
                 open_time,
+                shift,
                 policy,
             } => {
                 let current_time = world.current_time();
                 let plane = world.planes[*plane_index].clone();
-                let gate = world.occluder_regions[*gate_region_index].clone();
+                let mut gate = world.occluder_regions[*gate_region_index].clone();
                 let sphere = &mut world.spheres[*sphere_index];
                 let margin = plane.normal.dot(sphere.position) - plane.offset - sphere.radius;
                 if margin < -EPSILON {
@@ -3299,6 +3378,10 @@ impl Constraint {
                                 ));
                             }
                         }
+                    }
+                    if let Some(shift) = shift {
+                        gate.min = gate.min + *shift;
+                        gate.max = gate.max + *shift;
                     }
                     if !point_inside_gate_aperture(
                         sphere.position,
@@ -4891,6 +4974,79 @@ observe:
             .expect("sphere B exists");
         assert!(a.position.x < -4.0);
         assert!(b.position.x > 2.5);
+    }
+
+    #[test]
+    fn shifted_gate_can_resolve_after_aperture_alignment() {
+        let source = r#"
+sphere A
+plane wall
+region door
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+min(door) = (-0.5, 4, -1)
+max(door) = (0.5, 6, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter, door)
+    prefer_candidate_if_gate_closed(A, wait, door)
+constraint:
+    through_gate_shift_after(A, wall, door, 1, 0, -3, 0)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("enter"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("enter"));
+        assert!(report.snapshots[3].spheres[0].position.x < 0.0);
+        assert_eq!(report.constraints[0].kind, "through_gate_shift_after");
+    }
+
+    #[test]
+    fn shifted_gate_can_keep_waiting_before_alignment() {
+        let source = r#"
+sphere A
+plane wall
+region door
+position(A) = (2, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(wall) = (1, 0, 0)
+offset(wall) = 0
+min(door) = (-0.5, 4, -1)
+max(door) = (0.5, 6, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter) = (-2, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter, door)
+    prefer_candidate_if_gate_closed(A, wait, door)
+constraint:
+    through_gate_shift_after(A, wall, door, 4, 0, -3, 0, clamp)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("wait"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("wait"));
+        assert_eq!(report.snapshots[3].spheres[0].position.x, 2.0);
     }
 
     #[test]

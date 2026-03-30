@@ -88,6 +88,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_gate_network_staggered.sk",
         ROOT / "benchmarks" / "imperative" / "surface_gate_network_staggered.py",
     ),
+    (
+        "surface_gate_shifted_closed",
+        ROOT / "examples" / "surface_gate_shifted_closed.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_gate_shifted_closed.py",
+    ),
 ]
 
 
