@@ -304,6 +304,7 @@ It now also includes a first reflective surface room slice, where several planes
 It now also includes a first gated-surface slice, where one wall is traversable only through an explicit door aperture.
 It now also includes a first time-varying gate slice, where that same aperture can remain closed until a later frontier and thereby alter whether a deferred continuation eventually crosses or is repaired back inside the current room.
 It now also includes a first gate-conditioned branching slice, where the opening state of one doorway changes whether a deferred world later prefers `enter` or `wait`.
+It now also includes a first multi-gate routing slice, where several delayed apertures can steer the same deferred world toward different exits.
 The present prototype does not yet prove that World-Oriented Programming is always shorter or faster.
 It does show a consistent relocation of semantic burden: \emph{sekai} keeps world construction and admissibility law explicit, while imperative baselines bury both inside update loops, guard logic, and control-flow bookkeeping.
 
@@ -333,6 +334,7 @@ They are included to show that the evaluation is already reproducible and that t
     surface gate clamped & 19 & 49 & 0.947 & 4 \\
     surface gate deferred & 23 & 67 & 0.826 & 7 \\
     surface gate branch & 24 & 68 & 0.792 & 6 \\
+    surface gate route & 32 & 55 & 0.812 & 12 \\
     \bottomrule
   \end{tabular}
 \end{table}

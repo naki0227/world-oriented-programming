@@ -656,10 +656,10 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .collect::<Vec<_>>();
-        if args.len() != 2 {
+        if args.len() != 2 && args.len() != 3 {
             return Err(ParseError::new(
                 line_no,
-                "prefer_candidate_if_gate_open requires an entity and a label",
+                "prefer_candidate_if_gate_open requires an entity, a label, and optionally a gate region",
             ));
         }
         if !rest[close + 1..].trim().is_empty() {
@@ -673,7 +673,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             kind: "prefer_candidate_if_gate_open".to_string(),
             time_argument: None,
             label_argument: Some(args[1].to_string()),
-            target_argument: None,
+            target_argument: args.get(2).map(|value| value.to_string()),
             score_argument: None,
             value_argument: None,
         });
@@ -688,10 +688,10 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .collect::<Vec<_>>();
-        if args.len() != 2 {
+        if args.len() != 2 && args.len() != 3 {
             return Err(ParseError::new(
                 line_no,
-                "prefer_candidate_if_gate_closed requires an entity and a label",
+                "prefer_candidate_if_gate_closed requires an entity, a label, and optionally a gate region",
             ));
         }
         if !rest[close + 1..].trim().is_empty() {
@@ -705,7 +705,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
             kind: "prefer_candidate_if_gate_closed".to_string(),
             time_argument: None,
             label_argument: Some(args[1].to_string()),
-            target_argument: None,
+            target_argument: args.get(2).map(|value| value.to_string()),
             score_argument: None,
             value_argument: None,
         });

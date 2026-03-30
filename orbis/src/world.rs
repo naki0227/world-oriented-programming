@@ -240,6 +240,7 @@ pub enum VisibilityCondition {
 #[derive(Clone, Debug)]
 pub struct GatePreferenceTrigger {
     pub label: String,
+    pub gate: Option<String>,
     pub condition: GateCondition,
 }
 
@@ -2139,7 +2140,11 @@ impl World {
             .get(sphere_name)
             .and_then(|triggers| {
                 triggers.iter().find_map(|trigger| {
-                    let gate_open = self.entity_gate_is_open_at(sphere_name, current_time);
+                    let gate_open = self.entity_gate_is_open_at(
+                        sphere_name,
+                        trigger.gate.as_deref(),
+                        current_time,
+                    );
                     let matches = match trigger.condition {
                         GateCondition::Open => gate_open,
                         GateCondition::Closed => !gate_open,
@@ -2149,23 +2154,37 @@ impl World {
             })
     }
 
-    fn entity_gate_is_open_at(&self, sphere_name: &str, observation_time: f64) -> bool {
+    fn entity_gate_is_open_at(
+        &self,
+        sphere_name: &str,
+        gate_name: Option<&str>,
+        observation_time: f64,
+    ) -> bool {
         let Ok(sphere_index) = ensure_sphere_exists(&self.spheres, sphere_name) else {
             return false;
         };
-        self.constraints.iter().find_map(|constraint| {
-            if let Constraint::ThroughGateAfter {
-                sphere_index: constrained_sphere_index,
-                open_time,
-                ..
-            } = constraint
-            {
-                if *constrained_sphere_index == sphere_index {
-                    return Some(observation_time + EPSILON >= *open_time);
+        self.constraints
+            .iter()
+            .find_map(|constraint| {
+                if let Constraint::ThroughGateAfter {
+                    sphere_index: constrained_sphere_index,
+                    gate_region_index,
+                    open_time,
+                    ..
+                } = constraint
+                {
+                    if *constrained_sphere_index == sphere_index {
+                        let gate_matches = gate_name
+                            .map(|name| self.occluder_regions[*gate_region_index].name == name)
+                            .unwrap_or(true);
+                        if gate_matches {
+                            return Some(observation_time + EPSILON >= *open_time);
+                        }
+                    }
                 }
-            }
-            None
-        }).unwrap_or(false)
+                None
+            })
+            .unwrap_or(false)
     }
 
     fn apply_deferred_law_updates_at(
@@ -3669,10 +3688,15 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                 .label_argument
                 .as_ref()
                 .map(|label| {
+                    let gate_suffix = directive
+                        .target_argument
+                        .as_ref()
+                        .map(|gate| format!("_{gate}"))
+                        .unwrap_or_default();
                     let hint = if directive.kind == "prefer_candidate_if_gate_open" {
-                        format!("prefer_{label}_if_gate_open")
+                        format!("prefer_{label}_if_gate_open{gate_suffix}")
                     } else {
-                        format!("prefer_{label}_if_gate_closed")
+                        format!("prefer_{label}_if_gate_closed{gate_suffix}")
                     };
                     (directive.entity.clone(), hint)
                 }),
@@ -3867,6 +3891,7 @@ fn gate_preference_triggers_from_action_directives(
                     .or_insert_with(Vec::new)
                     .push(GatePreferenceTrigger {
                         label: label.clone(),
+                        gate: directive.target_argument.clone(),
                         condition: if directive.kind == "prefer_candidate_if_gate_open" {
                             GateCondition::Open
                         } else {
@@ -3932,16 +3957,26 @@ fn preferred_candidate_labels_from_action_directives(
             }
         } else if directive.kind == "prefer_candidate_if_gate_open" {
             if let Some(label) = &directive.label_argument {
+                let suffix = directive
+                    .target_argument
+                    .as_ref()
+                    .map(|gate| format!("_{gate}"))
+                    .unwrap_or_default();
                 result.insert(
                     directive.entity.clone(),
-                    (format!("{label}_if_gate_open"), 0.0),
+                    (format!("{label}_if_gate_open{suffix}"), 0.0),
                 );
             }
         } else if directive.kind == "prefer_candidate_if_gate_closed" {
             if let Some(label) = &directive.label_argument {
+                let suffix = directive
+                    .target_argument
+                    .as_ref()
+                    .map(|gate| format!("_{gate}"))
+                    .unwrap_or_default();
                 result.insert(
                     directive.entity.clone(),
-                    (format!("{label}_if_gate_closed"), 0.0),
+                    (format!("{label}_if_gate_closed{suffix}"), 0.0),
                 );
             }
         } else if directive.kind == "rescore_candidate_at" {
@@ -4009,7 +4044,11 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
             } else if directive.kind == "prefer_candidate_if_gate_open"
                 || directive.kind == "prefer_candidate_if_gate_closed"
             {
-                directive.label_argument.clone()
+                match (&directive.label_argument, &directive.target_argument) {
+                    (Some(label), Some(gate)) => Some(format!("{label}, {gate}")),
+                    (Some(label), None) => Some(label.clone()),
+                    _ => None,
+                }
             } else {
                 match (&directive.label_argument, directive.time_argument) {
                 (Some(label), Some(time)) => {
@@ -4672,6 +4711,96 @@ observe:
         assert_eq!(resolution.selected_candidate.as_deref(), Some("wait"));
         assert_eq!(resolution.preferred_label.as_deref(), Some("wait"));
         assert_eq!(report.snapshots[3].spheres[0].position.x, 2.0);
+    }
+
+    #[test]
+    fn gate_specific_open_condition_can_route_left() {
+        let source = r#"
+sphere A
+plane left_wall
+plane right_wall
+region left_door
+region right_door
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(left_wall) = (1, 0, 0)
+offset(left_wall) = -4
+normal(right_wall) = (-1, 0, 0)
+offset(right_wall) = -4
+min(left_door) = (-4.5, 1, -1)
+max(left_door) = (-3.5, 3, 1)
+min(right_door) = (3.5, 1, -1)
+max(right_door) = (4.5, 3, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter_left) = (-3, 0, 0) score 5
+    candidate_velocity(A, enter_right) = (3, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter_left, left_door)
+    prefer_candidate_if_gate_open(A, enter_right, right_door)
+constraint:
+    through_gate_after(A, left_wall, left_door, 1)
+    through_gate_after(A, right_wall, right_door, 4, clamp)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("enter_left"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("enter_left"));
+        assert!(report.snapshots[3].spheres[0].position.x < -4.0);
+    }
+
+    #[test]
+    fn gate_specific_open_condition_can_route_right() {
+        let source = r#"
+sphere A
+plane left_wall
+plane right_wall
+region left_door
+region right_door
+position(A) = (0, 2, 0)
+velocity(A) = (0, 0, 0)
+radius(A) = 0.5
+normal(left_wall) = (1, 0, 0)
+offset(left_wall) = -4
+normal(right_wall) = (-1, 0, 0)
+offset(right_wall) = -4
+min(left_door) = (-4.5, 1, -1)
+max(left_door) = (-3.5, 3, 1)
+min(right_door) = (3.5, 1, -1)
+max(right_door) = (4.5, 3, 1)
+action:
+    candidate_velocity(A, wait) = (0, 0, 0) score 5
+    candidate_velocity(A, enter_left) = (-3, 0, 0) score 5
+    candidate_velocity(A, enter_right) = (3, 0, 0) score 5
+    defer_on_ambiguous_top(A)
+    resolve_deferred_at(A, 1)
+    prefer_candidate_if_gate_open(A, enter_left, left_door)
+    prefer_candidate_if_gate_open(A, enter_right, right_door)
+constraint:
+    through_gate_after(A, left_wall, left_door, 4, clamp)
+    through_gate_after(A, right_wall, right_door, 1)
+observe:
+    snapshot at 0
+    snapshot at 1
+    snapshot at 2
+    snapshot at 3
+"#;
+        let program = parse_program(source).expect("program should parse");
+        let report = simulate_program(&program).expect("simulation should succeed");
+        let resolution = &report.candidate_resolutions[0];
+        assert_eq!(resolution.convergence_mode, "resolved_after_preference");
+        assert_eq!(resolution.selected_candidate.as_deref(), Some("enter_right"));
+        assert_eq!(resolution.preferred_label.as_deref(), Some("enter_right"));
+        assert!(report.snapshots[3].spheres[0].position.x > 4.0);
     }
 
     #[test]

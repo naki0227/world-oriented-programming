@@ -188,6 +188,17 @@ Narrative reading:
 - `sekai` foregrounds the gate state as a world condition on convergence.
 - the imperative baseline foregrounds schedule checks, control flow, and update management.
 
+## Surface Gate Route Right
+
+This pair pushes the same connected-space geometry from one doorway into several competing exits.
+`sekai` can keep `enter_left` and `enter_right` explicit and let gate-specific laws decide which continuation becomes preferred at the deferred frontier.
+The imperative baseline must coordinate two opening schedules, choose a route procedurally, and still keep separate late gate-enforcement logic for each wall.
+
+Narrative reading:
+
+- `sekai` foregrounds connected-space geometry as a routing condition.
+- the imperative baseline foregrounds multi-branch schedule handling and per-wall control flow.
+
 ## Current Evaluation Story
 
 Taken together, the current corpus supports a modest but already meaningful claim:

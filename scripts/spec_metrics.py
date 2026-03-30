@@ -78,6 +78,11 @@ SCENARIOS = [
         ROOT / "examples" / "surface_gate_branch_closed.sk",
         ROOT / "benchmarks" / "imperative" / "surface_gate_branch_closed.py",
     ),
+    (
+        "surface_gate_route_right",
+        ROOT / "examples" / "surface_gate_route_right.sk",
+        ROOT / "benchmarks" / "imperative" / "surface_gate_route_right.py",
+    ),
 ]
 
 

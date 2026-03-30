@@ -116,6 +116,8 @@ cargo run -p sekai-cli -- simulate-report examples/surface_gate_deferred_open.sk
 cargo run -p sekai-cli -- simulate-report examples/surface_gate_deferred_closed.sk > viewer/samples/surface_gate_deferred_closed.json
 cargo run -p sekai-cli -- simulate-report examples/surface_gate_branch_open.sk > viewer/samples/surface_gate_branch_open.json
 cargo run -p sekai-cli -- simulate-report examples/surface_gate_branch_closed.sk > viewer/samples/surface_gate_branch_closed.json
+cargo run -p sekai-cli -- simulate-report examples/surface_gate_route_left.sk > viewer/samples/surface_gate_route_left.json
+cargo run -p sekai-cli -- simulate-report examples/surface_gate_route_right.sk > viewer/samples/surface_gate_route_right.json
 cargo run -p sekai-cli -- simulate-report examples/forbidden_region.sk > viewer/samples/forbidden_region.json
 cargo run -p sekai-cli -- simulate-report examples/two_body_collision.sk > viewer/samples/two_body_collision.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_clear.sk > viewer/samples/visibility_clear.json
