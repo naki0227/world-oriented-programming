@@ -29,7 +29,7 @@ It should be defended as:
 | Laws and safety constraints | Often encoded in planner rules, post-hoc filters, monitors, or imperative logic | Named law-like source constructs with stable runtime/report identity |
 | Observation timing | Often dense logging, frame-based polling, or implicit sampling | Explicit observation frontiers with semantic status |
 | Contradiction | Often thrown as error, rejected command, or safety abort with weak semantic identity | Contradiction as a world-level semantic result tied to law, frontier, and participants |
-| Uncertainty | Often only confidence scores on detections or planner probabilities | Structurally unresolved world states and observation statuses |
+| Uncertainty | Often only confidence scores on detections or planner probabilities | Structurally unresolved world states, fact or relation slots, and observation statuses |
 | Deferred action | Often encoded informally as wait states, retries, or controller-specific fallback | Deferred continuation as a legitimate runtime state, not merely an ad hoc workaround |
 | Candidate branching | Often hidden in planner search internals or policy logits | Source-visible candidate actions and convergence outcomes |
 | Explanation | Often reconstructed from logs after execution | Runtime report directly tied to source-level objects and semantic events |

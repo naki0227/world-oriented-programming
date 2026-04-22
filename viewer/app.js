@@ -1354,8 +1354,11 @@ function renderFactResolution() {
     const convergenceSteps = (factResolution.convergence_steps || [])
       .map((step) => `${step.time} ${step.phase}:${step.mode} [${(step.labels || []).join(", ") || "none"}]`)
       .join(" -> ");
+    const title = factResolution.target
+      ? `${factResolution.entity}.${factResolution.slot}(${factResolution.target})`
+      : `${factResolution.entity}.${factResolution.slot}`;
     card.innerHTML = `
-      <h3>${factResolution.entity}.${factResolution.slot}</h3>
+      <h3>${title}</h3>
       <p class="muted">initial frontier = ${factResolution.initial_frontier || "0.000"}</p>
       <p>candidates = ${factResolution.total_candidates}</p>
       <p class="muted">mode = ${factResolution.convergence_mode || "direct"}</p>

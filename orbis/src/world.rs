@@ -273,6 +273,7 @@ pub struct CandidateResolution {
 pub struct FactResolution {
     pub entity: String,
     pub slot: String,
+    pub target: Option<String>,
     pub initial_frontier: String,
     pub total_candidates: usize,
     pub convergence_mode: String,
@@ -799,6 +800,12 @@ impl SimulationReport {
                 "      \"slot\": \"{}\",\n",
                 escape_json(&fact_resolution.slot)
             ));
+            match &fact_resolution.target {
+                Some(target) => {
+                    json.push_str(&format!("      \"target\": \"{}\",\n", escape_json(target)))
+                }
+                None => json.push_str("      \"target\": null,\n"),
+            }
             json.push_str(&format!(
                 "      \"initial_frontier\": \"{}\",\n",
                 escape_json(&fact_resolution.initial_frontier)
@@ -1700,6 +1707,11 @@ impl SimulationEnvelope {
                         "      \"slot\": \"{}\",\n",
                         escape_json(&fact_resolution.slot)
                     ));
+                    match &fact_resolution.target {
+                        Some(target) => json
+                            .push_str(&format!("      \"target\": \"{}\",\n", escape_json(target))),
+                        None => json.push_str("      \"target\": null,\n"),
+                    }
                     json.push_str(&format!(
                         "      \"initial_frontier\": \"{}\",\n",
                         escape_json(&fact_resolution.initial_frontier)
@@ -2585,28 +2597,39 @@ impl World {
 
         let deferred_fact_keys = action_directives
             .iter()
-            .filter(|directive| directive.kind == "defer_fact_on_ambiguous_top")
+            .filter(|directive| {
+                directive.kind == "defer_fact_on_ambiguous_top"
+                    || directive.kind == "defer_relation_on_ambiguous_top"
+            })
             .filter_map(|directive| {
-                directive
-                    .slot_argument
-                    .as_ref()
-                    .map(|slot| fact_key(&directive.entity, slot))
+                directive.slot_argument.as_ref().map(|slot| {
+                    fact_key(
+                        &directive.entity,
+                        slot,
+                        directive.target_argument.as_deref(),
+                    )
+                })
             })
             .collect::<std::collections::BTreeSet<_>>();
 
         let mut grouped = BTreeMap::<String, Vec<FactCandidateDecl>>::new();
         for candidate in fact_candidates {
             grouped
-                .entry(fact_key(&candidate.entity, &candidate.slot))
+                .entry(fact_key(
+                    &candidate.entity,
+                    &candidate.slot,
+                    candidate.target.as_deref(),
+                ))
                 .or_default()
                 .push(candidate.clone());
         }
 
         for (key, candidates) in grouped {
-            let (entity, slot) = split_fact_key(&key);
+            let (entity, slot, target) = split_fact_key(&key);
             let resolution = self.resolve_facts_for_slot(
                 entity,
                 slot,
+                target,
                 &candidates,
                 deferred_fact_keys.contains(&key),
                 false,
@@ -2698,10 +2721,20 @@ impl World {
                     && resolution.selected_value.is_none()
                     && self
                         .deferred_fact_preference_triggers
-                        .get(&fact_key(&resolution.entity, &resolution.slot))
+                        .get(&fact_key(
+                            &resolution.entity,
+                            &resolution.slot,
+                            resolution.target.as_deref(),
+                        ))
                         .is_some_and(|trigger| observation_time + EPSILON >= trigger.time)
             })
-            .map(|resolution| fact_key(&resolution.entity, &resolution.slot))
+            .map(|resolution| {
+                fact_key(
+                    &resolution.entity,
+                    &resolution.slot,
+                    resolution.target.as_deref(),
+                )
+            })
             .collect::<Vec<_>>();
         keys.sort();
 
@@ -2721,21 +2754,22 @@ impl World {
                 .get(&key)
                 .filter(|trigger| observation_time + EPSILON >= trigger.time)
                 .cloned();
-            let (entity, slot) = split_fact_key(&key);
+            let (entity, slot, target) = split_fact_key(&key);
             let resolution = self.resolve_facts_for_slot(
                 entity,
                 slot,
+                target,
                 &candidates,
                 false,
                 true,
                 Some(observation_time),
                 trigger.as_ref().map(|trigger| trigger.value.as_str()),
             )?;
-            if let Some(existing) = self
-                .fact_resolutions
-                .iter_mut()
-                .find(|existing| existing.entity == entity && existing.slot == slot)
-            {
+            if let Some(existing) = self.fact_resolutions.iter_mut().find(|existing| {
+                existing.entity == entity
+                    && existing.slot == slot
+                    && existing.target.as_deref() == target
+            }) {
                 let mut resolution = resolution;
                 resolution.initial_frontier = existing.initial_frontier.clone();
                 *existing = resolution;
@@ -3083,6 +3117,7 @@ impl World {
         &mut self,
         entity: &str,
         slot: &str,
+        target: Option<&str>,
         candidates: &[FactCandidateDecl],
         allow_defer: bool,
         resolved_from_deferred: bool,
@@ -3126,6 +3161,7 @@ impl World {
                 self.current_time(),
                 entity,
                 slot,
+                target,
                 top_values.first().map(String::as_str).unwrap_or(""),
                 top_score,
                 "deferred_due_to_fact_tie",
@@ -3135,6 +3171,7 @@ impl World {
                 self.current_time(),
                 entity,
                 slot,
+                target,
                 &selected.value,
                 selected.score,
                 if resolved_from_deferred && preferred_value.is_some() {
@@ -3175,6 +3212,7 @@ impl World {
         Ok(FactResolution {
             entity: entity.to_string(),
             slot: slot.to_string(),
+            target: target.map(ToString::to_string),
             initial_frontier: format!("{:.3}", self.current_time()),
             total_candidates,
             convergence_mode: convergence_mode.to_string(),
@@ -3906,14 +3944,20 @@ fn fact_activity_entry(
     time: f64,
     entity: &str,
     slot: &str,
+    target: Option<&str>,
     value: &str,
     score: f64,
     action: &str,
 ) -> ActivityEntry {
+    let mut targets = vec![entity.to_string(), slot.to_string()];
+    if let Some(target) = target {
+        targets.push(target.to_string());
+    }
+    targets.push(value.to_string());
     ActivityEntry {
         time,
         kind: "candidate_fact".to_string(),
-        targets: vec![entity.to_string(), slot.to_string(), value.to_string()],
+        targets,
         policy: format!("score={score:.3}"),
         action: action.to_string(),
     }
@@ -4225,12 +4269,19 @@ fn observation_checkpoint(time: f64, summary: &ObservationSummary) -> Observatio
     }
 }
 
-fn fact_key(entity: &str, slot: &str) -> String {
-    format!("{entity}::{slot}")
+fn fact_key(entity: &str, slot: &str, target: Option<&str>) -> String {
+    match target {
+        Some(target) => format!("{entity}::{slot}::{target}"),
+        None => format!("{entity}::{slot}"),
+    }
 }
 
-fn split_fact_key(key: &str) -> (&str, &str) {
-    key.split_once("::").unwrap_or((key, "fact"))
+fn split_fact_key(key: &str) -> (&str, &str, Option<&str>) {
+    let mut parts = key.splitn(3, "::");
+    let entity = parts.next().unwrap_or(key);
+    let slot = parts.next().unwrap_or("fact");
+    let target = parts.next();
+    (entity, slot, target)
 }
 
 fn action_candidates_by_entity(program: &Program) -> BTreeMap<String, Vec<ActionCandidateDecl>> {
@@ -4248,7 +4299,11 @@ fn fact_candidates_by_key(program: &Program) -> BTreeMap<String, Vec<FactCandida
     let mut grouped = BTreeMap::<String, Vec<FactCandidateDecl>>::new();
     for candidate in &program.fact_candidates {
         grouped
-            .entry(fact_key(&candidate.entity, &candidate.slot))
+            .entry(fact_key(
+                &candidate.entity,
+                &candidate.slot,
+                candidate.target.as_deref(),
+            ))
             .or_default()
             .push(candidate.clone());
     }
@@ -4295,14 +4350,18 @@ fn deferred_fact_preference_triggers_from_action_directives(
 ) -> BTreeMap<String, DeferredFactPreferenceTrigger> {
     let mut result = BTreeMap::new();
     for directive in action_directives {
-        if directive.kind == "prefer_fact_at" {
+        if directive.kind == "prefer_fact_at" || directive.kind == "prefer_relation_at" {
             if let (Some(slot), Some(value), Some(time)) = (
                 &directive.slot_argument,
                 &directive.label_argument,
                 directive.time_argument,
             ) {
                 result.insert(
-                    fact_key(&directive.entity, slot),
+                    fact_key(
+                        &directive.entity,
+                        slot,
+                        directive.target_argument.as_deref(),
+                    ),
                     DeferredFactPreferenceTrigger {
                         value: value.clone(),
                         time,
@@ -6653,5 +6712,31 @@ observe:
         assert!(json.contains("\"fact_resolutions\""));
         assert!(json.contains("\"slot\": \"route_hint\""));
         assert!(json.contains("\"ambiguous_facts\": 1"));
+    }
+
+    #[test]
+    fn uncertain_relation_fact_is_first_class_across_observation_frontiers() {
+        let source = include_str!("../../examples/uncertain_relation_fact.sk");
+        let program = parse_program(source).expect("uncertain relation fact program should parse");
+        let report =
+            simulate_program(&program).expect("uncertain relation fact simulation should succeed");
+        let fact = report
+            .fact_resolutions
+            .iter()
+            .find(|resolution| {
+                resolution.entity == "observer"
+                    && resolution.slot == "visibility"
+                    && resolution.target.as_deref() == Some("target")
+            })
+            .expect("relation fact resolution should be present");
+
+        assert_eq!(report.observation_timeline.len(), 2);
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[0].ambiguous_facts, 1);
+        assert_eq!(report.observation_timeline[1].status, "determinate");
+        assert_eq!(fact.selected_value.as_deref(), Some("occluded"));
+        assert_eq!(fact.preferred_value.as_deref(), Some("occluded"));
+        assert_eq!(fact.target.as_deref(), Some("target"));
+        assert_eq!(fact.resolved_at_observation_time.as_deref(), Some("1.000"));
     }
 }

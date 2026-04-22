@@ -26,6 +26,7 @@ pub struct ActionCandidateDecl {
 pub struct FactCandidateDecl {
     pub entity: String,
     pub slot: String,
+    pub target: Option<String>,
     pub value: String,
     pub score: f64,
 }
@@ -224,6 +225,12 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                     program
                         .fact_candidates
                         .push(parse_fact_candidate(trimmed, line_no)?);
+                    continue;
+                }
+                if trimmed.starts_with("candidate_relation(") {
+                    program
+                        .fact_candidates
+                        .push(parse_relation_candidate(trimmed, line_no)?);
                     continue;
                 }
                 program
@@ -671,6 +678,78 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         });
     }
 
+    if let Some(rest) = line.strip_prefix("defer_relation_on_ambiguous_top(") {
+        let close = rest.find(')').ok_or_else(|| {
+            ParseError::new(line_no, "defer_relation_on_ambiguous_top is missing `)`")
+        })?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 3 {
+            return Err(ParseError::new(
+                line_no,
+                "defer_relation_on_ambiguous_top requires an entity, a relation, and a target",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "defer_relation_on_ambiguous_top does not take trailing arguments",
+            ));
+        }
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "defer_relation_on_ambiguous_top".to_string(),
+            slot_argument: Some(args[1].to_string()),
+            time_argument: None,
+            label_argument: None,
+            target_argument: Some(args[2].to_string()),
+            score_argument: None,
+            value_argument: None,
+        });
+    }
+
+    if let Some(rest) = line.strip_prefix("prefer_relation_at(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "prefer_relation_at is missing `)`"))?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 5 {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_relation_at requires an entity, a relation, a target, a value, and a time",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_relation_at does not take trailing arguments",
+            ));
+        }
+        let time = args[4].parse::<f64>().map_err(|_| {
+            ParseError::new(
+                line_no,
+                format!("invalid prefer_relation_at time `{}`", args[4]),
+            )
+        })?;
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "prefer_relation_at".to_string(),
+            slot_argument: Some(args[1].to_string()),
+            time_argument: Some(time),
+            label_argument: Some(args[3].to_string()),
+            target_argument: Some(args[2].to_string()),
+            score_argument: None,
+            value_argument: None,
+        });
+    }
+
     if let Some(rest) = line.strip_prefix("prefer_candidate_if_visible(") {
         let close = rest.find(')').ok_or_else(|| {
             ParseError::new(line_no, "prefer_candidate_if_visible is missing `)`")
@@ -910,7 +989,53 @@ fn parse_fact_candidate(line: &str, line_no: usize) -> Result<FactCandidateDecl,
     Ok(FactCandidateDecl {
         entity: args[0].to_string(),
         slot: args[1].to_string(),
+        target: None,
         value: args[2].to_string(),
+        score,
+    })
+}
+
+fn parse_relation_candidate(line: &str, line_no: usize) -> Result<FactCandidateDecl, ParseError> {
+    let Some(rest) = line.strip_prefix("candidate_relation(") else {
+        return Err(ParseError::new(
+            line_no,
+            format!("invalid relation statement `{line}`"),
+        ));
+    };
+    let close = rest
+        .find(')')
+        .ok_or_else(|| ParseError::new(line_no, "candidate_relation is missing `)`"))?;
+    let inner = &rest[..close];
+    let tail = rest[close + 1..].trim();
+    let args = inner
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if args.len() != 4 {
+        return Err(ParseError::new(
+            line_no,
+            "candidate_relation requires an entity, a relation, a target, and a value",
+        ));
+    }
+
+    let rhs = tail
+        .strip_prefix('=')
+        .ok_or_else(|| ParseError::new(line_no, "candidate_relation must use `=`"))?
+        .trim();
+    let score_text = rhs.strip_prefix("score ").ok_or_else(|| {
+        ParseError::new(line_no, "candidate_relation requires `= score <number>`")
+    })?;
+    let score = score_text
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| ParseError::new(line_no, format!("invalid score `{}`", score_text.trim())))?;
+
+    Ok(FactCandidateDecl {
+        entity: args[0].to_string(),
+        slot: args[1].to_string(),
+        target: Some(args[2].to_string()),
+        value: args[3].to_string(),
         score,
     })
 }
