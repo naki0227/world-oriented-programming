@@ -117,7 +117,9 @@ Narrative reading:
 Taken together, the current corpus supports a modest but already meaningful claim:
 
 - the `sekai` programs spend more of their surface form on world-level content
-- the imperative baselines spend more of their surface form on execution management
+- the compact imperative baselines spend more of their surface form on execution management
+- the event-driven baselines reduce some frame-loop machinery but still express event detection, law firing, and branch selection in ordinary host-language control flow
+- the library-style baselines show that an API can hide mechanics, so the next comparison must examine whether laws remain first-class in reports, source identities, and the viewer
 
 This is not yet a user study or a definitive complexity argument, but it is enough to
 support the project's current evaluation stance: the paradigm is already showing a

@@ -18,7 +18,7 @@ and provides:
 - a canvas-based world view
 - 3D perspective view with camera controls
 - a time slider over snapshots
-- play/pause snapshot playback
+- play/pause playback with smooth visual interpolation between semantic snapshots
 - switching between `3d`, `xy`, and `xz`
 - per-snapshot inspection of object positions and velocities
 - contradiction display for failed worlds, including the last stable snapshot when available
@@ -41,6 +41,7 @@ and provides:
 - coordination worlds where two deferred entities resolve together when the same target becomes visible or occluded
 - visibility network worlds where two agents jointly resolve toward target-specific roles for `B` or `C`
 - a staggered visibility network world where role assignment changes across observation frontiers
+- a flagship visibility-coordination sample with discrete observation frontiers and smooth viewer playback between them
 - draft editor can now propose a small visibility-pursuit world when two spheres and an occluding region are present
 - draft editor includes one-click clear/occluded visibility presets for the pursuit-world demo
 - a minimal diagram-aware draft editor in `xy` mode
@@ -123,7 +124,25 @@ cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_occlu
 cargo run -p sekai-cli -- simulate-report examples/visibility_network_roles_b.sk > viewer/samples/visibility_network_roles_b.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_network_roles_c.sk > viewer/samples/visibility_network_roles_c.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_network_staggered.sk > viewer/samples/visibility_network_staggered.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship.sk > viewer/samples/visibility_coordination_flagship.json
+cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship_contradiction.sk > viewer/samples/visibility_coordination_flagship_contradiction.json
 ```
+
+## Playback Semantics
+
+The runtime report still exposes semantic observations only at explicit snapshot/frontier points.
+The viewer's playhead can move through fractional positions such as `0.42` or `1.73`, but those frames are visual interpolation between adjacent reported snapshots.
+
+This is intentional:
+
+- observation status, candidate resolution, and frontier cards remain tied to the most recent semantic frontier
+- sphere positions and velocities are interpolated to make the motion readable like a short video
+- adding more true observation points still requires changing the `.sk` scene to request more snapshots
+
+For the flagship sample, this lets the demo play continuously while still preserving the research claim that `t=0`, `t=1`, and `t=2` are the meaningful observation frontiers.
+
+The contradiction variant is intentionally different: it records the same family of world constraints as an error report where `visible(S, C)` is blocked by `wall_bottom` at `t=1.000`.
+It is useful for inspecting the failure surface without overloading the clean convergence demo.
 
 ## Why This Viewer Exists
 

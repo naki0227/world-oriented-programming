@@ -39,3 +39,7 @@ Visibility-world preset in the draft editor. The viewer is no longer proposing o
 ## Visibility Figure C
 
 Visibility-conditioned branching in the occluded case. After the same draft structure is executed with an occluding region between the entities, the runtime selects a search-like continuation and reports the branching outcome in the same interface.
+
+## Flagship Convergence Figure
+
+Flagship visibility-coordination scenario in `sekai`. Two entities begin with ambiguous candidate actions while moving targets pass through a corridor-like visibility structure. The panels show semantic observation frontiers at `t=0.000`, `t=1.000`, and `t=2.000`; the observation timeline records `t=0` unresolved with two ambiguous entities, `t=1` unresolved with one ambiguous entity, and `t=2` determinate with no ambiguous entities. This makes staggered convergence visible as a property of the executable world report rather than as an external animation script.

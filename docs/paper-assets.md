@@ -56,11 +56,25 @@ This document lists the current executable assets that can already be cited in a
 - caption source: `docs/paper-figures-captions.md`
 - role: visibility-conditioned branching toward search in the occluded case
 
+### Flagship Convergence Figure
+
+- image: `figures/visibility_coordination_flagship-xy.png`
+- vector fallback: `figures/visibility_coordination_flagship-xy.svg`
+- caption source: `figures/visibility_coordination_flagship-caption.md`
+- role: main evidence for staggered underdetermined-world convergence across observation frontiers
+
 ## Executable Examples
 
 - `examples/bounce.sk`
 - `examples/forbidden_region.sk`
 - `examples/two_body_collision.sk`
+- `examples/visibility_coordination_flagship.sk`
+- `examples/visibility_coordination_flagship_contradiction.sk`
+
+## Structured Viewer Samples
+
+- `viewer/samples/visibility_coordination_flagship.json`
+- `viewer/samples/visibility_coordination_flagship_contradiction.json`
 
 ## Validation Commands
 
@@ -69,8 +83,11 @@ cargo test
 cargo run -p sekai-cli -- simulate examples/bounce.sk
 cargo run -p sekai-cli -- simulate examples/forbidden_region.sk
 cargo run -p sekai-cli -- simulate examples/two_body_collision.sk
+cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship.sk
+cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship_contradiction.sk
 python3 scripts/render_figure.py examples/bounce.sk
 python3 scripts/render_figure.py examples/two_body_collision.sk
+PYTHONPATH=/tmp/sekai-py python3 scripts/render_figure.py examples/visibility_coordination_flagship.sk --output figures/visibility_coordination_flagship-xy.png
 ```
 
 ## Recommended Use In A Draft
@@ -82,3 +99,4 @@ python3 scripts/render_figure.py examples/two_body_collision.sk
 - use Figure 5 in the round-trip execution discussion
 - use Figure 6 in the constraint-validation discussion
 - use the visibility set in a richer-geometry discussion or appendix once the paper needs a dedicated visibility storyline
+- use the flagship convergence figure as the main evidence for staggered underdetermined-world convergence and visibility-conditioned coordination

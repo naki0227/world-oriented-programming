@@ -10,7 +10,7 @@ can be specified with less accidental mechanism and with clearer world-level int
 
 - compare representational complexity rather than benchmark speed alone
 - measure how much of a program describes the world versus how much manages execution
-- ground later claims about cognitive load and declarative density in a reproducible corpus
+- ground later representational-structure claims in a reproducible corpus
 
 ## Initial Scenario Corpus
 
@@ -22,6 +22,8 @@ can be specified with less accidental mechanism and with clearer world-level int
 - `examples/visibility_occluded.sk`
 - `examples/visibility_pursuit_occluded.sk`
 - `examples/visibility_pursuit_world_occluded.sk`
+- `examples/visibility_corridor_world_occluded.sk`
+- `examples/visibility_coordination_flagship.sk`
 
 Imperative reference baselines live in:
 
@@ -33,6 +35,32 @@ Imperative reference baselines live in:
 - `benchmarks/imperative/visibility_occluded.py`
 - `benchmarks/imperative/visibility_pursuit_occluded.py`
 - `benchmarks/imperative/visibility_pursuit_world_occluded.py`
+- `benchmarks/imperative/visibility_corridor_world_occluded.py`
+
+Event-driven reference baselines live in:
+
+- `benchmarks/event_driven/bounce.py`
+- `benchmarks/event_driven/two_body_collision.py`
+- `benchmarks/event_driven/candidate_velocity.py`
+- `benchmarks/event_driven/clamped_region.py`
+- `benchmarks/event_driven/candidate_velocity_deferred.py`
+- `benchmarks/event_driven/visibility_occluded.py`
+- `benchmarks/event_driven/visibility_pursuit_occluded.py`
+- `benchmarks/event_driven/visibility_pursuit_world_occluded.py`
+- `benchmarks/event_driven/visibility_corridor_world_occluded.py`
+
+Library-style reference baselines live in:
+
+- `benchmarks/library_style/bounce.py`
+- `benchmarks/library_style/two_body_collision.py`
+- `benchmarks/library_style/candidate_velocity.py`
+- `benchmarks/library_style/clamped_region.py`
+- `benchmarks/library_style/candidate_velocity_deferred.py`
+- `benchmarks/library_style/visibility_occluded.py`
+- `benchmarks/library_style/visibility_pursuit_occluded.py`
+- `benchmarks/library_style/visibility_pursuit_world_occluded.py`
+- `benchmarks/library_style/visibility_corridor_world_occluded.py`
+- `benchmarks/library_style/visibility_coordination_flagship.py`
 
 ## Initial Metrics
 
@@ -43,7 +71,16 @@ the later evaluation phase concrete and reproducible.
 - token count: coarse lexical load
 - control density: `if` / `for` / `while` load
 - state-assignment density: explicit update sites in imperative code
-- declarative density: fraction of lines devoted to object, law, action, and observation declarations
+- world-content density: fraction of lines devoted to object, law, action, and observation content
+- mechanics density: fraction of lines devoted to update, event-detection, repair, and selection mechanics
+
+The current coding rules are tracked in:
+
+- `docs/evaluation-coding-manual.md`
+
+The first manual flagship comparison is tracked in:
+
+- `docs/flagship-comparison.md`
 
 ## Current Script
 
@@ -63,7 +100,8 @@ The first recorded output is summarized in:
 ## Current Hypotheses
 
 - `sekai` should require fewer control-flow sites for the same world behavior
-- `sekai` should show higher declarative density than imperative baselines
+- `sekai` should show higher world-content density than imperative baselines
+- imperative baselines should show higher mechanics density than `sekai` specifications
 - imperative baselines should spend more of their specification budget on explicit state progression
 
 ## Next Steps
@@ -73,5 +111,6 @@ The first recorded output is summarized in:
 - extend that visibility slice into a behavior-level comparison where geometry changes candidate selection
 - extend that same visibility line into a branching world comparison where geometry changes which continuation family is taken
 - add scenario-specific narrative comparisons for each pair
-- connect these structural metrics to cognitive-load hypotheses
+- extend the manual flagship comparison into a compact paper table, because line counts alone cannot capture source identity, report structure, or viewer integration
+- keep cognitive-load claims as hypotheses unless a user study is actually run
 - decide whether a lightweight user study is feasible

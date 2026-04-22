@@ -1,0 +1,234 @@
+{
+  "source": "examples/visibility_coordination_flagship_contradiction.sk",
+  "status": "error",
+  "error": "`S` cannot see `C` through region `wall_bottom` at t=1.000",
+  "contradiction": {
+    "law_kind": "visible",
+    "law_category": "interaction",
+    "participants": ["S", "C"],
+    "policy": "implicit",
+    "frontier": 1.000000,
+    "failed_predicate": "visible(S, C) blocked_by wall_bottom",
+    "message": "`S` cannot see `C` through region `wall_bottom` at t=1.000"
+  },
+  "analytics": {
+    "total_constraints": 3,
+    "invariant_constraints": 2,
+    "boundary_constraints": 0,
+    "interaction_constraints": 1,
+    "idle_constraints": 2,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 1
+  },
+  "constraints": [
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["A"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "velocity_limit",
+      "category": "invariant",
+      "targets": ["D"],
+      "policy": "reject",
+      "supported_policies": ["reject", "clamp"],
+      "outcome": "idle",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 0
+    },
+    {
+      "kind": "visible",
+      "category": "interaction",
+      "targets": ["S", "C"],
+      "policy": "implicit",
+      "supported_policies": [],
+      "outcome": "contradicted",
+      "fired_count": 0,
+      "repaired_count": 0,
+      "contradicted_count": 1
+    }
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 2,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "deferred_entities": 2,
+    "preference_resolved_entities": 0,
+    "law_updated_entities": 0,
+    "rescore_resolved_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 2,
+    "symbolically_underdetermined_entities": 2,
+    "observationally_underdetermined_entities": 2,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 6
+  },
+  "observation_summary": {
+    "status": "unresolved",
+    "representative_entities": 0,
+    "ambiguous_entities": 2
+  },
+  "observation_timeline": [
+    {
+      "time": 0.000000,
+      "status": "unresolved",
+      "representative_entities": 0,
+      "ambiguous_entities": 2
+    }
+  ],
+  "candidate_resolutions": [
+    {
+      "initial_frontier": "0.000",
+      "entity": "A",
+      "total_candidates": 3,
+      "rejected_candidates": 0,
+      "skipped_candidates": 3,
+      "convergence_mode": "deferred",
+      "observation_mode": "ambiguous",
+      "observation_labels": ["hold_a", "pursue_b", "pursue_c"],
+      "symbolically_underdetermined": true,
+      "observationally_underdetermined": true,
+      "selected_candidate": null,
+      "selected_score": null,
+      "top_score": "5.000",
+      "top_labels": ["hold_a", "pursue_b", "pursue_c"],
+      "tie_broken": true,
+      "equivalent_top_labels": ["hold_a"],
+      "observationally_equivalent_tie": false,
+      "repaired_after_selection": false,
+      "observed_while_deferred": 1,
+      "deferred_past_initial_frontier": false,
+      "resolved_from_deferred": false,
+      "preferred_label": null,
+      "active_score_adjustments": [],
+      "active_law_updates": [],
+      "convergence_steps": [
+        {
+          "time": "0.000",
+          "phase": "candidate_frontier",
+          "mode": "deferred",
+          "labels": ["hold_a", "pursue_b", "pursue_c"],
+          "reason": "top_score=5.000"
+        },
+        {
+          "time": "0.000",
+          "phase": "deferred",
+          "mode": "deferred",
+          "labels": ["hold_a", "pursue_b", "pursue_c"],
+          "reason": "ambiguous top frontier preserved"
+        }
+      ],
+      "resolved_at_observation_time": null
+    },
+    {
+      "initial_frontier": "0.000",
+      "entity": "D",
+      "total_candidates": 3,
+      "rejected_candidates": 0,
+      "skipped_candidates": 3,
+      "convergence_mode": "deferred",
+      "observation_mode": "ambiguous",
+      "observation_labels": ["hold_d", "support_b", "support_c"],
+      "symbolically_underdetermined": true,
+      "observationally_underdetermined": true,
+      "selected_candidate": null,
+      "selected_score": null,
+      "top_score": "5.000",
+      "top_labels": ["hold_d", "support_b", "support_c"],
+      "tie_broken": true,
+      "equivalent_top_labels": ["hold_d"],
+      "observationally_equivalent_tie": false,
+      "repaired_after_selection": false,
+      "observed_while_deferred": 1,
+      "deferred_past_initial_frontier": false,
+      "resolved_from_deferred": false,
+      "preferred_label": null,
+      "active_score_adjustments": [],
+      "active_law_updates": [],
+      "convergence_steps": [
+        {
+          "time": "0.000",
+          "phase": "candidate_frontier",
+          "mode": "deferred",
+          "labels": ["hold_d", "support_b", "support_c"],
+          "reason": "top_score=5.000"
+        },
+        {
+          "time": "0.000",
+          "phase": "deferred",
+          "mode": "deferred",
+          "labels": ["hold_d", "support_b", "support_c"],
+          "reason": "ambiguous top frontier preserved"
+        }
+      ],
+      "resolved_at_observation_time": null
+    }
+  ],
+  "activities": [
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["A", "hold_a"],
+      "policy": "score=5.000",
+      "action": "deferred_due_to_tie"
+    },
+    {
+      "time": 0.000000,
+      "kind": "candidate_velocity",
+      "targets": ["D", "hold_d"],
+      "policy": "score=5.000",
+      "action": "deferred_due_to_tie"
+    },
+    {
+      "time": 1.000000,
+      "kind": "visible",
+      "targets": ["S", "C"],
+      "policy": "implicit",
+      "action": "contradicted"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "A",
+          "position": { "x": 0.000000, "y": 0.500000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        },
+        {
+          "name": "B",
+          "position": { "x": 6.000000, "y": 2.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": -2.000000, "z": 0.000000 }
+        },
+        {
+          "name": "C",
+          "position": { "x": 6.000000, "y": -4.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 2.000000, "z": 0.000000 }
+        },
+        {
+          "name": "D",
+          "position": { "x": 0.000000, "y": -0.500000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        },
+        {
+          "name": "S",
+          "position": { "x": 0.000000, "y": -4.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}
