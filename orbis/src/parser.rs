@@ -23,9 +23,18 @@ pub struct ActionCandidateDecl {
 }
 
 #[derive(Clone, Debug)]
+pub struct FactCandidateDecl {
+    pub entity: String,
+    pub slot: String,
+    pub value: String,
+    pub score: f64,
+}
+
+#[derive(Clone, Debug)]
 pub struct ActionDirectiveDecl {
     pub entity: String,
     pub kind: String,
+    pub slot_argument: Option<String>,
     pub time_argument: Option<f64>,
     pub label_argument: Option<String>,
     pub target_argument: Option<String>,
@@ -38,6 +47,7 @@ pub struct Program {
     pub entities: Vec<EntityDecl>,
     pub properties: HashMap<(String, String), Value>,
     pub action_candidates: Vec<ActionCandidateDecl>,
+    pub fact_candidates: Vec<FactCandidateDecl>,
     pub action_directives: Vec<ActionDirectiveDecl>,
     pub constraints: Vec<Vec<String>>,
     pub observe_times: Vec<f64>,
@@ -208,6 +218,12 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                     program
                         .action_candidates
                         .push(parse_action_candidate(trimmed, line_no)?);
+                    continue;
+                }
+                if trimmed.starts_with("candidate_fact(") {
+                    program
+                        .fact_candidates
+                        .push(parse_fact_candidate(trimmed, line_no)?);
                     continue;
                 }
                 program
@@ -535,6 +551,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: entity.to_string(),
             kind: "defer_on_ambiguous_top".to_string(),
+            slot_argument: None,
             time_argument: None,
             label_argument: None,
             target_argument: None,
@@ -573,8 +590,81 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: args[0].to_string(),
             kind: "resolve_deferred_at".to_string(),
+            slot_argument: None,
             time_argument: Some(time),
             label_argument: None,
+            target_argument: None,
+            score_argument: None,
+            value_argument: None,
+        });
+    }
+
+    if let Some(rest) = line.strip_prefix("defer_fact_on_ambiguous_top(") {
+        let close = rest.find(')').ok_or_else(|| {
+            ParseError::new(line_no, "defer_fact_on_ambiguous_top is missing `)`")
+        })?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 2 {
+            return Err(ParseError::new(
+                line_no,
+                "defer_fact_on_ambiguous_top requires an entity and a slot",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "defer_fact_on_ambiguous_top does not take trailing arguments",
+            ));
+        }
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "defer_fact_on_ambiguous_top".to_string(),
+            slot_argument: Some(args[1].to_string()),
+            time_argument: None,
+            label_argument: None,
+            target_argument: None,
+            score_argument: None,
+            value_argument: None,
+        });
+    }
+
+    if let Some(rest) = line.strip_prefix("prefer_fact_at(") {
+        let close = rest
+            .find(')')
+            .ok_or_else(|| ParseError::new(line_no, "prefer_fact_at is missing `)`"))?;
+        let args = rest[..close]
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>();
+        if args.len() != 4 {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_fact_at requires an entity, a slot, a value, and a time",
+            ));
+        }
+        if !rest[close + 1..].trim().is_empty() {
+            return Err(ParseError::new(
+                line_no,
+                "prefer_fact_at does not take trailing arguments",
+            ));
+        }
+        let time = args[3].parse::<f64>().map_err(|_| {
+            ParseError::new(
+                line_no,
+                format!("invalid prefer_fact_at time `{}`", args[3]),
+            )
+        })?;
+        return Ok(ActionDirectiveDecl {
+            entity: args[0].to_string(),
+            kind: "prefer_fact_at".to_string(),
+            slot_argument: Some(args[1].to_string()),
+            time_argument: Some(time),
+            label_argument: Some(args[2].to_string()),
             target_argument: None,
             score_argument: None,
             value_argument: None,
@@ -605,6 +695,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: args[0].to_string(),
             kind: "prefer_candidate_if_visible".to_string(),
+            slot_argument: None,
             time_argument: None,
             label_argument: Some(args[1].to_string()),
             target_argument: Some(args[2].to_string()),
@@ -637,6 +728,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: args[0].to_string(),
             kind: "prefer_candidate_if_occluded".to_string(),
+            slot_argument: None,
             time_argument: None,
             label_argument: Some(args[1].to_string()),
             target_argument: Some(args[2].to_string()),
@@ -675,6 +767,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: args[0].to_string(),
             kind: "prefer_candidate_at".to_string(),
+            slot_argument: None,
             time_argument: Some(time),
             label_argument: Some(args[1].to_string()),
             target_argument: None,
@@ -719,6 +812,7 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
         return Ok(ActionDirectiveDecl {
             entity: args[0].to_string(),
             kind: "update_speed_limit_at".to_string(),
+            slot_argument: None,
             time_argument: Some(time),
             label_argument: None,
             target_argument: None,
@@ -768,10 +862,55 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
     Ok(ActionDirectiveDecl {
         entity: args[0].to_string(),
         kind: "rescore_candidate_at".to_string(),
+        slot_argument: None,
         time_argument: Some(time),
         label_argument: Some(args[1].to_string()),
         target_argument: None,
         score_argument: Some(delta),
         value_argument: None,
+    })
+}
+
+fn parse_fact_candidate(line: &str, line_no: usize) -> Result<FactCandidateDecl, ParseError> {
+    let Some(rest) = line.strip_prefix("candidate_fact(") else {
+        return Err(ParseError::new(
+            line_no,
+            format!("invalid fact statement `{line}`"),
+        ));
+    };
+    let close = rest
+        .find(')')
+        .ok_or_else(|| ParseError::new(line_no, "candidate_fact is missing `)`"))?;
+    let inner = &rest[..close];
+    let tail = rest[close + 1..].trim();
+    let args = inner
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if args.len() != 3 {
+        return Err(ParseError::new(
+            line_no,
+            "candidate_fact requires an entity, a slot, and a value",
+        ));
+    }
+
+    let rhs = tail
+        .strip_prefix('=')
+        .ok_or_else(|| ParseError::new(line_no, "candidate_fact must use `=`"))?
+        .trim();
+    let score_text = rhs
+        .strip_prefix("score ")
+        .ok_or_else(|| ParseError::new(line_no, "candidate_fact requires `= score <number>`"))?;
+    let score = score_text
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| ParseError::new(line_no, format!("invalid score `{}`", score_text.trim())))?;
+
+    Ok(FactCandidateDecl {
+        entity: args[0].to_string(),
+        slot: args[1].to_string(),
+        value: args[2].to_string(),
+        score,
     })
 }

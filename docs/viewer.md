@@ -25,6 +25,7 @@ and provides:
 - display of active world laws, their categories, supported policies, and per-run law activity
 - display of report-level law analytics for category and outcome totals
 - display of Phase I candidate resolution summaries when reports include action-candidate metadata
+- display of fact-resolution summaries when reports include unresolved or later-resolved world-fact metadata
 - display of static Phase I candidate inventories and action directives when reports come from `sekai analyze`
 - display of run-level Phase I convergence analytics for direct, fallback, repaired, tie-broken, and observationally equivalent outcomes
 - display of observation timeline checkpoints when reports expose frontier-by-frontier observation status
@@ -126,6 +127,7 @@ cargo run -p sekai-cli -- simulate-report examples/visibility_network_roles_c.sk
 cargo run -p sekai-cli -- simulate-report examples/visibility_network_staggered.sk > viewer/samples/visibility_network_staggered.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship.sk > viewer/samples/visibility_coordination_flagship.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship_contradiction.sk > viewer/samples/visibility_coordination_flagship_contradiction.json
+cargo run -p sekai-cli -- simulate-report examples/uncertain_world_fact.sk > viewer/samples/uncertain_world_fact.json
 ```
 
 ## Playback Semantics
@@ -185,6 +187,8 @@ The candidate cards also expose whether a deferred entity was later resolved and
 The report header now also exposes a run-level observation status, so unresolved Phase I cases can be spotted without opening any entity card.
 
 When `observation_timeline` is present, the viewer also shows frontier-by-frontier status cards, which is especially useful for staged re-convergence examples.
+
+When `fact_resolutions` are present, the viewer now also shows per-slot cards for unresolved world facts, including deferred frontiers, later preference-guided resolution, and convergence traces.
 
 ## Round-Trip Notes
 
