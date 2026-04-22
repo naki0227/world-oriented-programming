@@ -1,8 +1,11 @@
 const COLORS = ["#2440af", "#c83636", "#1b855f", "#c1801c", "#6f42c1"];
+const PLAYBACK_STEP = 0.025;
+const PLAYBACK_FRAME_MS = 33;
 
 const state = {
   report: null,
   snapshotIndex: 0,
+  playhead: 0,
   viewMode: "3d",
   playing: false,
   colorMap: new Map(),
@@ -108,6 +111,8 @@ const VISIBILITY_COMPARISON_SAMPLES = [
   { label: "network B", path: "./samples/visibility_network_roles_b.json" },
   { label: "network C", path: "./samples/visibility_network_roles_c.json" },
   { label: "network staggered", path: "./samples/visibility_network_staggered.json" },
+  { label: "flagship", path: "./samples/visibility_coordination_flagship.json" },
+  { label: "flagship contradiction", path: "./samples/visibility_coordination_flagship_contradiction.json" },
 ];
 
 const CANDIDATE_COMPARISON_SAMPLES = [
@@ -151,7 +156,8 @@ viewModeSelect.addEventListener("change", (event) => {
 });
 
 timeSlider.addEventListener("input", (event) => {
-  state.snapshotIndex = Number(event.target.value);
+  state.playhead = Number(event.target.value);
+  state.snapshotIndex = activeFrontierIndex();
   stopPlayback();
   render();
 });
@@ -335,12 +341,14 @@ loadVisibilityOccludedButton.addEventListener("click", () => {
 function loadReport(report, sourceName) {
   state.report = normalizeReport(report);
   state.snapshotIndex = 0;
+  state.playhead = 0;
   stopPlayback();
   sourceLabel.textContent = sourceName || state.report.source || "Unknown source";
   snapshotCount.textContent = String(state.report.snapshots.length);
   observationStatus.textContent =
     state.report.observation_summary?.status || "determinate";
   timeSlider.max = String(Math.max(0, state.report.snapshots.length - 1));
+  timeSlider.step = "0.01";
   timeSlider.value = "0";
   state.colorMap = buildColorMap(state.report);
   syncViewLabels();
@@ -450,6 +458,17 @@ function hasStableSnapshots(report = state.report) {
   return Boolean(report && Array.isArray(report.snapshots) && report.snapshots.length > 0);
 }
 
+function maxPlayhead() {
+  if (!hasStableSnapshots()) return 0;
+  return state.report.snapshots.length - 1;
+}
+
+function activeFrontierIndex() {
+  if (!hasStableSnapshots()) return 0;
+  const maxIndex = maxPlayhead();
+  return Math.min(Math.floor(Math.max(0, state.playhead)), maxIndex);
+}
+
 function activeSnapshot() {
   if (!hasStableSnapshots()) return null;
   const maxIndex = state.report.snapshots.length - 1;
@@ -457,12 +476,60 @@ function activeSnapshot() {
   return state.report.snapshots[index];
 }
 
+function activeRenderedSnapshot() {
+  if (!hasStableSnapshots()) return null;
+  const snapshots = state.report.snapshots;
+  const maxIndex = snapshots.length - 1;
+  const clampedPlayhead = Math.min(Math.max(0, state.playhead), maxIndex);
+  const lowerIndex = Math.floor(clampedPlayhead);
+  const upperIndex = Math.ceil(clampedPlayhead);
+  const lower = snapshots[lowerIndex];
+  const upper = snapshots[upperIndex];
+  const alpha = clampedPlayhead - lowerIndex;
+
+  if (!upper || lowerIndex === upperIndex || alpha === 0) {
+    return { ...lower, interpolated: false };
+  }
+
+  const lowerByName = new Map(lower.spheres.map((sphere) => [sphere.name, sphere]));
+  const upperByName = new Map(upper.spheres.map((sphere) => [sphere.name, sphere]));
+  const names = Array.from(new Set([...lowerByName.keys(), ...upperByName.keys()])).sort();
+  const spheres = names.map((name) => {
+    const from = lowerByName.get(name) || upperByName.get(name);
+    const to = upperByName.get(name) || lowerByName.get(name);
+    return {
+      ...from,
+      radius:
+        typeof from.radius === "number" && typeof to.radius === "number"
+          ? lerp(from.radius, to.radius, alpha)
+          : from.radius ?? to.radius,
+      position: interpolateVector(from.position, to.position, alpha),
+      velocity: interpolateVector(from.velocity, to.velocity, alpha),
+    };
+  });
+
+  return {
+    ...lower,
+    time: lerp(lower.time, upper.time, alpha),
+    spheres,
+    interpolated: true,
+  };
+}
+
+function interpolateVector(from, to, alpha) {
+  return {
+    x: lerp(from.x, to.x, alpha),
+    y: lerp(from.y, to.y, alpha),
+    z: lerp(from.z, to.z, alpha),
+  };
+}
+
 function activeObservationCheckpoint() {
   if (!state.report) return null;
   const timeline = state.report.observation_timeline || [];
   if (timeline.length === 0) return null;
   const maxIndex = timeline.length - 1;
-  const index = Math.min(state.snapshotIndex, maxIndex);
+  const index = Math.min(activeFrontierIndex(), maxIndex);
   return timeline[index];
 }
 
@@ -474,11 +541,18 @@ function lastStableSnapshot() {
 function schedulePlayback() {
   if (!state.playing || !state.report || state.report.status !== "ok") return;
   state.frameHandle = window.setTimeout(() => {
-    state.snapshotIndex = (state.snapshotIndex + 1) % state.report.snapshots.length;
-    timeSlider.value = String(state.snapshotIndex);
+    const maxIndex = maxPlayhead();
+    if (maxIndex <= 0) {
+      stopPlayback();
+      return;
+    }
+    state.playhead = state.playhead + PLAYBACK_STEP;
+    if (state.playhead > maxIndex) state.playhead = 0;
+    state.snapshotIndex = activeFrontierIndex();
+    timeSlider.value = state.playhead.toFixed(2);
     render();
     schedulePlayback();
-  }, 950);
+  }, PLAYBACK_FRAME_MS);
 }
 
 function syncViewLabels() {
@@ -565,7 +639,7 @@ function renderCanvas() {
     return;
   }
 
-  const snapshot = activeSnapshot();
+  const snapshot = activeRenderedSnapshot();
   const bounds = compute3DBounds(state.report.snapshots, state.editor.spheres, state.editor.floorEnabled ? state.editor.floorOffset : null);
   const plot = { left: 78, top: 88, right: canvas.width - 78, bottom: canvas.height - 92 };
 
@@ -581,7 +655,7 @@ function renderCanvas() {
 
   context.fillStyle = "#24395e";
   context.font = '26px Georgia, "Times New Roman", serif';
-  context.fillText(`t = ${snapshot.time.toFixed(3)}`, 48, 52);
+  context.fillText(`t = ${snapshot.time.toFixed(3)}${snapshot.interpolated ? " (interp.)" : ""}`, 48, 52);
   context.font = '18px Georgia, "Times New Roman", serif';
   context.fillStyle = "#6d7280";
   context.fillText(axisLabel(state.viewMode), 48, canvas.height - 38);
@@ -920,6 +994,7 @@ function renderSidebar() {
 
   if (state.report.status !== "ok") {
     const stableSnapshot = activeSnapshot() || lastStableSnapshot();
+    const contradiction = state.report.contradiction || null;
     timeLabel.textContent = stableSnapshot ? `t = ${stableSnapshot.time.toFixed(3)} (last stable)` : "t = error";
     snapshotList.innerHTML = `
       <article class="sphere-card">
@@ -928,6 +1003,20 @@ function renderSidebar() {
         <p>error = ${state.report.error || "unknown error"}</p>
       </article>
     `;
+    if (contradiction) {
+      const card = document.createElement("article");
+      card.className = "sphere-card";
+      card.innerHTML = `
+        <h3>Contradiction</h3>
+        <p>law = ${contradiction.law_kind || "unknown"}</p>
+        <p class="muted">category = ${contradiction.law_category || "unknown"}</p>
+        <p class="muted">participants = ${(contradiction.participants || []).join(", ") || "none"}</p>
+        <p class="muted">policy = ${contradiction.policy || "unknown"}</p>
+        <p class="muted">frontier = ${Number(contradiction.frontier || 0).toFixed(3)}</p>
+        <p class="muted">predicate = ${contradiction.failed_predicate || "unknown"}</p>
+      `;
+      snapshotList.appendChild(card);
+    }
     if (stableSnapshot) {
       stableSnapshot.spheres.forEach((sphere) => {
         const color = state.colorMap.get(sphere.name) || COLORS[0];
@@ -950,14 +1039,15 @@ function renderSidebar() {
     renderAnalyticsList();
     renderCandidateResolution();
     renderCandidateComparison();
+    renderObservationTimeline();
     renderActivityList();
     renderComparisonList();
     renderVisibilityComparison();
     return;
   }
 
-  const snapshot = activeSnapshot();
-  timeLabel.textContent = `t = ${snapshot.time.toFixed(3)}`;
+  const snapshot = activeRenderedSnapshot();
+  timeLabel.textContent = `t = ${snapshot.time.toFixed(3)}${snapshot.interpolated ? " (interpolated display)" : ""}`;
 
   snapshotList.innerHTML = "";
   snapshot.spheres.forEach((sphere) => {
@@ -1000,7 +1090,7 @@ function renderObservationTimeline() {
   timeline.forEach((checkpoint, index) => {
     const card = document.createElement("article");
     card.className = "sphere-card";
-    const active = index === Math.min(state.snapshotIndex, timeline.length - 1);
+    const active = index === Math.min(activeFrontierIndex(), timeline.length - 1);
     card.innerHTML = `
       <h3>${active ? "Current Frontier" : "Frontier"}</h3>
       <p>t = ${Number(checkpoint.time || 0).toFixed(3)}</p>
@@ -1177,8 +1267,12 @@ function renderCandidateResolution() {
   candidateResolutions.forEach((candidateResolution) => {
     const card = document.createElement("article");
     card.className = "sphere-card";
+    const convergenceSteps = (candidateResolution.convergence_steps || [])
+      .map((step) => `${step.time} ${step.phase}:${step.mode} [${(step.labels || []).join(", ") || "none"}]`)
+      .join(" -> ");
     card.innerHTML = `
       <h3>${candidateResolution.entity}</h3>
+      <p class="muted">initial frontier = ${candidateResolution.initial_frontier || "0.000"}</p>
       <p>candidates = ${candidateResolution.total_candidates}</p>
       <p class="muted">rejected = ${candidateResolution.rejected_candidates}</p>
       <p class="muted">skipped = ${candidateResolution.skipped_candidates ?? 0}</p>
@@ -1202,6 +1296,7 @@ function renderCandidateResolution() {
       <p class="muted">score adjustments = ${(candidateResolution.active_score_adjustments || []).join(", ") || "none"}</p>
       <p class="muted">law updates = ${(candidateResolution.active_law_updates || []).join(", ") || "none"}</p>
       <p class="muted">resolved at observation = ${candidateResolution.resolved_at_observation_time || "n/a"}</p>
+      <p class="muted">convergence steps = ${convergenceSteps || "none"}</p>
     `;
     candidateResolutionList.appendChild(card);
   });
@@ -1385,7 +1480,7 @@ function renderVisibilityComparison() {
   const visibilityConditionedSelection =
     candidateResolution &&
     candidateResolution.preferred_label &&
-    (state.report.source || "").includes("visibility_pursuit");
+    (state.report.source || "").includes("visibility_");
   if (!visibleLaw && !visibilityError && !visibilityConditionedSelection) {
     visibilityComparisonList.innerHTML =
       '<p class="muted">Comparison is available for visibility laws and visibility-conditioned worlds.</p>';
@@ -1449,10 +1544,14 @@ function renderVisibilityComparison() {
                                 : sample.label === "coord occluded"
                                   ? "The same occlusion change now resolves several deferred entities together toward search/cover continuations."
                                   : sample.label === "network B"
-                                    ? "The same visibility network now assigns several agents to B-specific roles."
+                                  ? "The same visibility network now assigns several agents to B-specific roles."
                                     : sample.label === "network C"
                                       ? "The same visibility network now assigns several agents to C-specific roles."
-                                      : "The same visibility network now reassigns different agents across observation frontiers as different targets become visible.";
+                                      : sample.label === "network staggered"
+                                        ? "The same visibility network now reassigns different agents across observation frontiers as different targets become visible."
+                                        : sample.label === "flagship contradiction"
+                                          ? "The same flagship geometry is made inconsistent by a hard visibility law after C moves behind the lower wall."
+                                          : "The flagship world keeps semantic observation frontiers discrete while the viewer plays the motion between them smoothly.";
 
     const button = document.createElement("button");
     button.type = "button";

@@ -5,6 +5,8 @@
 \pagestyle{plain}
 \raggedbottom
 \setlength{\emergencystretch}{2em}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 \begin{document}
 
@@ -440,6 +442,46 @@ This convergence work is also starting to connect back to geometry, since a purs
 Later law updates can likewise reshape admissibility itself, so a continuation that was previously blocked by a hard law may later become selectable without abandoning the world-oriented formulation.
 These re-convergences can also be staggered across multiple entities, so the world-level observation status changes across frontiers instead of collapsing in a single step.
 The structured report therefore exposes both the candidate inventory seen before simulation and the candidate resolution performed at the initial frontier, together with run-level convergence analytics covering direct, fallback, repaired, tie-broken, deferred, and observationally equivalent outcomes, as well as whether observation is already determinate, merely representative, or still unresolved in a small executable stand-in for $Obs? = U$.
+
+Figure~\ref{fig:flagship-convergence} shows the current flagship case.
+Two entities begin with ambiguous candidate actions while two moving targets pass through a corridor-like visibility structure.
+At the first frontier both candidate-bearing entities remain unresolved; at the second, one entity has converged; at the third, the world-level observation is determinate.
+The important point is not the animation itself, but the reportable sequence of semantic frontiers: unresolved with two ambiguous entities, unresolved with one ambiguous entity, and then determinate.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.9\textwidth]{../figures/visibility_coordination_flagship-xy.png}
+  \caption{Flagship visibility-coordination scenario. The panels show semantic observation frontiers at $t=0$, $t=1$, and $t=2$; the timeline records staggered convergence from two ambiguous candidate-bearing entities, to one, to a determinate world report.}
+  \label{fig:flagship-convergence}
+\end{figure*}
+
+\begin{table*}[t]
+  \centering
+  \caption{Manual reading of the flagship scenario against a favorable library-style Python baseline. The baseline is allowed compact world-building calls; the remaining distinction concerns semantic identity and report continuity.}
+  \label{tab:flagship-manual-comparison}
+  \begin{tabular}{@{}L{0.17\textwidth}L{0.25\textwidth}L{0.25\textwidth}L{0.23\textwidth}@{}}
+    \toprule
+    Axis & \texttt{sekai} flagship & Library-style Python baseline & Reading \\
+    \midrule
+    Law identity &
+    Speed laws live in a \texttt{constraint:} block. &
+    Laws are calls such as \texttt{world.law(...)}. &
+    Python can name laws, but lawhood is an API convention. \\
+    Candidate structure &
+    The \texttt{action:} block groups candidates, deferral, resolution, and preferences. &
+    Candidate and preference calls are listed separately. &
+    \texttt{sekai} separates action-world structure from geometry and constraints. \\
+    Observation frontiers &
+    The \texttt{observe:} block lists semantic frontiers. &
+    Observation uses \texttt{world.observe(...)} calls. &
+    Both request snapshots; \texttt{sekai} makes observation a source section. \\
+    Report continuity &
+    One source produces constraints, activities, resolutions, timeline, snapshots, viewer data, and the figure. &
+    The library must reproduce the report contract. &
+    The stronger claim is source--runtime--report--viewer continuity. \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
 
 These additions remain deliberately small, but they matter for the research trajectory.
 They show that World-Oriented Programming need not be limited to fully determined evolution.
