@@ -110,6 +110,15 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
   "source": "examples/forbidden_region.sk",
   "status": "error",
   "error": "sphere `A` entered forbidden region `zone` at t=2.000",
+  "contradiction": {
+    "law_kind": "not_inside",
+    "law_category": "boundary",
+    "participants": ["A", "zone"],
+    "policy": "reject",
+    "frontier": 2.0,
+    "failed_predicate": "not_inside(A, zone)",
+    "message": "sphere `A` entered forbidden region `zone` at t=2.000"
+  },
   "analytics": {
     "total_constraints": 1,
     "invariant_constraints": 0,
@@ -176,10 +185,12 @@ Successful reports use:
 
 - `"status": "ok"`
 - `"error": null`
+- `"contradiction": null`
 - non-empty `snapshots`
 
 Failure reports may still include:
 
+- structured `contradiction` metadata when the failure is a world-level contradiction
 - active `constraints`
 - recorded `activities`
 - partial `snapshots` produced before contradiction
@@ -192,6 +203,7 @@ Phase I reports may additionally include:
 - `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
 - `observation_timeline` for observation status at each recorded frontier
 - `candidate_resolutions` when initial action candidates were evaluated before observation
+- `initial_frontier` per candidate-bearing entity for the first convergence frontier
 - `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `resolved_after_preference`, `resolved_after_rescore`, `resolved_after_law_update`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)
 - `observation_labels` for the labels that still matter at the observation layer
@@ -207,6 +219,7 @@ Phase I reports may additionally include:
 - `preferred_label` when a later preference trigger actively guided a deferred re-convergence
 - `active_score_adjustments` when later score updates changed the candidate ranking before re-convergence
 - `active_law_updates` when later law updates changed admissibility before re-convergence
+- `convergence_steps` as an explicit ordered trace of candidate frontier, defer, selection, and later resolution phases for each entity
 
 ## Rationale
 
@@ -220,11 +233,13 @@ This format is intentionally small but useful for:
 - exposing whether each law is invariant, boundary-oriented, or interaction-oriented
 - exposing which repair policies are supported by each law
 - exposing each law's run-level outcome (`idle`, `fired`, `repaired`, or `contradicted`)
+- exposing structured contradiction metadata with law kind, category, participants, frontier, failed predicate, and message
 - exposing report-level totals so whole runs can be compared without manual counting
 - distinguishing declared laws from laws that actually fired or repaired state
 - tracing when fired or repaired laws occurred during execution
 - exposing candidate-action selection as activity-log entries during the initial convergence step
 - exposing a compact candidate-resolution summary for underdetermined-world runs
+- exposing an explicit per-entity convergence trace instead of only run-level totals
 - exposing whether a run remained symbolically or observationally underdetermined after convergence
 - exposing whether symbolic ties have already collapsed into a determinate or representative observation
 - exposing a minimal `Obs? = U` style status when observation is still unresolved

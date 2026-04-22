@@ -2,6 +2,7 @@
   "source": "examples/candidate_velocity_preferred_resolve.sk",
   "status": "ok",
   "error": null,
+  "contradiction": null,
   "analytics": {
     "total_constraints": 0,
     "invariant_constraints": 0,
@@ -21,6 +22,8 @@
     "repaired_entities": 0,
     "deferred_entities": 0,
     "preference_resolved_entities": 1,
+    "law_updated_entities": 0,
+    "rescore_resolved_entities": 0,
     "tie_broken_entities": 0,
     "equivalent_tie_entities": 0,
     "determinate_entities": 1,
@@ -52,6 +55,7 @@
   ],
   "candidate_resolutions": [
     {
+      "initial_frontier": "1.000",
       "entity": "A",
       "total_candidates": 2,
       "rejected_candidates": 0,
@@ -73,6 +77,31 @@
       "deferred_past_initial_frontier": false,
       "resolved_from_deferred": true,
       "preferred_label": "beta",
+      "active_score_adjustments": [],
+      "active_law_updates": [],
+      "convergence_steps": [
+        {
+          "time": "1.000",
+          "phase": "candidate_frontier",
+          "mode": "resolved_after_preference",
+          "labels": ["beta", "alpha"],
+          "reason": "top_score=5.000"
+        },
+        {
+          "time": "1.000",
+          "phase": "deferred",
+          "mode": "deferred",
+          "labels": ["beta", "alpha"],
+          "reason": "ambiguous top frontier preserved before later resolution"
+        },
+        {
+          "time": "1.000",
+          "phase": "resolved",
+          "mode": "resolved_after_preference",
+          "labels": ["beta"],
+          "reason": "preferred_label=beta"
+        }
+      ],
       "resolved_at_observation_time": "1.000"
     }
   ],
