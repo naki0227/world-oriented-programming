@@ -39,7 +39,7 @@ instead of:
 | Candidate branching and convergence outcome | Supported | reports expose `candidate_resolutions`, `convergence_mode`, top labels, skipped candidates, and later resolution metadata | flagship and Phase I samples, output-format docs | branch structure is summarized, not a richer explicit continuation graph |
 | Convergence history | Supported | each candidate-bearing entity now carries `convergence_steps` with ordered frontier/defer/select/resolve phases in addition to summary metadata | candidate-resolution reports, viewer candidate cards, output-format docs | the trace is still compact and prototype-scoped rather than a full continuation graph |
 | Contradiction as semantic result | Supported | contradiction now appears as structured metadata with law kind, category, participants, policy, frontier, failed predicate, and message, while also remaining visible in analytics and activities | failure envelopes, `docs/output-format.md`, forbidden-region and flagship-contradiction reports | it is still a prototype report object rather than a fully theorem-level semantic artifact |
-| Unresolved world state as first-class structure | Supported | unresolved candidate/action worlds now coexist with explicit `fact_resolutions`, so observation status can remain unresolved because a world fact itself stayed open across frontiers | `examples/uncertain_world_fact.sk`, `fact_resolutions`, `observation_timeline`, viewer fact cards | fact semantics are still slot/value based rather than a richer relational theory |
+| Unresolved world state as first-class structure | Supported | unresolved candidate/action worlds now coexist with explicit `fact_resolutions`, so observation status can remain unresolved because a world fact or relation itself stayed open across frontiers | `examples/uncertain_world_fact.sk`, `examples/uncertain_relation_fact.sk`, `fact_resolutions`, `observation_timeline`, viewer fact cards | fact semantics are still compact and prototype-scoped rather than a richer relational theory |
 | Explanation continuity from source to runtime to viewer | Partial | many source-level concerns survive into reports and viewer panels | examples -> `simulate-report` -> viewer -> figures | not every source-level construct has a stable, inspectable identity through the whole pipeline |
 | Ask-for-confirmation as semantic outcome | Not yet | discussed as a desirable future runtime behavior in roadmap framing | roadmap and comparison notes | no source construct, runtime output, or viewer representation yet |
 | Partial-confidence perception grounding | Not yet | the long-term architecture mentions grounding perception outputs into world facts | roadmap Stage G | no executable representation for confidence-bearing perceptual facts yet |
@@ -64,12 +64,12 @@ These claims should currently be phrased carefully:
 ### Uncertainty is generally first-class
 
 Now true in a first small slice.
-The current system makes unresolved candidate/action worlds first-class and also supports unresolved fact slots that remain open across observation frontiers.
+The current system makes unresolved candidate/action worlds first-class and also supports unresolved fact slots and simple relation facts that remain open across observation frontiers.
 It still does not ground perception confidences directly.
 
 Better wording:
 
-> the prototype has executable slices of underdetermined action-world semantics and deferred world-fact semantics
+> the prototype has executable slices of underdetermined action-world semantics and deferred world-fact or relation semantics
 
 ### The system already grounds perception into semantics
 
@@ -87,7 +87,7 @@ If the project wants to strengthen the "first-class semantics" claim, the next m
 1. preserve more source-level identity through report and viewer output
 2. carry the structured contradiction object more explicitly into viewer inspection
 3. decide whether convergence history should later become a report-level object in addition to per-entity traces
-4. move from slot/value fact ambiguity toward richer relational fact semantics
+4. move from simple fact/relation ambiguity toward richer relational semantics and grounding rules
 
 ## Recommended Discipline
 

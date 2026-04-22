@@ -211,7 +211,7 @@ Phase I reports may additionally include:
 - `observation_timeline` for observation status at each recorded frontier
 - `candidate_resolutions` when initial action candidates were evaluated before observation
 - `fact_resolutions` when declared world facts remain unresolved or later converge across observation frontiers
-- `slot`, `observation_values`, `selected_value`, `preferred_value`, and `resolved_at_observation_time` for each fact-bearing world slot
+- `slot`, optional `target`, `observation_values`, `selected_value`, `preferred_value`, and `resolved_at_observation_time` for each fact-bearing world slot or relation
 - `initial_frontier` per candidate-bearing entity for the first convergence frontier
 - `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `resolved_after_preference`, `resolved_after_rescore`, `resolved_after_law_update`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)

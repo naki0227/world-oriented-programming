@@ -1,0 +1,28 @@
+sphere observer
+sphere target
+plane floor
+region wall
+
+position(observer) = (0, 1, 0)
+velocity(observer) = (0, 0, 0)
+radius(observer) = 0.5
+
+position(target) = (4, 1, 0)
+velocity(target) = (0, 0, 0)
+radius(target) = 0.5
+
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+min(wall) = (1.5, 0, -1)
+max(wall) = (2.5, 2, 1)
+
+action:
+    candidate_relation(observer, visibility, target, visible) = score 5
+    candidate_relation(observer, visibility, target, occluded) = score 5
+    defer_relation_on_ambiguous_top(observer, visibility, target)
+    prefer_relation_at(observer, visibility, target, occluded, 1)
+
+observe:
+    snapshot at 0
+    snapshot at 1

@@ -128,6 +128,7 @@ cargo run -p sekai-cli -- simulate-report examples/visibility_network_staggered.
 cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship.sk > viewer/samples/visibility_coordination_flagship.json
 cargo run -p sekai-cli -- simulate-report examples/visibility_coordination_flagship_contradiction.sk > viewer/samples/visibility_coordination_flagship_contradiction.json
 cargo run -p sekai-cli -- simulate-report examples/uncertain_world_fact.sk > viewer/samples/uncertain_world_fact.json
+cargo run -p sekai-cli -- simulate-report examples/uncertain_relation_fact.sk > viewer/samples/uncertain_relation_fact.json
 ```
 
 ## Playback Semantics
@@ -188,7 +189,7 @@ The report header now also exposes a run-level observation status, so unresolved
 
 When `observation_timeline` is present, the viewer also shows frontier-by-frontier status cards, which is especially useful for staged re-convergence examples.
 
-When `fact_resolutions` are present, the viewer now also shows per-slot cards for unresolved world facts, including deferred frontiers, later preference-guided resolution, and convergence traces.
+When `fact_resolutions` are present, the viewer now also shows per-slot or per-relation cards for unresolved world facts, including deferred frontiers, later preference-guided resolution, and convergence traces.
 
 ## Round-Trip Notes
 
