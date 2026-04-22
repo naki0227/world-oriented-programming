@@ -154,7 +154,9 @@ pub fn parse_program(source: &str) -> Result<Program, ParseError> {
                         format!("could not parse statement `{trimmed}` after constraint block"),
                     ));
                 }
-                program.constraints.push(parse_constraint(trimmed, line_no)?);
+                program
+                    .constraints
+                    .push(parse_constraint(trimmed, line_no)?);
             }
             Mode::Observe => {
                 if !raw_line.starts_with(' ') && !raw_line.starts_with('\t') {
@@ -355,11 +357,7 @@ fn parse_constraint_alias(line: &str, line_no: usize) -> Result<Option<Vec<Strin
                 "not inside requires exactly 2 arguments",
             ));
         }
-        let mut parsed = vec![
-            "not_inside".to_string(),
-            args[0].clone(),
-            args[1].clone(),
-        ];
+        let mut parsed = vec!["not_inside".to_string(), args[0].clone(), args[1].clone()];
         if let Some(policy) = policy {
             parsed.push(policy.to_string());
         }
@@ -584,9 +582,9 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
     }
 
     if let Some(rest) = line.strip_prefix("prefer_candidate_if_visible(") {
-        let close = rest
-            .find(')')
-            .ok_or_else(|| ParseError::new(line_no, "prefer_candidate_if_visible is missing `)`"))?;
+        let close = rest.find(')').ok_or_else(|| {
+            ParseError::new(line_no, "prefer_candidate_if_visible is missing `)`")
+        })?;
         let args = rest[..close]
             .split(',')
             .map(str::trim)
@@ -616,9 +614,9 @@ fn parse_action_directive(line: &str, line_no: usize) -> Result<ActionDirectiveD
     }
 
     if let Some(rest) = line.strip_prefix("prefer_candidate_if_occluded(") {
-        let close = rest
-            .find(')')
-            .ok_or_else(|| ParseError::new(line_no, "prefer_candidate_if_occluded is missing `)`"))?;
+        let close = rest.find(')').ok_or_else(|| {
+            ParseError::new(line_no, "prefer_candidate_if_occluded is missing `)`")
+        })?;
         let args = rest[..close]
             .split(',')
             .map(str::trim)

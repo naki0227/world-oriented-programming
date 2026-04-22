@@ -88,7 +88,9 @@ pub struct Region {
 
 #[derive(Clone, Debug)]
 pub enum Constraint {
-    ReflectOnCollision { sphere_index: usize },
+    ReflectOnCollision {
+        sphere_index: usize,
+    },
     VelocityLimit {
         sphere_index: usize,
         max_speed: f64,
@@ -102,7 +104,10 @@ pub enum Constraint {
         observer_index: usize,
         target_index: usize,
     },
-    ElasticCollision { left_index: usize, right_index: usize },
+    ElasticCollision {
+        left_index: usize,
+        right_index: usize,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -225,6 +230,7 @@ pub struct DeferredSpeedLimitUpdate {
 #[derive(Clone, Debug)]
 pub struct CandidateResolution {
     pub entity: String,
+    pub initial_frontier: String,
     pub total_candidates: usize,
     pub rejected_candidates: usize,
     pub skipped_candidates: usize,
@@ -248,6 +254,16 @@ pub struct CandidateResolution {
     pub preferred_label: Option<String>,
     pub active_score_adjustments: Vec<String>,
     pub active_law_updates: Vec<String>,
+    pub convergence_steps: Vec<ConvergenceStep>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConvergenceStep {
+    pub time: String,
+    pub phase: String,
+    pub mode: String,
+    pub labels: Vec<String>,
+    pub reason: String,
 }
 
 #[derive(Clone, Debug)]
@@ -319,6 +335,17 @@ pub struct ActivityEntry {
     pub action: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct ContradictionRecord {
+    pub law_kind: String,
+    pub law_category: String,
+    pub participants: Vec<String>,
+    pub policy: String,
+    pub frontier: f64,
+    pub failed_predicate: String,
+    pub message: String,
+}
+
 impl SimulationReport {
     pub fn to_json(&self, source: &str) -> String {
         let mut json = String::new();
@@ -382,8 +409,7 @@ impl SimulationReport {
                 escape_json(&constraint.policy)
             ));
             json.push_str("      \"supported_policies\": [");
-            for (policy_index, supported_policy) in
-                constraint.supported_policies.iter().enumerate()
+            for (policy_index, supported_policy) in constraint.supported_policies.iter().enumerate()
             {
                 json.push_str(&format!("\"{}\"", escape_json(supported_policy)));
                 if policy_index + 1 != constraint.supported_policies.len() {
@@ -469,11 +495,13 @@ impl SimulationReport {
         ));
         json.push_str(&format!(
             "    \"symbolically_underdetermined_entities\": {},\n",
-            self.convergence_analytics.symbolically_underdetermined_entities
+            self.convergence_analytics
+                .symbolically_underdetermined_entities
         ));
         json.push_str(&format!(
             "    \"observationally_underdetermined_entities\": {},\n",
-            self.convergence_analytics.observationally_underdetermined_entities
+            self.convergence_analytics
+                .observationally_underdetermined_entities
         ));
         json.push_str(&format!(
             "    \"rejected_candidates_total\": {},\n",
@@ -525,6 +553,10 @@ impl SimulationReport {
         for (index, candidate_resolution) in self.candidate_resolutions.iter().enumerate() {
             json.push_str("    {\n");
             json.push_str(&format!(
+                "      \"initial_frontier\": \"{}\",\n",
+                escape_json(&candidate_resolution.initial_frontier)
+            ));
+            json.push_str(&format!(
                 "      \"entity\": \"{}\",\n",
                 escape_json(&candidate_resolution.entity)
             ));
@@ -532,10 +564,10 @@ impl SimulationReport {
                 "      \"total_candidates\": {},\n",
                 candidate_resolution.total_candidates
             ));
-                json.push_str(&format!(
-                    "      \"rejected_candidates\": {},\n",
-                    candidate_resolution.rejected_candidates
-                ));
+            json.push_str(&format!(
+                "      \"rejected_candidates\": {},\n",
+                candidate_resolution.rejected_candidates
+            ));
             json.push_str(&format!(
                 "      \"skipped_candidates\": {},\n",
                 candidate_resolution.skipped_candidates
@@ -564,24 +596,24 @@ impl SimulationReport {
                 "      \"observationally_underdetermined\": {},\n",
                 candidate_resolution.observationally_underdetermined
             ));
-                match &candidate_resolution.selected_candidate {
-                    Some(selected_candidate) => json.push_str(&format!(
-                        "      \"selected_candidate\": \"{}\",\n",
+            match &candidate_resolution.selected_candidate {
+                Some(selected_candidate) => json.push_str(&format!(
+                    "      \"selected_candidate\": \"{}\",\n",
                     escape_json(selected_candidate)
                 )),
                 None => json.push_str("      \"selected_candidate\": null,\n"),
             }
-                match &candidate_resolution.selected_score {
-                    Some(selected_score) => json.push_str(&format!(
-                        "      \"selected_score\": \"{}\",\n",
-                        escape_json(selected_score)
-                    )),
-                    None => json.push_str("      \"selected_score\": null,\n"),
-                }
-                json.push_str(&format!(
-                    "      \"top_score\": \"{}\",\n",
-                    escape_json(&candidate_resolution.top_score)
-                ));
+            match &candidate_resolution.selected_score {
+                Some(selected_score) => json.push_str(&format!(
+                    "      \"selected_score\": \"{}\",\n",
+                    escape_json(selected_score)
+                )),
+                None => json.push_str("      \"selected_score\": null,\n"),
+            }
+            json.push_str(&format!(
+                "      \"top_score\": \"{}\",\n",
+                escape_json(&candidate_resolution.top_score)
+            ));
             json.push_str("      \"top_labels\": [");
             for (label_index, label) in candidate_resolution.top_labels.iter().enumerate() {
                 json.push_str(&format!("\"{}\"", escape_json(label)));
@@ -646,13 +678,48 @@ impl SimulationReport {
             }
             json.push_str("],\n");
             json.push_str("      \"active_law_updates\": [");
-            for (update_index, update) in candidate_resolution.active_law_updates.iter().enumerate() {
+            for (update_index, update) in candidate_resolution.active_law_updates.iter().enumerate()
+            {
                 json.push_str(&format!("\"{}\"", escape_json(update)));
                 if update_index + 1 != candidate_resolution.active_law_updates.len() {
                     json.push_str(", ");
                 }
             }
             json.push_str("],\n");
+            json.push_str("      \"convergence_steps\": [\n");
+            for (step_index, step) in candidate_resolution.convergence_steps.iter().enumerate() {
+                json.push_str("        {\n");
+                json.push_str(&format!(
+                    "          \"time\": \"{}\",\n",
+                    escape_json(&step.time)
+                ));
+                json.push_str(&format!(
+                    "          \"phase\": \"{}\",\n",
+                    escape_json(&step.phase)
+                ));
+                json.push_str(&format!(
+                    "          \"mode\": \"{}\",\n",
+                    escape_json(&step.mode)
+                ));
+                json.push_str("          \"labels\": [");
+                for (label_index, label) in step.labels.iter().enumerate() {
+                    json.push_str(&format!("\"{}\"", escape_json(label)));
+                    if label_index + 1 != step.labels.len() {
+                        json.push_str(", ");
+                    }
+                }
+                json.push_str("],\n");
+                json.push_str(&format!(
+                    "          \"reason\": \"{}\"\n",
+                    escape_json(&step.reason)
+                ));
+                json.push_str("        }");
+                if step_index + 1 != candidate_resolution.convergence_steps.len() {
+                    json.push(',');
+                }
+                json.push('\n');
+            }
+            json.push_str("      ],\n");
             match &candidate_resolution.resolved_at_observation_time {
                 Some(time) => json.push_str(&format!(
                     "      \"resolved_at_observation_time\": \"{}\"\n",
@@ -920,6 +987,7 @@ pub struct SimulationEnvelope {
     pub status: String,
     pub report: Option<SimulationReport>,
     pub error: Option<String>,
+    pub contradiction: Option<ContradictionRecord>,
 }
 
 impl SimulationEnvelope {
@@ -929,6 +997,7 @@ impl SimulationEnvelope {
             status: "ok".to_string(),
             report: Some(report),
             error: None,
+            contradiction: None,
         }
     }
 
@@ -938,12 +1007,14 @@ impl SimulationEnvelope {
             status: "error".to_string(),
             report: None,
             error: Some(error.into()),
+            contradiction: None,
         }
     }
 
     pub fn failure_with_report(
         source: &str,
         error: impl Into<String>,
+        contradiction: Option<ContradictionRecord>,
         report: SimulationReport,
     ) -> Self {
         Self {
@@ -951,22 +1022,68 @@ impl SimulationEnvelope {
             status: "error".to_string(),
             report: Some(report),
             error: Some(error.into()),
+            contradiction,
         }
     }
 
     pub fn to_json(&self) -> String {
         let mut json = String::new();
         json.push_str("{\n");
-        json.push_str(&format!("  \"source\": \"{}\",\n", escape_json(&self.source)));
-        json.push_str(&format!("  \"status\": \"{}\",\n", escape_json(&self.status)));
+        json.push_str(&format!(
+            "  \"source\": \"{}\",\n",
+            escape_json(&self.source)
+        ));
+        json.push_str(&format!(
+            "  \"status\": \"{}\",\n",
+            escape_json(&self.status)
+        ));
         match &self.report {
             Some(report) => {
                 match &self.error {
-                    Some(error) => json.push_str(&format!(
-                        "  \"error\": \"{}\",\n",
-                        escape_json(error)
-                    )),
+                    Some(error) => {
+                        json.push_str(&format!("  \"error\": \"{}\",\n", escape_json(error)))
+                    }
                     None => json.push_str("  \"error\": null,\n"),
+                }
+                json.push_str("  \"contradiction\": ");
+                match &self.contradiction {
+                    Some(contradiction) => {
+                        json.push_str("{\n");
+                        json.push_str(&format!(
+                            "    \"law_kind\": \"{}\",\n",
+                            escape_json(&contradiction.law_kind)
+                        ));
+                        json.push_str(&format!(
+                            "    \"law_category\": \"{}\",\n",
+                            escape_json(&contradiction.law_category)
+                        ));
+                        json.push_str("    \"participants\": [");
+                        for (index, participant) in contradiction.participants.iter().enumerate() {
+                            json.push_str(&format!("\"{}\"", escape_json(participant)));
+                            if index + 1 != contradiction.participants.len() {
+                                json.push_str(", ");
+                            }
+                        }
+                        json.push_str("],\n");
+                        json.push_str(&format!(
+                            "    \"policy\": \"{}\",\n",
+                            escape_json(&contradiction.policy)
+                        ));
+                        json.push_str(&format!(
+                            "    \"frontier\": {:.6},\n",
+                            contradiction.frontier
+                        ));
+                        json.push_str(&format!(
+                            "    \"failed_predicate\": \"{}\",\n",
+                            escape_json(&contradiction.failed_predicate)
+                        ));
+                        json.push_str(&format!(
+                            "    \"message\": \"{}\"\n",
+                            escape_json(&contradiction.message)
+                        ));
+                        json.push_str("  },\n");
+                    }
+                    None => json.push_str("null,\n"),
                 }
                 json.push_str("  \"analytics\": {\n");
                 json.push_str(&format!(
@@ -1113,11 +1230,15 @@ impl SimulationEnvelope {
                 ));
                 json.push_str(&format!(
                     "    \"symbolically_underdetermined_entities\": {},\n",
-                    report.convergence_analytics.symbolically_underdetermined_entities
+                    report
+                        .convergence_analytics
+                        .symbolically_underdetermined_entities
                 ));
                 json.push_str(&format!(
                     "    \"observationally_underdetermined_entities\": {},\n",
-                    report.convergence_analytics.observationally_underdetermined_entities
+                    report
+                        .convergence_analytics
+                        .observationally_underdetermined_entities
                 ));
                 json.push_str(&format!(
                     "    \"rejected_candidates_total\": {},\n",
@@ -1169,6 +1290,10 @@ impl SimulationEnvelope {
                 for (index, candidate_resolution) in report.candidate_resolutions.iter().enumerate()
                 {
                     json.push_str("    {\n");
+                    json.push_str(&format!(
+                        "      \"initial_frontier\": \"{}\",\n",
+                        escape_json(&candidate_resolution.initial_frontier)
+                    ));
                     json.push_str(&format!(
                         "      \"entity\": \"{}\",\n",
                         escape_json(&candidate_resolution.entity)
@@ -1230,8 +1355,7 @@ impl SimulationEnvelope {
                         escape_json(&candidate_resolution.top_score)
                     ));
                     json.push_str("      \"top_labels\": [");
-                    for (label_index, label) in candidate_resolution.top_labels.iter().enumerate()
-                    {
+                    for (label_index, label) in candidate_resolution.top_labels.iter().enumerate() {
                         json.push_str(&format!("\"{}\"", escape_json(label)));
                         if label_index + 1 != candidate_resolution.top_labels.len() {
                             json.push_str(", ");
@@ -1288,14 +1412,16 @@ impl SimulationEnvelope {
                         .enumerate()
                     {
                         json.push_str(&format!("\"{}\"", escape_json(adjustment)));
-                        if adjustment_index + 1 != candidate_resolution.active_score_adjustments.len()
+                        if adjustment_index + 1
+                            != candidate_resolution.active_score_adjustments.len()
                         {
                             json.push_str(", ");
                         }
                     }
                     json.push_str("],\n");
                     json.push_str("      \"active_law_updates\": [");
-                    for (update_index, update) in candidate_resolution.active_law_updates.iter().enumerate()
+                    for (update_index, update) in
+                        candidate_resolution.active_law_updates.iter().enumerate()
                     {
                         json.push_str(&format!("\"{}\"", escape_json(update)));
                         if update_index + 1 != candidate_resolution.active_law_updates.len() {
@@ -1303,6 +1429,42 @@ impl SimulationEnvelope {
                         }
                     }
                     json.push_str("],\n");
+                    json.push_str("      \"convergence_steps\": [\n");
+                    for (step_index, step) in
+                        candidate_resolution.convergence_steps.iter().enumerate()
+                    {
+                        json.push_str("        {\n");
+                        json.push_str(&format!(
+                            "          \"time\": \"{}\",\n",
+                            escape_json(&step.time)
+                        ));
+                        json.push_str(&format!(
+                            "          \"phase\": \"{}\",\n",
+                            escape_json(&step.phase)
+                        ));
+                        json.push_str(&format!(
+                            "          \"mode\": \"{}\",\n",
+                            escape_json(&step.mode)
+                        ));
+                        json.push_str("          \"labels\": [");
+                        for (label_index, label) in step.labels.iter().enumerate() {
+                            json.push_str(&format!("\"{}\"", escape_json(label)));
+                            if label_index + 1 != step.labels.len() {
+                                json.push_str(", ");
+                            }
+                        }
+                        json.push_str("],\n");
+                        json.push_str(&format!(
+                            "          \"reason\": \"{}\"\n",
+                            escape_json(&step.reason)
+                        ));
+                        json.push_str("        }");
+                        if step_index + 1 != candidate_resolution.convergence_steps.len() {
+                            json.push(',');
+                        }
+                        json.push('\n');
+                    }
+                    json.push_str("      ],\n");
                     match &candidate_resolution.resolved_at_observation_time {
                         Some(time) => json.push_str(&format!(
                             "      \"resolved_at_observation_time\": \"{}\"\n",
@@ -1387,6 +1549,7 @@ impl SimulationEnvelope {
                     "  \"error\": \"{}\",\n",
                     escape_json(self.error.as_deref().unwrap_or("unknown error"))
                 ));
+                json.push_str("  \"contradiction\": null,\n");
                 json.push_str("  \"analytics\": {\n");
                 json.push_str("    \"total_constraints\": 0,\n");
                 json.push_str("    \"invariant_constraints\": 0,\n");
@@ -1442,8 +1605,19 @@ pub enum SimulationError {
     InvalidPlaneNormal,
     InvalidConstraint(String),
     MissingRegionBounds(String),
-    VelocityLimitExceeded { sphere: String, speed: f64, limit: f64 },
-    EnteredForbiddenRegion { sphere: String, region: String, time: f64 },
+    VelocityLimitExceeded {
+        sphere: String,
+        speed: f64,
+        limit: f64,
+        time: f64,
+        policy: RepairPolicy,
+    },
+    EnteredForbiddenRegion {
+        sphere: String,
+        region: String,
+        time: f64,
+        policy: RepairPolicy,
+    },
     VisibilityOccluded {
         observer: String,
         target: String,
@@ -1471,11 +1645,17 @@ impl fmt::Display for SimulationError {
                 sphere,
                 speed,
                 limit,
+                ..
             } => write!(
                 f,
                 "sphere `{sphere}` exceeded velocity limit: speed {speed:.3} > limit {limit:.3}"
             ),
-            Self::EnteredForbiddenRegion { sphere, region, time } => write!(
+            Self::EnteredForbiddenRegion {
+                sphere,
+                region,
+                time,
+                ..
+            } => write!(
                 f,
                 "sphere `{sphere}` entered forbidden region `{region}` at t={time:.3}"
             ),
@@ -1495,6 +1675,57 @@ impl fmt::Display for SimulationError {
 }
 
 impl std::error::Error for SimulationError {}
+
+impl SimulationError {
+    fn contradiction_record(&self) -> Option<ContradictionRecord> {
+        match self {
+            Self::VelocityLimitExceeded {
+                sphere,
+                limit,
+                time,
+                policy,
+                ..
+            } => Some(ContradictionRecord {
+                law_kind: "velocity_limit".to_string(),
+                law_category: "invariant".to_string(),
+                participants: vec![sphere.clone()],
+                policy: policy.as_str().to_string(),
+                frontier: *time,
+                failed_predicate: format!("speed({sphere}) <= {limit:.3}"),
+                message: self.to_string(),
+            }),
+            Self::EnteredForbiddenRegion {
+                sphere,
+                region,
+                time,
+                policy,
+            } => Some(ContradictionRecord {
+                law_kind: "not_inside".to_string(),
+                law_category: "boundary".to_string(),
+                participants: vec![sphere.clone(), region.clone()],
+                policy: policy.as_str().to_string(),
+                frontier: *time,
+                failed_predicate: format!("not_inside({sphere}, {region})"),
+                message: self.to_string(),
+            }),
+            Self::VisibilityOccluded {
+                observer,
+                target,
+                region,
+                time,
+            } => Some(ContradictionRecord {
+                law_kind: "visible".to_string(),
+                law_category: "interaction".to_string(),
+                participants: vec![observer.clone(), target.clone()],
+                policy: "implicit".to_string(),
+                frontier: *time,
+                failed_predicate: format!("visible({observer}, {target}) blocked_by {region}"),
+                message: self.to_string(),
+            }),
+            _ => None,
+        }
+    }
+}
 
 pub fn simulate_program(program: &Program) -> Result<SimulationReport, SimulationError> {
     let mut world = World::from_program(program)?;
@@ -1535,9 +1766,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
             &candidate_resolutions,
         ),
-        observation_summary: ObservationSummary::from_candidate_resolutions(
-            &candidate_resolutions,
-        ),
+        observation_summary: ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
         observation_timeline,
         candidate_resolutions,
         activities: world.activity_log.clone(),
@@ -1574,6 +1803,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
+                error.contradiction_record(),
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
@@ -1597,6 +1827,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
+                error.contradiction_record(),
                 SimulationReport {
                     analytics: LawAnalytics::from_constraints(&constraints),
                     constraints,
@@ -1702,7 +1933,9 @@ impl World {
                 .vec3_property("normal", &plane_name)
                 .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
                 .normalized()?,
-            offset: program.number_property("offset", &plane_name).unwrap_or(0.0),
+            offset: program
+                .number_property("offset", &plane_name)
+                .unwrap_or(0.0),
         };
 
         let mut occluder_regions = Vec::new();
@@ -1805,7 +2038,8 @@ impl World {
                 Ok(repaired) => {
                     if repaired {
                         self.constraint_traces[index].repaired_count += 1;
-                        self.activity_log.push(constraint.activity_entry(self, "repaired"));
+                        self.activity_log
+                            .push(constraint.activity_entry(self, "repaired"));
                     }
                 }
                 Err(error) => {
@@ -1846,9 +2080,8 @@ impl World {
 
     fn handle_event(&mut self, event: Event) -> Result<(), SimulationError> {
         self.constraint_traces[event.constraint_index].fired_count += 1;
-        self.activity_log.push(
-            self.constraints[event.constraint_index].activity_entry(self, "fired"),
-        );
+        self.activity_log
+            .push(self.constraints[event.constraint_index].activity_entry(self, "fired"));
         event.kind.apply(self)?;
         self.enforce_all_constraints()?;
         Ok(())
@@ -1918,7 +2151,8 @@ impl World {
                 deferred_entities.contains(&sphere_name),
                 false,
                 None,
-                self.visibility_conditioned_preference(&sphere_name).as_deref(),
+                self.visibility_conditioned_preference(&sphere_name)
+                    .as_deref(),
                 &[],
                 &[],
             )?;
@@ -2032,7 +2266,9 @@ impl World {
                 ..
             } = constraint
             {
-                if self.spheres[*sphere_index].name == entity && (*max_speed - update.limit).abs() > EPSILON {
+                if self.spheres[*sphere_index].name == entity
+                    && (*max_speed - update.limit).abs() > EPSILON
+                {
                     *max_speed = update.limit;
                     activated.push(format!("speed_limit:{:.3}", update.limit));
                 }
@@ -2061,7 +2297,8 @@ impl World {
             return false;
         };
 
-        self.occluding_regions_between(observer_index, target_index).is_empty()
+        self.occluding_regions_between(observer_index, target_index)
+            .is_empty()
     }
 
     fn occluding_regions_between(&self, observer_index: usize, target_index: usize) -> Vec<String> {
@@ -2070,7 +2307,12 @@ impl World {
         self.occluder_regions
             .iter()
             .filter(|region| {
-                line_segment_intersects_box(observer.position, target.position, region.min, region.max)
+                line_segment_intersects_box(
+                    observer.position,
+                    target.position,
+                    region.min,
+                    region.max,
+                )
             })
             .map(|region| region.name.clone())
             .collect()
@@ -2113,7 +2355,10 @@ impl World {
                 .then_with(|| left.label.cmp(&right.label))
         });
         let total_candidates = candidates.len();
-        let top_score = candidates.first().map(|candidate| candidate.score).unwrap_or(0.0);
+        let top_score = candidates
+            .first()
+            .map(|candidate| candidate.score)
+            .unwrap_or(0.0);
         let top_labels = candidates
             .iter()
             .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
@@ -2286,6 +2531,7 @@ impl World {
 
         Ok(CandidateResolution {
             entity: sphere_name.to_string(),
+            initial_frontier: format!("{:.3}", self.current_time()),
             total_candidates,
             rejected_candidates,
             skipped_candidates: if deferred {
@@ -2311,13 +2557,14 @@ impl World {
             observed_while_deferred: 0,
             deferred_past_initial_frontier: false,
             resolved_from_deferred,
-            resolved_at_observation_time: resolved_at_observation_time.map(|time| format!("{time:.3}")),
+            resolved_at_observation_time: resolved_at_observation_time
+                .map(|time| format!("{time:.3}")),
             preferred_label,
             active_score_adjustments,
             active_law_updates: active_law_updates.to_vec(),
+            convergence_steps: Vec::new(),
         })
     }
-
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -2363,9 +2610,16 @@ impl Event {
 
 #[derive(Clone, Copy, Debug)]
 enum EventKind {
-    PlaneCollision { sphere_index: usize },
-    ForbiddenRegionEntry { sphere_index: usize },
-    SphereCollision { left_index: usize, right_index: usize },
+    PlaneCollision {
+        sphere_index: usize,
+    },
+    ForbiddenRegionEntry {
+        sphere_index: usize,
+    },
+    SphereCollision {
+        left_index: usize,
+        right_index: usize,
+    },
 }
 
 impl EventKind {
@@ -2527,7 +2781,9 @@ impl Constraint {
     fn category(&self) -> ConstraintCategory {
         match self {
             Self::VelocityLimit { .. } => ConstraintCategory::Invariant,
-            Self::ReflectOnCollision { .. } | Self::NotInside { .. } => ConstraintCategory::Boundary,
+            Self::ReflectOnCollision { .. } | Self::NotInside { .. } => {
+                ConstraintCategory::Boundary
+            }
             Self::Visible { .. } | Self::ElasticCollision { .. } => ConstraintCategory::Interaction,
         }
     }
@@ -2536,7 +2792,11 @@ impl Constraint {
         match self {
             Self::VelocityLimit { .. } => vec![RepairPolicy::Reject, RepairPolicy::Clamp],
             Self::NotInside { .. } => {
-                vec![RepairPolicy::Reject, RepairPolicy::Clamp, RepairPolicy::Reflect]
+                vec![
+                    RepairPolicy::Reject,
+                    RepairPolicy::Clamp,
+                    RepairPolicy::Reflect,
+                ]
             }
             Self::ReflectOnCollision { .. }
             | Self::Visible { .. }
@@ -2663,6 +2923,8 @@ impl Constraint {
                                 sphere: sphere.name.clone(),
                                 speed,
                                 limit: *max_speed,
+                                time: sphere.last_update_time,
+                                policy: *policy,
                             });
                         }
                         RepairPolicy::Clamp => {
@@ -2697,6 +2959,7 @@ impl Constraint {
                                 sphere: sphere.name.clone(),
                                 region: region_name,
                                 time: sphere.last_update_time,
+                                policy: *policy,
                             });
                         }
                         RepairPolicy::Clamp => {
@@ -2718,7 +2981,8 @@ impl Constraint {
                 if world.occluder_regions.is_empty() {
                     return Ok(false);
                 }
-                let blocking_regions = world.occluding_regions_between(*observer_index, *target_index);
+                let blocking_regions =
+                    world.occluding_regions_between(*observer_index, *target_index);
                 if !blocking_regions.is_empty() {
                     let observer = &world.spheres[*observer_index];
                     let target = &world.spheres[*target_index];
@@ -2751,8 +3015,10 @@ impl Constraint {
             Self::ElasticCollision {
                 left_index,
                 right_index,
-            } => time_to_sphere_collision(&world.spheres[*left_index], &world.spheres[*right_index])
-                .map(|dt| Event::sphere_pair(constraint_index, *left_index, *right_index, dt)),
+            } => {
+                time_to_sphere_collision(&world.spheres[*left_index], &world.spheres[*right_index])
+                    .map(|dt| Event::sphere_pair(constraint_index, *left_index, *right_index, dt))
+            }
         }
     }
 }
@@ -3031,12 +3297,17 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
                     (directive.entity.clone(), hint)
                 })
         })
-        .fold(BTreeMap::<String, Vec<String>>::new(), |mut acc, (entity, hint)| {
-            acc.entry(entity).or_default().push(hint);
-            acc
-        });
-    let preferred_entities = preferred_candidate_labels_from_action_directives(&program.action_directives);
-    let rescored_entities = rescore_candidate_labels_from_action_directives(&program.action_directives);
+        .fold(
+            BTreeMap::<String, Vec<String>>::new(),
+            |mut acc, (entity, hint)| {
+                acc.entry(entity).or_default().push(hint);
+                acc
+            },
+        );
+    let preferred_entities =
+        preferred_candidate_labels_from_action_directives(&program.action_directives);
+    let rescored_entities =
+        rescore_candidate_labels_from_action_directives(&program.action_directives);
     let law_updated_entities = law_update_labels_from_action_directives(&program.action_directives);
     let mut grouped = BTreeMap::<String, Vec<ActionCandidateDecl>>::new();
     for candidate in &program.action_candidates {
@@ -3071,7 +3342,8 @@ fn candidate_inventory_from_program(program: &Program) -> Vec<CandidateInventory
             let resolution_hint = if top_score_tied && defer_on_ambiguous_top {
                 if let Some((limit, update_time)) = law_updated_entities.get(&entity) {
                     format!("defer_then_update_speed_limit_to_{limit:.3}_at_{update_time:.3}")
-                } else if let Some((rescore_label, delta, rescore_time)) = rescored_entities.get(&entity)
+                } else if let Some((rescore_label, delta, rescore_time)) =
+                    rescored_entities.get(&entity)
                 {
                     format!(
                         "defer_then_rescore_{}_by_{delta:+.3}_at_{rescore_time:.3}",
@@ -3119,9 +3391,87 @@ fn candidate_resolutions_for_report(
                 resolution.observed_while_deferred = observation_count.saturating_sub(1);
                 resolution.deferred_past_initial_frontier = false;
             }
+            resolution.convergence_steps = convergence_steps_for_resolution(&resolution);
             resolution
         })
         .collect()
+}
+
+fn convergence_steps_for_resolution(resolution: &CandidateResolution) -> Vec<ConvergenceStep> {
+    let mut steps = Vec::new();
+    steps.push(ConvergenceStep {
+        time: resolution.initial_frontier.clone(),
+        phase: "candidate_frontier".to_string(),
+        mode: resolution.convergence_mode.clone(),
+        labels: resolution.top_labels.clone(),
+        reason: format!("top_score={}", resolution.top_score),
+    });
+
+    if resolution.convergence_mode == "deferred" {
+        steps.push(ConvergenceStep {
+            time: resolution.initial_frontier.clone(),
+            phase: "deferred".to_string(),
+            mode: resolution.convergence_mode.clone(),
+            labels: resolution.observation_labels.clone(),
+            reason: "ambiguous top frontier preserved".to_string(),
+        });
+        return steps;
+    }
+
+    if resolution.resolved_from_deferred {
+        steps.push(ConvergenceStep {
+            time: resolution.initial_frontier.clone(),
+            phase: "deferred".to_string(),
+            mode: "deferred".to_string(),
+            labels: resolution.top_labels.clone(),
+            reason: "ambiguous top frontier preserved before later resolution".to_string(),
+        });
+    }
+
+    let selected_labels = if let Some(selected_candidate) = &resolution.selected_candidate {
+        vec![selected_candidate.clone()]
+    } else if resolution.observationally_equivalent_tie {
+        resolution.equivalent_top_labels.clone()
+    } else {
+        resolution.observation_labels.clone()
+    };
+
+    let final_time = resolution
+        .resolved_at_observation_time
+        .clone()
+        .unwrap_or_else(|| resolution.initial_frontier.clone());
+    let final_phase = if resolution.resolved_from_deferred {
+        "resolved"
+    } else {
+        "selected"
+    };
+    let final_reason = if !resolution.active_law_updates.is_empty() {
+        format!("law updates: {}", resolution.active_law_updates.join(", "))
+    } else if !resolution.active_score_adjustments.is_empty() {
+        format!(
+            "score adjustments: {}",
+            resolution.active_score_adjustments.join(", ")
+        )
+    } else if let Some(preferred_label) = &resolution.preferred_label {
+        format!("preferred_label={preferred_label}")
+    } else if resolution.repaired_after_selection {
+        "selected branch repaired into admissibility".to_string()
+    } else if resolution.tie_broken {
+        "deterministic tie handling".to_string()
+    } else if resolution.rejected_candidates > 0 {
+        "higher-ranked candidates rejected by hard laws".to_string()
+    } else {
+        "admissible top candidate selected".to_string()
+    };
+    steps.push(ConvergenceStep {
+        time: final_time,
+        phase: final_phase.to_string(),
+        mode: resolution.convergence_mode.clone(),
+        labels: selected_labels,
+        reason: final_reason,
+    });
+
+    steps
 }
 
 fn observation_checkpoint(time: f64, summary: &ObservationSummary) -> ObservationCheckpoint {
@@ -3164,7 +3514,8 @@ fn deferred_preference_triggers_from_action_directives(
     let mut result = BTreeMap::new();
     for directive in action_directives {
         if directive.kind == "prefer_candidate_at" {
-            if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument) {
+            if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument)
+            {
                 result.insert(
                     directive.entity.clone(),
                     DeferredPreferenceTrigger {
@@ -3186,7 +3537,8 @@ fn visibility_preference_triggers_from_action_directives(
         if directive.kind == "prefer_candidate_if_visible"
             || directive.kind == "prefer_candidate_if_occluded"
         {
-            if let (Some(label), Some(target)) = (&directive.label_argument, &directive.target_argument)
+            if let (Some(label), Some(target)) =
+                (&directive.label_argument, &directive.target_argument)
             {
                 result
                     .entry(directive.entity.clone())
@@ -3254,7 +3606,8 @@ fn preferred_candidate_labels_from_action_directives(
     let mut result = BTreeMap::new();
     for directive in action_directives {
         if directive.kind == "prefer_candidate_at" {
-            if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument) {
+            if let (Some(label), Some(time)) = (&directive.label_argument, directive.time_argument)
+            {
                 result.insert(directive.entity.clone(), (label.clone(), time));
             }
         } else if directive.kind == "rescore_candidate_at" {
@@ -3321,22 +3674,23 @@ fn action_directive_inventory_from_program(program: &Program) -> Vec<ActionDirec
                 }
             } else {
                 match (&directive.label_argument, directive.time_argument) {
-                (Some(label), Some(time)) => {
-                    if let Some(delta) = directive.score_argument {
-                        Some(format!("{label}, {time:.3}, {delta:+.3}"))
-                    } else if let Some(limit) = directive.value_argument {
-                        Some(format!("{time:.3}, {limit:.3}"))
-                    } else {
-                        Some(format!("{label}, {time:.3}"))
+                    (Some(label), Some(time)) => {
+                        if let Some(delta) = directive.score_argument {
+                            Some(format!("{label}, {time:.3}, {delta:+.3}"))
+                        } else if let Some(limit) = directive.value_argument {
+                            Some(format!("{time:.3}, {limit:.3}"))
+                        } else {
+                            Some(format!("{label}, {time:.3}"))
+                        }
                     }
+                    (None, Some(time)) if directive.value_argument.is_some() => Some(format!(
+                        "{time:.3}, {:.3}",
+                        directive.value_argument.unwrap_or_default()
+                    )),
+                    (Some(label), None) => Some(label.clone()),
+                    (None, Some(time)) => Some(format!("{time:.3}")),
+                    (None, None) => None,
                 }
-                (None, Some(time)) if directive.value_argument.is_some() => {
-                    Some(format!("{time:.3}, {:.3}", directive.value_argument.unwrap_or_default()))
-                }
-                (Some(label), None) => Some(label.clone()),
-                (None, Some(time)) => Some(format!("{time:.3}")),
-                (None, None) => None,
-            }
             },
         })
         .collect::<Vec<_>>();
@@ -3643,9 +3997,11 @@ constraint:
 "#;
         let program = parse_program(source).expect("program should parse");
         let error = simulate_program(&program).expect_err("simulation should fail");
-        assert!(error
-            .to_string()
-            .contains("velocity_limit does not support reflect"));
+        assert!(
+            error
+                .to_string()
+                .contains("velocity_limit does not support reflect")
+        );
     }
 
     #[test]
@@ -3962,6 +4318,7 @@ constraint:
         let json = envelope.to_json();
         assert!(json.contains("\"status\": \"error\""));
         assert!(json.contains("\"error\": \"world contradiction\""));
+        assert!(json.contains("\"contradiction\": null"));
         assert!(json.contains("\"analytics\": {"));
         assert!(json.contains("\"constraints\": []"));
         assert!(json.contains("\"convergence_analytics\": {"));
@@ -3998,6 +4355,13 @@ observe:
         assert!(json.contains("\"outcome\": \"contradicted\""));
         assert!(json.contains("\"contradicted_count\": 1"));
         assert!(json.contains("\"action\": \"contradicted\""));
+        assert!(json.contains("\"contradiction\": {"));
+        assert!(json.contains("\"law_kind\": \"not_inside\""));
+        assert!(json.contains("\"law_category\": \"boundary\""));
+        assert!(json.contains("\"participants\": [\"A\", \"zone\"]"));
+        assert!(json.contains("\"policy\": \"reject\""));
+        assert!(json.contains("\"frontier\": 2.000000"));
+        assert!(json.contains("\"failed_predicate\": \"not_inside(A, zone)\""));
         assert!(json.contains("\"activities\""));
         assert!(json.contains("\"time\": 1.000000"));
     }
@@ -4022,10 +4386,12 @@ observe:
         let report = simulate_program(&program).expect("simulation should succeed");
         let sphere = &report.snapshots[0].spheres[0];
         assert_eq!(sphere.velocity.x, 3.0);
-        assert!(report
-            .activities
-            .iter()
-            .any(|entry| entry.kind == "candidate_velocity" && entry.action == "selected"));
+        assert!(
+            report
+                .activities
+                .iter()
+                .any(|entry| entry.kind == "candidate_velocity" && entry.action == "selected")
+        );
         assert!(report.activities.iter().any(|entry| {
             entry.kind == "candidate_velocity"
                 && entry.action == "rejected_by_hard_law"
@@ -4042,7 +4408,10 @@ observe:
         assert_eq!(candidate_resolution.skipped_candidates, 0);
         assert_eq!(candidate_resolution.convergence_mode, "fallback");
         assert_eq!(candidate_resolution.observation_mode, "determinate");
-        assert_eq!(candidate_resolution.observation_labels, vec!["safe".to_string()]);
+        assert_eq!(
+            candidate_resolution.observation_labels,
+            vec!["safe".to_string()]
+        );
         assert!(!candidate_resolution.symbolically_underdetermined);
         assert!(!candidate_resolution.observationally_underdetermined);
         assert_eq!(
@@ -4081,10 +4450,12 @@ observe:
                 && entry.action == "selected"
                 && entry.targets.iter().any(|target| target == "fast")
         }));
-        assert!(report
-            .activities
-            .iter()
-            .any(|entry| entry.kind == "velocity_limit" && entry.action == "repaired"));
+        assert!(
+            report
+                .activities
+                .iter()
+                .any(|entry| entry.kind == "velocity_limit" && entry.action == "repaired")
+        );
         let candidate_resolution = report
             .candidate_resolutions
             .iter()
@@ -4096,7 +4467,10 @@ observe:
         );
         assert_eq!(candidate_resolution.convergence_mode, "repaired");
         assert_eq!(candidate_resolution.observation_mode, "determinate");
-        assert_eq!(candidate_resolution.observation_labels, vec!["fast".to_string()]);
+        assert_eq!(
+            candidate_resolution.observation_labels,
+            vec!["fast".to_string()]
+        );
         assert_eq!(candidate_resolution.skipped_candidates, 1);
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(candidate_resolution.top_labels, vec!["fast".to_string()]);
@@ -4134,14 +4508,12 @@ observe:
 "#;
         let program = parse_program(source).expect("program should parse");
         let report = simulate_program(&program).expect("simulation should succeed");
-        let a = report
-            .snapshots[0]
+        let a = report.snapshots[0]
             .spheres
             .iter()
             .find(|sphere| sphere.name == "A")
             .expect("sphere A exists");
-        let b = report
-            .snapshots[0]
+        let b = report.snapshots[0]
             .spheres
             .iter()
             .find(|sphere| sphere.name == "B")
@@ -4149,14 +4521,18 @@ observe:
         assert_eq!(a.velocity.x, 3.0);
         assert_eq!(b.velocity.x, 2.0);
         assert_eq!(report.candidate_resolutions.len(), 2);
-        assert!(report
-            .candidate_resolutions
-            .iter()
-            .any(|resolution| resolution.entity == "A"));
-        assert!(report
-            .candidate_resolutions
-            .iter()
-            .any(|resolution| resolution.entity == "B"));
+        assert!(
+            report
+                .candidate_resolutions
+                .iter()
+                .any(|resolution| resolution.entity == "A")
+        );
+        assert!(
+            report
+                .candidate_resolutions
+                .iter()
+                .any(|resolution| resolution.entity == "B")
+        );
     }
 
     #[test]
@@ -4182,7 +4558,10 @@ observe:
             .iter()
             .find(|resolution| resolution.entity == "A")
             .expect("candidate resolution should be recorded");
-        assert_eq!(candidate_resolution.selected_candidate.as_deref(), Some("alpha"));
+        assert_eq!(
+            candidate_resolution.selected_candidate.as_deref(),
+            Some("alpha")
+        );
         assert_eq!(candidate_resolution.top_score, "5.000");
         assert_eq!(
             candidate_resolution.top_labels,
@@ -4273,7 +4652,9 @@ observe:
         assert_eq!(report.observation_summary.representative_entities, 1);
         assert_eq!(report.observation_summary.ambiguous_entities, 0);
         assert_eq!(
-            report.convergence_analytics.symbolically_underdetermined_entities,
+            report
+                .convergence_analytics
+                .symbolically_underdetermined_entities,
             1
         );
         assert_eq!(
@@ -4337,6 +4718,13 @@ observe:
         assert_eq!(candidate_resolution.observation_mode, "ambiguous");
         assert_eq!(candidate_resolution.selected_candidate, None);
         assert_eq!(candidate_resolution.skipped_candidates, 2);
+        assert_eq!(candidate_resolution.initial_frontier, "0.000");
+        assert_eq!(candidate_resolution.convergence_steps.len(), 2);
+        assert_eq!(
+            candidate_resolution.convergence_steps[0].phase,
+            "candidate_frontier"
+        );
+        assert_eq!(candidate_resolution.convergence_steps[1].phase, "deferred");
         assert_eq!(report.convergence_analytics.deferred_entities, 1);
         assert_eq!(report.observation_summary.status, "unresolved");
         assert!(report.activities.iter().any(|entry| {
@@ -4512,7 +4900,18 @@ observe:
         assert_eq!(resolution.convergence_mode, "resolved_after_preference");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("beta"));
         assert_eq!(resolution.preferred_label.as_deref(), Some("beta"));
-        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(
+            resolution.resolved_at_observation_time.as_deref(),
+            Some("1.000")
+        );
+        assert_eq!(resolution.convergence_steps.len(), 3);
+        assert_eq!(resolution.convergence_steps[1].phase, "deferred");
+        assert_eq!(resolution.convergence_steps[2].phase, "resolved");
+        assert!(
+            resolution.convergence_steps[2]
+                .reason
+                .contains("preferred_label=beta")
+        );
         assert!(report.activities.iter().any(|entry| {
             entry.kind == "candidate_velocity"
                 && entry.action == "selected_after_preference"
@@ -4589,11 +4988,13 @@ observe:
             .expect("candidate resolution should be present");
         assert_eq!(resolution.convergence_mode, "resolved_after_law_update");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("alpha"));
-        assert_eq!(resolution.active_law_updates, vec!["speed_limit:6.000".to_string()]);
+        assert_eq!(
+            resolution.active_law_updates,
+            vec!["speed_limit:6.000".to_string()]
+        );
         assert_eq!(report.convergence_analytics.law_updated_entities, 1);
         assert!(report.activities.iter().any(|entry| {
-            entry.kind == "velocity_limit"
-                && entry.action == "updated_for_deferred_resolution"
+            entry.kind == "velocity_limit" && entry.action == "updated_for_deferred_resolution"
         }));
         assert!(report.activities.iter().any(|entry| {
             entry.kind == "candidate_velocity"
@@ -4746,13 +5147,17 @@ observe:
     snapshot at 0
 "#;
         let clear_program = parse_program(clear).expect("clear program should parse");
-        let clear_report = simulate_program(&clear_program).expect("clear simulation should succeed");
+        let clear_report =
+            simulate_program(&clear_program).expect("clear simulation should succeed");
         let clear_resolution = clear_report
             .candidate_resolutions
             .iter()
             .find(|resolution| resolution.entity == "A")
             .expect("clear candidate resolution should be present");
-        assert_eq!(clear_resolution.selected_candidate.as_deref(), Some("pursue"));
+        assert_eq!(
+            clear_resolution.selected_candidate.as_deref(),
+            Some("pursue")
+        );
         assert_eq!(clear_resolution.preferred_label.as_deref(), Some("pursue"));
 
         let occluded = r#"
@@ -4785,8 +5190,14 @@ observe:
             .iter()
             .find(|resolution| resolution.entity == "A")
             .expect("occluded candidate resolution should be present");
-        assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
-        assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
+        assert_eq!(
+            occluded_resolution.selected_candidate.as_deref(),
+            Some("search")
+        );
+        assert_eq!(
+            occluded_resolution.preferred_label.as_deref(),
+            Some("search")
+        );
     }
 
     #[test]
@@ -4824,7 +5235,10 @@ observe:
             .iter()
             .find(|resolution| resolution.entity == "A")
             .expect("clear corridor candidate resolution should be present");
-        assert_eq!(clear_resolution.selected_candidate.as_deref(), Some("pursue"));
+        assert_eq!(
+            clear_resolution.selected_candidate.as_deref(),
+            Some("pursue")
+        );
 
         let occluded = r#"
 sphere A
@@ -4863,8 +5277,14 @@ observe:
             .iter()
             .find(|resolution| resolution.entity == "A")
             .expect("occluded corridor candidate resolution should be present");
-        assert_eq!(occluded_resolution.selected_candidate.as_deref(), Some("search"));
-        assert_eq!(occluded_resolution.preferred_label.as_deref(), Some("search"));
+        assert_eq!(
+            occluded_resolution.selected_candidate.as_deref(),
+            Some("search")
+        );
+        assert_eq!(
+            occluded_resolution.preferred_label.as_deref(),
+            Some("search")
+        );
     }
 
     #[test]
@@ -4905,7 +5325,10 @@ observe:
         assert_eq!(resolution.convergence_mode, "resolved_after_preference");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue"));
         assert_eq!(resolution.preferred_label.as_deref(), Some("pursue"));
-        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(
+            resolution.resolved_at_observation_time.as_deref(),
+            Some("1.000")
+        );
     }
 
     #[test]
@@ -4946,7 +5369,10 @@ observe:
         assert_eq!(resolution.convergence_mode, "resolved_after_preference");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("search"));
         assert_eq!(resolution.preferred_label.as_deref(), Some("search"));
-        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(
+            resolution.resolved_at_observation_time.as_deref(),
+            Some("1.000")
+        );
     }
 
     #[test]
@@ -4993,7 +5419,10 @@ observe:
         assert_eq!(resolution.convergence_mode, "resolved_after_preference");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue_b"));
         assert_eq!(resolution.preferred_label.as_deref(), Some("pursue_b"));
-        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(
+            resolution.resolved_at_observation_time.as_deref(),
+            Some("1.000")
+        );
     }
 
     #[test]
@@ -5040,7 +5469,10 @@ observe:
         assert_eq!(resolution.convergence_mode, "resolved_after_preference");
         assert_eq!(resolution.selected_candidate.as_deref(), Some("pursue_c"));
         assert_eq!(resolution.preferred_label.as_deref(), Some("pursue_c"));
-        assert_eq!(resolution.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(
+            resolution.resolved_at_observation_time.as_deref(),
+            Some("1.000")
+        );
     }
 
     #[test]
@@ -5353,5 +5785,52 @@ observe:
         assert_eq!(d.resolved_at_observation_time.as_deref(), Some("2.000"));
         assert_eq!(a.preferred_label.as_deref(), Some("pursue_b"));
         assert_eq!(d.preferred_label.as_deref(), Some("support_c"));
+    }
+
+    #[test]
+    fn flagship_visibility_coordination_preserves_staggered_observation_story() {
+        let source = include_str!("../../examples/visibility_coordination_flagship.sk");
+        let program = parse_program(source).expect("flagship program should parse");
+        let report = simulate_program(&program).expect("flagship simulation should succeed");
+        let a = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "A")
+            .expect("A candidate resolution should be present");
+        let d = report
+            .candidate_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "D")
+            .expect("D candidate resolution should be present");
+
+        assert_eq!(report.convergence_analytics.candidate_entities, 2);
+        assert_eq!(report.convergence_analytics.preference_resolved_entities, 2);
+        assert_eq!(report.constraints.len(), 2);
+        assert_eq!(report.observation_timeline.len(), 3);
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[0].ambiguous_entities, 2);
+        assert_eq!(report.observation_timeline[1].status, "unresolved");
+        assert_eq!(report.observation_timeline[1].ambiguous_entities, 1);
+        assert_eq!(report.observation_timeline[2].status, "determinate");
+        assert_eq!(a.selected_candidate.as_deref(), Some("pursue_b"));
+        assert_eq!(d.selected_candidate.as_deref(), Some("support_c"));
+        assert_eq!(a.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(d.resolved_at_observation_time.as_deref(), Some("2.000"));
+    }
+
+    #[test]
+    fn flagship_visibility_coordination_contradiction_reports_blocked_observer() {
+        let source =
+            include_str!("../../examples/visibility_coordination_flagship_contradiction.sk");
+        let program = parse_program(source).expect("flagship contradiction program should parse");
+        let error = simulate_program(&program)
+            .expect_err("flagship contradiction simulation should fail on visibility");
+        let message = error.to_string();
+
+        assert!(message.contains("S"), "{message}");
+        assert!(message.contains("C"), "{message}");
+        assert!(message.contains("cannot see"), "{message}");
+        assert!(message.contains("wall_bottom"), "{message}");
+        assert!(message.contains("t=1.000"), "{message}");
     }
 }

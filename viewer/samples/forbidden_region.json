@@ -2,6 +2,15 @@
   "source": "examples/forbidden_region.sk",
   "status": "error",
   "error": "sphere `A` entered forbidden region `zone` at t=2.000",
+  "contradiction": {
+    "law_kind": "not_inside",
+    "law_category": "boundary",
+    "participants": ["A", "zone"],
+    "policy": "reject",
+    "frontier": 2.000000,
+    "failed_predicate": "not_inside(A, zone)",
+    "message": "sphere `A` entered forbidden region `zone` at t=2.000"
+  },
   "analytics": {
     "total_constraints": 1,
     "invariant_constraints": 0,
@@ -24,6 +33,40 @@
       "repaired_count": 0,
       "contradicted_count": 1
     }
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "deferred_entities": 0,
+    "preference_resolved_entities": 0,
+    "law_updated_entities": 0,
+    "rescore_resolved_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0
+  },
+  "observation_timeline": [
+    {
+      "time": 1.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0
+    }
+  ],
+  "candidate_resolutions": [
   ],
   "activities": [
     {
