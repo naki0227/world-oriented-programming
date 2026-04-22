@@ -52,6 +52,7 @@ const snapshotList = document.getElementById("snapshot-list");
 const constraintList = document.getElementById("constraint-list");
 const analyticsList = document.getElementById("analytics-list");
 const candidateResolutionList = document.getElementById("candidate-resolution-list");
+const factResolutionList = document.getElementById("fact-resolution-list");
 const candidateComparisonList = document.getElementById("candidate-comparison-list");
 const observationTimelineList = document.getElementById("observation-timeline-list");
 const activityList = document.getElementById("activity-list");
@@ -375,12 +376,16 @@ function normalizeReport(report) {
       analytics: report.analytics || defaultAnalytics(report.constraints || []),
       observation_summary:
         report.observation_summary ||
-        defaultObservationSummary(report.candidate_resolutions || []),
+        defaultObservationSummary(
+          report.candidate_resolutions || [],
+          report.fact_resolutions || [],
+        ),
       observation_timeline: report.observation_timeline || [],
       constraints: report.constraints || [],
       candidate_inventory: report.candidate_inventory || [],
       action_directive_inventory: report.action_directive_inventory || [],
       candidate_resolutions: report.candidate_resolutions || [],
+      fact_resolutions: report.fact_resolutions || [],
       activities: report.activities || [],
       snapshots: report.snapshots || [],
     };
@@ -392,33 +397,45 @@ function normalizeReport(report) {
     analytics: report.analytics || defaultAnalytics(report.constraints || []),
     observation_summary:
       report.observation_summary ||
-      defaultObservationSummary(report.candidate_resolutions || []),
+      defaultObservationSummary(
+        report.candidate_resolutions || [],
+        report.fact_resolutions || [],
+      ),
     observation_timeline: report.observation_timeline || [],
     constraints: report.constraints || [],
     candidate_inventory: report.candidate_inventory || [],
     action_directive_inventory: report.action_directive_inventory || [],
     candidate_resolutions: report.candidate_resolutions || [],
+    fact_resolutions: report.fact_resolutions || [],
     activities: report.activities || [],
     snapshots: report.snapshots || [],
   };
 }
 
-function defaultObservationSummary(candidateResolutions) {
+function defaultObservationSummary(candidateResolutions, factResolutions) {
   const representativeEntities = candidateResolutions.filter(
     (resolution) => resolution.observation_mode === "representative"
   ).length;
   const ambiguousEntities = candidateResolutions.filter(
     (resolution) => resolution.observation_mode === "ambiguous"
   ).length;
+  const representativeFacts = factResolutions.filter(
+    (resolution) => resolution.observation_mode === "representative"
+  ).length;
+  const ambiguousFacts = factResolutions.filter(
+    (resolution) => resolution.observation_mode === "ambiguous"
+  ).length;
   return {
     status:
-      ambiguousEntities > 0
+      ambiguousEntities > 0 || ambiguousFacts > 0
         ? "unresolved"
-        : representativeEntities > 0
+        : representativeEntities > 0 || representativeFacts > 0
           ? "representative"
           : "determinate",
     representative_entities: representativeEntities,
     ambiguous_entities: ambiguousEntities,
+    representative_facts: representativeFacts,
+    ambiguous_facts: ambiguousFacts,
   };
 }
 
@@ -1038,6 +1055,7 @@ function renderSidebar() {
     renderConstraintList();
     renderAnalyticsList();
     renderCandidateResolution();
+    renderFactResolution();
     renderCandidateComparison();
     renderObservationTimeline();
     renderActivityList();
@@ -1065,6 +1083,7 @@ function renderSidebar() {
   renderConstraintList();
   renderAnalyticsList();
   renderCandidateResolution();
+  renderFactResolution();
   renderCandidateComparison();
   renderObservationTimeline();
   renderActivityList();
@@ -1095,8 +1114,10 @@ function renderObservationTimeline() {
       <h3>${active ? "Current Frontier" : "Frontier"}</h3>
       <p>t = ${Number(checkpoint.time || 0).toFixed(3)}</p>
       <p class="muted">status = ${checkpoint.status || "determinate"}</p>
-      <p class="muted">representative = ${checkpoint.representative_entities ?? 0}</p>
-      <p class="muted">ambiguous = ${checkpoint.ambiguous_entities ?? 0}</p>
+      <p class="muted">representative entities = ${checkpoint.representative_entities ?? 0}</p>
+      <p class="muted">ambiguous entities = ${checkpoint.ambiguous_entities ?? 0}</p>
+      <p class="muted">representative facts = ${checkpoint.representative_facts ?? 0}</p>
+      <p class="muted">ambiguous facts = ${checkpoint.ambiguous_facts ?? 0}</p>
     `;
     observationTimelineList.appendChild(card);
   });
@@ -1299,6 +1320,61 @@ function renderCandidateResolution() {
       <p class="muted">convergence steps = ${convergenceSteps || "none"}</p>
     `;
     candidateResolutionList.appendChild(card);
+  });
+}
+
+function renderFactResolution() {
+  if (!state.report) {
+    factResolutionList.innerHTML =
+      '<p class="muted">Load a report to inspect unresolved and later-resolved world facts.</p>';
+    return;
+  }
+
+  const factResolutions = state.report.fact_resolutions || [];
+  if (factResolutions.length === 0) {
+    factResolutionList.innerHTML =
+      '<p class="muted">This report has no fact-resolution metadata.</p>';
+    return;
+  }
+
+  factResolutionList.innerHTML = "";
+  const summaryCard = document.createElement("article");
+  summaryCard.className = "sphere-card";
+  summaryCard.innerHTML = `
+    <h3>Run Summary</h3>
+    <p>fact slots = ${factResolutions.length}</p>
+    <p class="muted">ambiguous facts = ${state.report.observation_summary?.ambiguous_facts ?? 0}</p>
+    <p class="muted">representative facts = ${state.report.observation_summary?.representative_facts ?? 0}</p>
+  `;
+  factResolutionList.appendChild(summaryCard);
+
+  factResolutions.forEach((factResolution) => {
+    const card = document.createElement("article");
+    card.className = "sphere-card";
+    const convergenceSteps = (factResolution.convergence_steps || [])
+      .map((step) => `${step.time} ${step.phase}:${step.mode} [${(step.labels || []).join(", ") || "none"}]`)
+      .join(" -> ");
+    card.innerHTML = `
+      <h3>${factResolution.entity}.${factResolution.slot}</h3>
+      <p class="muted">initial frontier = ${factResolution.initial_frontier || "0.000"}</p>
+      <p>candidates = ${factResolution.total_candidates}</p>
+      <p class="muted">mode = ${factResolution.convergence_mode || "direct"}</p>
+      <p class="muted">observation mode = ${factResolution.observation_mode || "determinate"}</p>
+      <p class="muted">observation values = ${(factResolution.observation_values || []).join(", ") || "none"}</p>
+      <p class="muted">selected = ${factResolution.selected_value || "none"}</p>
+      <p class="muted">score = ${factResolution.selected_score || "n/a"}</p>
+      <p class="muted">top score = ${factResolution.top_score || "n/a"}</p>
+      <p class="muted">top values = ${(factResolution.top_values || []).join(", ") || "none"}</p>
+      <p class="muted">tie broken = ${factResolution.tie_broken ? "yes" : "no"}</p>
+      <p class="muted">symbolically underdetermined = ${factResolution.symbolically_underdetermined ? "yes" : "no"}</p>
+      <p class="muted">observationally underdetermined = ${factResolution.observationally_underdetermined ? "yes" : "no"}</p>
+      <p class="muted">observed while deferred = ${factResolution.observed_while_deferred ?? 0}</p>
+      <p class="muted">resolved from deferred = ${factResolution.resolved_from_deferred ? "yes" : "no"}</p>
+      <p class="muted">preferred value = ${factResolution.preferred_value || "n/a"}</p>
+      <p class="muted">resolved at observation = ${factResolution.resolved_at_observation_time || "n/a"}</p>
+      <p class="muted">convergence steps = ${convergenceSteps || "none"}</p>
+    `;
+    factResolutionList.appendChild(card);
   });
 }
 

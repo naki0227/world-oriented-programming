@@ -1,0 +1,148 @@
+{
+  "source": "examples/uncertain_world_fact.sk",
+  "status": "ok",
+  "error": null,
+  "contradiction": null,
+  "analytics": {
+    "total_constraints": 0,
+    "invariant_constraints": 0,
+    "boundary_constraints": 0,
+    "interaction_constraints": 0,
+    "idle_constraints": 0,
+    "fired_constraints": 0,
+    "repaired_constraints": 0,
+    "contradicted_constraints": 0
+  },
+  "constraints": [
+  ],
+  "convergence_analytics": {
+    "candidate_entities": 0,
+    "direct_entities": 0,
+    "fallback_entities": 0,
+    "repaired_entities": 0,
+    "deferred_entities": 0,
+    "preference_resolved_entities": 0,
+    "law_updated_entities": 0,
+    "rescore_resolved_entities": 0,
+    "tie_broken_entities": 0,
+    "equivalent_tie_entities": 0,
+    "determinate_entities": 0,
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "symbolically_underdetermined_entities": 0,
+    "observationally_underdetermined_entities": 0,
+    "rejected_candidates_total": 0,
+    "skipped_candidates_total": 0
+  },
+  "observation_summary": {
+    "status": "determinate",
+    "representative_entities": 0,
+    "ambiguous_entities": 0,
+    "representative_facts": 0,
+    "ambiguous_facts": 0
+  },
+  "observation_timeline": [
+    {
+      "time": 0.000000,
+      "status": "unresolved",
+      "representative_entities": 0,
+      "ambiguous_entities": 0,
+      "representative_facts": 0,
+      "ambiguous_facts": 1
+    },
+    {
+      "time": 1.000000,
+      "status": "determinate",
+      "representative_entities": 0,
+      "ambiguous_entities": 0,
+      "representative_facts": 0,
+      "ambiguous_facts": 0
+    }
+  ],
+  "candidate_resolutions": [
+  ],
+  "fact_resolutions": [
+    {
+      "entity": "guide",
+      "slot": "route_hint",
+      "initial_frontier": "0.000",
+      "total_candidates": 2,
+      "convergence_mode": "resolved_after_preference",
+      "observation_mode": "determinate",
+      "observation_values": ["left_door"],
+      "selected_value": "left_door",
+      "selected_score": "score=5.000",
+      "top_score": "5.000",
+      "top_values": ["left_door", "right_door"],
+      "tie_broken": true,
+      "symbolically_underdetermined": false,
+      "observationally_underdetermined": false,
+      "observed_while_deferred": 1,
+      "deferred_past_initial_frontier": false,
+      "resolved_from_deferred": true,
+      "preferred_value": "left_door",
+      "convergence_steps": [
+        {
+          "time": "0.000",
+          "phase": "fact_frontier",
+          "mode": "resolved_after_preference",
+          "labels": ["left_door", "right_door"],
+          "reason": "top_score=5.000"
+        },
+        {
+          "time": "0.000",
+          "phase": "deferred",
+          "mode": "deferred",
+          "labels": ["left_door", "right_door"],
+          "reason": "ambiguous fact frontier preserved before later resolution"
+        },
+        {
+          "time": "1.000",
+          "phase": "resolved",
+          "mode": "resolved_after_preference",
+          "labels": ["left_door"],
+          "reason": "preferred_value=left_door"
+        }
+      ],
+      "resolved_at_observation_time": "1.000"
+    }
+  ],
+  "activities": [
+    {
+      "time": 0.000000,
+      "kind": "candidate_fact",
+      "targets": ["guide", "route_hint", "left_door"],
+      "policy": "score=5.000",
+      "action": "deferred_due_to_fact_tie"
+    },
+    {
+      "time": 1.000000,
+      "kind": "candidate_fact",
+      "targets": ["guide", "route_hint", "left_door"],
+      "policy": "score=5.000",
+      "action": "selected_after_fact_preference"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 0.000000,
+      "spheres": [
+        {
+          "name": "guide",
+          "position": { "x": 0.000000, "y": 1.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    },
+    {
+      "time": 1.000000,
+      "spheres": [
+        {
+          "name": "guide",
+          "position": { "x": 0.000000, "y": 1.000000, "z": 0.000000 },
+          "velocity": { "x": 0.000000, "y": 0.000000, "z": 0.000000 }
+        }
+      ]
+    }
+  ]
+}

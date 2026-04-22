@@ -76,8 +76,11 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
   "observation_summary": {
     "status": "determinate",
     "representative_entities": 0,
-    "ambiguous_entities": 0
+    "ambiguous_entities": 0,
+    "representative_facts": 0,
+    "ambiguous_facts": 0
   },
+  "fact_resolutions": [],
   "candidate_resolutions": [],
   "activities": [
     {
@@ -160,8 +163,11 @@ cargo run -p sekai-cli -- analyze examples/reflected_region.sk
   "observation_summary": {
     "status": "determinate",
     "representative_entities": 0,
-    "ambiguous_entities": 0
+    "ambiguous_entities": 0,
+    "representative_facts": 0,
+    "ambiguous_facts": 0
   },
+  "fact_resolutions": [],
   "candidate_resolutions": [],
   "activities": [
     {
@@ -201,8 +207,11 @@ Phase I reports may additionally include:
 - `preference_resolved_entities` inside `convergence_analytics` when a later preference trigger resolves a deferred tie
 - `law_updated_entities` inside `convergence_analytics` when a later law update changes admissibility before re-convergence
 - `observation_summary` for the run-level observation status (`determinate`, `representative`, or `unresolved`)
+- `representative_facts` and `ambiguous_facts` inside `observation_summary` and `observation_timeline` when unresolved world facts affect the frontier status
 - `observation_timeline` for observation status at each recorded frontier
 - `candidate_resolutions` when initial action candidates were evaluated before observation
+- `fact_resolutions` when declared world facts remain unresolved or later converge across observation frontiers
+- `slot`, `observation_values`, `selected_value`, `preferred_value`, and `resolved_at_observation_time` for each fact-bearing world slot
 - `initial_frontier` per candidate-bearing entity for the first convergence frontier
 - `convergence_mode` per entity (`direct`, `fallback`, `repaired`, `deferred`, `resolved_after_defer`, `resolved_after_preference`, `resolved_after_rescore`, `resolved_after_law_update`, `tie_broken`, or `equivalent_tie`)
 - `observation_mode` per entity (`determinate`, `representative`, or `ambiguous`)

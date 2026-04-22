@@ -1,0 +1,19 @@
+sphere guide
+plane floor
+
+position(guide) = (0, 1, 0)
+velocity(guide) = (0, 0, 0)
+radius(guide) = 0.5
+
+normal(floor) = (0, 1, 0)
+offset(floor) = 0
+
+action:
+    candidate_fact(guide, route_hint, left_door) = score 5
+    candidate_fact(guide, route_hint, right_door) = score 5
+    defer_fact_on_ambiguous_top(guide, route_hint)
+    prefer_fact_at(guide, route_hint, left_door, 1)
+
+observe:
+    snapshot at 0
+    snapshot at 1

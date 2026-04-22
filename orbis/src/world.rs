@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt};
 
-use crate::parser::{ActionCandidateDecl, ActionDirectiveDecl, Program};
+use crate::parser::{ActionCandidateDecl, ActionDirectiveDecl, FactCandidateDecl, Program};
 
 const EPSILON: f64 = 1e-9;
 
@@ -126,10 +126,13 @@ pub struct World {
     pub constraints: Vec<Constraint>,
     pub constraint_traces: Vec<ConstraintTrace>,
     pub candidate_resolutions: Vec<CandidateResolution>,
+    pub fact_resolutions: Vec<FactResolution>,
     pub activity_log: Vec<ActivityEntry>,
     pub action_candidates_by_entity: BTreeMap<String, Vec<ActionCandidateDecl>>,
+    pub fact_candidates_by_key: BTreeMap<String, Vec<FactCandidateDecl>>,
     pub deferred_resolution_times: BTreeMap<String, f64>,
     pub deferred_preference_triggers: BTreeMap<String, DeferredPreferenceTrigger>,
+    pub deferred_fact_preference_triggers: BTreeMap<String, DeferredFactPreferenceTrigger>,
     pub visibility_preference_triggers: BTreeMap<String, Vec<VisibilityPreferenceTrigger>>,
     pub deferred_score_adjustments: BTreeMap<String, Vec<DeferredScoreAdjustment>>,
     pub deferred_speed_limit_updates: BTreeMap<String, DeferredSpeedLimitUpdate>,
@@ -156,6 +159,7 @@ pub struct SimulationReport {
     pub observation_summary: ObservationSummary,
     pub observation_timeline: Vec<ObservationCheckpoint>,
     pub candidate_resolutions: Vec<CandidateResolution>,
+    pub fact_resolutions: Vec<FactResolution>,
     pub activities: Vec<ActivityEntry>,
     pub snapshots: Vec<Snapshot>,
 }
@@ -166,6 +170,8 @@ pub struct ObservationCheckpoint {
     pub status: String,
     pub representative_entities: usize,
     pub ambiguous_entities: usize,
+    pub representative_facts: usize,
+    pub ambiguous_facts: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -198,6 +204,12 @@ pub struct ActionDirectiveSummary {
 #[derive(Clone, Debug)]
 pub struct DeferredPreferenceTrigger {
     pub label: String,
+    pub time: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeferredFactPreferenceTrigger {
+    pub value: String,
     pub time: f64,
 }
 
@@ -258,6 +270,30 @@ pub struct CandidateResolution {
 }
 
 #[derive(Clone, Debug)]
+pub struct FactResolution {
+    pub entity: String,
+    pub slot: String,
+    pub initial_frontier: String,
+    pub total_candidates: usize,
+    pub convergence_mode: String,
+    pub observation_mode: String,
+    pub observation_values: Vec<String>,
+    pub selected_value: Option<String>,
+    pub selected_score: Option<String>,
+    pub top_score: String,
+    pub top_values: Vec<String>,
+    pub tie_broken: bool,
+    pub symbolically_underdetermined: bool,
+    pub observationally_underdetermined: bool,
+    pub observed_while_deferred: usize,
+    pub deferred_past_initial_frontier: bool,
+    pub resolved_from_deferred: bool,
+    pub resolved_at_observation_time: Option<String>,
+    pub preferred_value: Option<String>,
+    pub convergence_steps: Vec<ConvergenceStep>,
+}
+
+#[derive(Clone, Debug)]
 pub struct ConvergenceStep {
     pub time: String,
     pub phase: String,
@@ -292,6 +328,8 @@ pub struct ObservationSummary {
     pub status: String,
     pub representative_entities: usize,
     pub ambiguous_entities: usize,
+    pub representative_facts: usize,
+    pub ambiguous_facts: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -522,8 +560,16 @@ impl SimulationReport {
             self.observation_summary.representative_entities
         ));
         json.push_str(&format!(
-            "    \"ambiguous_entities\": {}\n",
+            "    \"ambiguous_entities\": {},\n",
             self.observation_summary.ambiguous_entities
+        ));
+        json.push_str(&format!(
+            "    \"representative_facts\": {},\n",
+            self.observation_summary.representative_facts
+        ));
+        json.push_str(&format!(
+            "    \"ambiguous_facts\": {}\n",
+            self.observation_summary.ambiguous_facts
         ));
         json.push_str("  },\n");
         json.push_str("  \"observation_timeline\": [\n");
@@ -539,8 +585,16 @@ impl SimulationReport {
                 checkpoint.representative_entities
             ));
             json.push_str(&format!(
-                "      \"ambiguous_entities\": {}\n",
+                "      \"ambiguous_entities\": {},\n",
                 checkpoint.ambiguous_entities
+            ));
+            json.push_str(&format!(
+                "      \"representative_facts\": {},\n",
+                checkpoint.representative_facts
+            ));
+            json.push_str(&format!(
+                "      \"ambiguous_facts\": {}\n",
+                checkpoint.ambiguous_facts
             ));
             json.push_str("    }");
             if index + 1 != self.observation_timeline.len() {
@@ -729,6 +783,146 @@ impl SimulationReport {
             }
             json.push_str("    }");
             if index + 1 != self.candidate_resolutions.len() {
+                json.push(',');
+            }
+            json.push('\n');
+        }
+        json.push_str("  ],\n");
+        json.push_str("  \"fact_resolutions\": [\n");
+        for (index, fact_resolution) in self.fact_resolutions.iter().enumerate() {
+            json.push_str("    {\n");
+            json.push_str(&format!(
+                "      \"entity\": \"{}\",\n",
+                escape_json(&fact_resolution.entity)
+            ));
+            json.push_str(&format!(
+                "      \"slot\": \"{}\",\n",
+                escape_json(&fact_resolution.slot)
+            ));
+            json.push_str(&format!(
+                "      \"initial_frontier\": \"{}\",\n",
+                escape_json(&fact_resolution.initial_frontier)
+            ));
+            json.push_str(&format!(
+                "      \"total_candidates\": {},\n",
+                fact_resolution.total_candidates
+            ));
+            json.push_str(&format!(
+                "      \"convergence_mode\": \"{}\",\n",
+                escape_json(&fact_resolution.convergence_mode)
+            ));
+            json.push_str(&format!(
+                "      \"observation_mode\": \"{}\",\n",
+                escape_json(&fact_resolution.observation_mode)
+            ));
+            json.push_str("      \"observation_values\": [");
+            for (value_index, value) in fact_resolution.observation_values.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(value)));
+                if value_index + 1 != fact_resolution.observation_values.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            match &fact_resolution.selected_value {
+                Some(selected_value) => json.push_str(&format!(
+                    "      \"selected_value\": \"{}\",\n",
+                    escape_json(selected_value)
+                )),
+                None => json.push_str("      \"selected_value\": null,\n"),
+            }
+            match &fact_resolution.selected_score {
+                Some(selected_score) => json.push_str(&format!(
+                    "      \"selected_score\": \"{}\",\n",
+                    escape_json(selected_score)
+                )),
+                None => json.push_str("      \"selected_score\": null,\n"),
+            }
+            json.push_str(&format!(
+                "      \"top_score\": \"{}\",\n",
+                escape_json(&fact_resolution.top_score)
+            ));
+            json.push_str("      \"top_values\": [");
+            for (value_index, value) in fact_resolution.top_values.iter().enumerate() {
+                json.push_str(&format!("\"{}\"", escape_json(value)));
+                if value_index + 1 != fact_resolution.top_values.len() {
+                    json.push_str(", ");
+                }
+            }
+            json.push_str("],\n");
+            json.push_str(&format!(
+                "      \"tie_broken\": {},\n",
+                fact_resolution.tie_broken
+            ));
+            json.push_str(&format!(
+                "      \"symbolically_underdetermined\": {},\n",
+                fact_resolution.symbolically_underdetermined
+            ));
+            json.push_str(&format!(
+                "      \"observationally_underdetermined\": {},\n",
+                fact_resolution.observationally_underdetermined
+            ));
+            json.push_str(&format!(
+                "      \"observed_while_deferred\": {},\n",
+                fact_resolution.observed_while_deferred
+            ));
+            json.push_str(&format!(
+                "      \"deferred_past_initial_frontier\": {},\n",
+                fact_resolution.deferred_past_initial_frontier
+            ));
+            json.push_str(&format!(
+                "      \"resolved_from_deferred\": {},\n",
+                fact_resolution.resolved_from_deferred
+            ));
+            match &fact_resolution.preferred_value {
+                Some(preferred_value) => json.push_str(&format!(
+                    "      \"preferred_value\": \"{}\",\n",
+                    escape_json(preferred_value)
+                )),
+                None => json.push_str("      \"preferred_value\": null,\n"),
+            }
+            json.push_str("      \"convergence_steps\": [\n");
+            for (step_index, step) in fact_resolution.convergence_steps.iter().enumerate() {
+                json.push_str("        {\n");
+                json.push_str(&format!(
+                    "          \"time\": \"{}\",\n",
+                    escape_json(&step.time)
+                ));
+                json.push_str(&format!(
+                    "          \"phase\": \"{}\",\n",
+                    escape_json(&step.phase)
+                ));
+                json.push_str(&format!(
+                    "          \"mode\": \"{}\",\n",
+                    escape_json(&step.mode)
+                ));
+                json.push_str("          \"labels\": [");
+                for (label_index, label) in step.labels.iter().enumerate() {
+                    json.push_str(&format!("\"{}\"", escape_json(label)));
+                    if label_index + 1 != step.labels.len() {
+                        json.push_str(", ");
+                    }
+                }
+                json.push_str("],\n");
+                json.push_str(&format!(
+                    "          \"reason\": \"{}\"\n",
+                    escape_json(&step.reason)
+                ));
+                json.push_str("        }");
+                if step_index + 1 != fact_resolution.convergence_steps.len() {
+                    json.push(',');
+                }
+                json.push('\n');
+            }
+            json.push_str("      ],\n");
+            match &fact_resolution.resolved_at_observation_time {
+                Some(time) => json.push_str(&format!(
+                    "      \"resolved_at_observation_time\": \"{}\"\n",
+                    escape_json(time)
+                )),
+                None => json.push_str("      \"resolved_at_observation_time\": null\n"),
+            }
+            json.push_str("    }");
+            if index + 1 != self.fact_resolutions.len() {
                 json.push(',');
             }
             json.push('\n');
@@ -1259,8 +1453,16 @@ impl SimulationEnvelope {
                     report.observation_summary.representative_entities
                 ));
                 json.push_str(&format!(
-                    "    \"ambiguous_entities\": {}\n",
+                    "    \"ambiguous_entities\": {},\n",
                     report.observation_summary.ambiguous_entities
+                ));
+                json.push_str(&format!(
+                    "    \"representative_facts\": {},\n",
+                    report.observation_summary.representative_facts
+                ));
+                json.push_str(&format!(
+                    "    \"ambiguous_facts\": {}\n",
+                    report.observation_summary.ambiguous_facts
                 ));
                 json.push_str("  },\n");
                 json.push_str("  \"observation_timeline\": [\n");
@@ -1276,8 +1478,16 @@ impl SimulationEnvelope {
                         checkpoint.representative_entities
                     ));
                     json.push_str(&format!(
-                        "      \"ambiguous_entities\": {}\n",
+                        "      \"ambiguous_entities\": {},\n",
                         checkpoint.ambiguous_entities
+                    ));
+                    json.push_str(&format!(
+                        "      \"representative_facts\": {},\n",
+                        checkpoint.representative_facts
+                    ));
+                    json.push_str(&format!(
+                        "      \"ambiguous_facts\": {}\n",
+                        checkpoint.ambiguous_facts
                     ));
                     json.push_str("    }");
                     if index + 1 != report.observation_timeline.len() {
@@ -1479,6 +1689,148 @@ impl SimulationEnvelope {
                     json.push('\n');
                 }
                 json.push_str("  ],\n");
+                json.push_str("  \"fact_resolutions\": [\n");
+                for (index, fact_resolution) in report.fact_resolutions.iter().enumerate() {
+                    json.push_str("    {\n");
+                    json.push_str(&format!(
+                        "      \"entity\": \"{}\",\n",
+                        escape_json(&fact_resolution.entity)
+                    ));
+                    json.push_str(&format!(
+                        "      \"slot\": \"{}\",\n",
+                        escape_json(&fact_resolution.slot)
+                    ));
+                    json.push_str(&format!(
+                        "      \"initial_frontier\": \"{}\",\n",
+                        escape_json(&fact_resolution.initial_frontier)
+                    ));
+                    json.push_str(&format!(
+                        "      \"total_candidates\": {},\n",
+                        fact_resolution.total_candidates
+                    ));
+                    json.push_str(&format!(
+                        "      \"convergence_mode\": \"{}\",\n",
+                        escape_json(&fact_resolution.convergence_mode)
+                    ));
+                    json.push_str(&format!(
+                        "      \"observation_mode\": \"{}\",\n",
+                        escape_json(&fact_resolution.observation_mode)
+                    ));
+                    json.push_str("      \"observation_values\": [");
+                    for (value_index, value) in
+                        fact_resolution.observation_values.iter().enumerate()
+                    {
+                        json.push_str(&format!("\"{}\"", escape_json(value)));
+                        if value_index + 1 != fact_resolution.observation_values.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    match &fact_resolution.selected_value {
+                        Some(selected_value) => json.push_str(&format!(
+                            "      \"selected_value\": \"{}\",\n",
+                            escape_json(selected_value)
+                        )),
+                        None => json.push_str("      \"selected_value\": null,\n"),
+                    }
+                    match &fact_resolution.selected_score {
+                        Some(selected_score) => json.push_str(&format!(
+                            "      \"selected_score\": \"{}\",\n",
+                            escape_json(selected_score)
+                        )),
+                        None => json.push_str("      \"selected_score\": null,\n"),
+                    }
+                    json.push_str(&format!(
+                        "      \"top_score\": \"{}\",\n",
+                        escape_json(&fact_resolution.top_score)
+                    ));
+                    json.push_str("      \"top_values\": [");
+                    for (value_index, value) in fact_resolution.top_values.iter().enumerate() {
+                        json.push_str(&format!("\"{}\"", escape_json(value)));
+                        if value_index + 1 != fact_resolution.top_values.len() {
+                            json.push_str(", ");
+                        }
+                    }
+                    json.push_str("],\n");
+                    json.push_str(&format!(
+                        "      \"tie_broken\": {},\n",
+                        fact_resolution.tie_broken
+                    ));
+                    json.push_str(&format!(
+                        "      \"symbolically_underdetermined\": {},\n",
+                        fact_resolution.symbolically_underdetermined
+                    ));
+                    json.push_str(&format!(
+                        "      \"observationally_underdetermined\": {},\n",
+                        fact_resolution.observationally_underdetermined
+                    ));
+                    json.push_str(&format!(
+                        "      \"observed_while_deferred\": {},\n",
+                        fact_resolution.observed_while_deferred
+                    ));
+                    json.push_str(&format!(
+                        "      \"deferred_past_initial_frontier\": {},\n",
+                        fact_resolution.deferred_past_initial_frontier
+                    ));
+                    json.push_str(&format!(
+                        "      \"resolved_from_deferred\": {},\n",
+                        fact_resolution.resolved_from_deferred
+                    ));
+                    match &fact_resolution.preferred_value {
+                        Some(preferred_value) => json.push_str(&format!(
+                            "      \"preferred_value\": \"{}\",\n",
+                            escape_json(preferred_value)
+                        )),
+                        None => json.push_str("      \"preferred_value\": null,\n"),
+                    }
+                    json.push_str("      \"convergence_steps\": [\n");
+                    for (step_index, step) in fact_resolution.convergence_steps.iter().enumerate() {
+                        json.push_str("        {\n");
+                        json.push_str(&format!(
+                            "          \"time\": \"{}\",\n",
+                            escape_json(&step.time)
+                        ));
+                        json.push_str(&format!(
+                            "          \"phase\": \"{}\",\n",
+                            escape_json(&step.phase)
+                        ));
+                        json.push_str(&format!(
+                            "          \"mode\": \"{}\",\n",
+                            escape_json(&step.mode)
+                        ));
+                        json.push_str("          \"labels\": [");
+                        for (label_index, label) in step.labels.iter().enumerate() {
+                            json.push_str(&format!("\"{}\"", escape_json(label)));
+                            if label_index + 1 != step.labels.len() {
+                                json.push_str(", ");
+                            }
+                        }
+                        json.push_str("],\n");
+                        json.push_str(&format!(
+                            "          \"reason\": \"{}\"\n",
+                            escape_json(&step.reason)
+                        ));
+                        json.push_str("        }");
+                        if step_index + 1 != fact_resolution.convergence_steps.len() {
+                            json.push(',');
+                        }
+                        json.push('\n');
+                    }
+                    json.push_str("      ],\n");
+                    match &fact_resolution.resolved_at_observation_time {
+                        Some(time) => json.push_str(&format!(
+                            "      \"resolved_at_observation_time\": \"{}\"\n",
+                            escape_json(time)
+                        )),
+                        None => json.push_str("      \"resolved_at_observation_time\": null\n"),
+                    }
+                    json.push_str("    }");
+                    if index + 1 != report.fact_resolutions.len() {
+                        json.push(',');
+                    }
+                    json.push('\n');
+                }
+                json.push_str("  ],\n");
                 json.push_str("  \"activities\": [\n");
                 for (index, activity) in report.activities.iter().enumerate() {
                     json.push_str("    {\n");
@@ -1583,9 +1935,12 @@ impl SimulationEnvelope {
                 json.push_str("  \"observation_summary\": {\n");
                 json.push_str("    \"status\": \"determinate\",\n");
                 json.push_str("    \"representative_entities\": 0,\n");
-                json.push_str("    \"ambiguous_entities\": 0\n");
+                json.push_str("    \"ambiguous_entities\": 0,\n");
+                json.push_str("    \"representative_facts\": 0,\n");
+                json.push_str("    \"ambiguous_facts\": 0\n");
                 json.push_str("  },\n");
                 json.push_str("  \"candidate_resolutions\": [],\n");
+                json.push_str("  \"fact_resolutions\": [],\n");
                 json.push_str("  \"activities\": [],\n");
                 json.push_str("  \"snapshots\": []\n");
             }
@@ -1737,11 +2092,14 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     for time in observation_times {
         world.advance_to(time)?;
         world.resolve_deferred_candidates_at(time)?;
+        world.resolve_deferred_facts_at(time)?;
         let candidate_resolutions =
             candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len() + 1);
+        let fact_resolutions =
+            fact_resolutions_for_report(&world.fact_resolutions, snapshots.len() + 1);
         observation_timeline.push(observation_checkpoint(
             time,
-            &ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+            &ObservationSummary::from_resolutions(&candidate_resolutions, &fact_resolutions),
         ));
         let mut spheres = world
             .spheres
@@ -1759,6 +2117,7 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
     let constraints = world.constraint_summaries();
     let candidate_resolutions =
         candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+    let fact_resolutions = fact_resolutions_for_report(&world.fact_resolutions, snapshots.len());
 
     Ok(SimulationReport {
         analytics: LawAnalytics::from_constraints(&constraints),
@@ -1766,9 +2125,13 @@ pub fn simulate_program(program: &Program) -> Result<SimulationReport, Simulatio
         convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
             &candidate_resolutions,
         ),
-        observation_summary: ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+        observation_summary: ObservationSummary::from_resolutions(
+            &candidate_resolutions,
+            &fact_resolutions,
+        ),
         observation_timeline,
         candidate_resolutions,
+        fact_resolutions,
         activities: world.activity_log.clone(),
         snapshots,
     })
@@ -1800,6 +2163,8 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             let constraints = world.constraint_summaries();
             let candidate_resolutions =
                 candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+            let fact_resolutions =
+                fact_resolutions_for_report(&world.fact_resolutions, snapshots.len());
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
@@ -1810,11 +2175,13 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                         &candidate_resolutions,
                     ),
-                    observation_summary: ObservationSummary::from_candidate_resolutions(
+                    observation_summary: ObservationSummary::from_resolutions(
                         &candidate_resolutions,
+                        &fact_resolutions,
                     ),
                     observation_timeline,
                     candidate_resolutions,
+                    fact_resolutions,
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -1824,6 +2191,8 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             let constraints = world.constraint_summaries();
             let candidate_resolutions =
                 candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+            let fact_resolutions =
+                fact_resolutions_for_report(&world.fact_resolutions, snapshots.len());
             return SimulationEnvelope::failure_with_report(
                 source,
                 error.to_string(),
@@ -1834,11 +2203,41 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
                     convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                         &candidate_resolutions,
                     ),
-                    observation_summary: ObservationSummary::from_candidate_resolutions(
+                    observation_summary: ObservationSummary::from_resolutions(
                         &candidate_resolutions,
+                        &fact_resolutions,
                     ),
                     observation_timeline,
                     candidate_resolutions,
+                    fact_resolutions,
+                    activities: world.activity_log.clone(),
+                    snapshots,
+                },
+            );
+        }
+        if let Err(error) = world.resolve_deferred_facts_at(time) {
+            let constraints = world.constraint_summaries();
+            let candidate_resolutions =
+                candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+            let fact_resolutions =
+                fact_resolutions_for_report(&world.fact_resolutions, snapshots.len());
+            return SimulationEnvelope::failure_with_report(
+                source,
+                error.to_string(),
+                error.contradiction_record(),
+                SimulationReport {
+                    analytics: LawAnalytics::from_constraints(&constraints),
+                    constraints,
+                    convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
+                        &candidate_resolutions,
+                    ),
+                    observation_summary: ObservationSummary::from_resolutions(
+                        &candidate_resolutions,
+                        &fact_resolutions,
+                    ),
+                    observation_timeline,
+                    candidate_resolutions,
+                    fact_resolutions,
                     activities: world.activity_log.clone(),
                     snapshots,
                 },
@@ -1846,9 +2245,11 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
         }
         let candidate_resolutions =
             candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len() + 1);
+        let fact_resolutions =
+            fact_resolutions_for_report(&world.fact_resolutions, snapshots.len() + 1);
         observation_timeline.push(observation_checkpoint(
             time,
-            &ObservationSummary::from_candidate_resolutions(&candidate_resolutions),
+            &ObservationSummary::from_resolutions(&candidate_resolutions, &fact_resolutions),
         ));
         let mut spheres = world
             .spheres
@@ -1866,6 +2267,7 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
     let constraints = world.constraint_summaries();
     let candidate_resolutions =
         candidate_resolutions_for_report(&world.candidate_resolutions, snapshots.len());
+    let fact_resolutions = fact_resolutions_for_report(&world.fact_resolutions, snapshots.len());
 
     SimulationEnvelope::success(
         source,
@@ -1875,11 +2277,13 @@ pub fn simulate_program_envelope(program: &Program, source: &str) -> SimulationE
             convergence_analytics: ConvergenceAnalytics::from_candidate_resolutions(
                 &candidate_resolutions,
             ),
-            observation_summary: ObservationSummary::from_candidate_resolutions(
+            observation_summary: ObservationSummary::from_resolutions(
                 &candidate_resolutions,
+                &fact_resolutions,
             ),
             observation_timeline,
             candidate_resolutions,
+            fact_resolutions,
             activities: world.activity_log.clone(),
             snapshots,
         },
@@ -1971,14 +2375,18 @@ impl World {
             constraints,
             constraint_traces: vec![ConstraintTrace::default(); program.constraints.len()],
             candidate_resolutions: Vec::new(),
+            fact_resolutions: Vec::new(),
             activity_log: Vec::new(),
             action_candidates_by_entity: action_candidates_by_entity(program),
+            fact_candidates_by_key: fact_candidates_by_key(program),
             deferred_resolution_times: deferred_resolution_times_from_action_directives(
                 &program.action_directives,
             ),
             deferred_preference_triggers: deferred_preference_triggers_from_action_directives(
                 &program.action_directives,
             ),
+            deferred_fact_preference_triggers:
+                deferred_fact_preference_triggers_from_action_directives(&program.action_directives),
             visibility_preference_triggers: visibility_preference_triggers_from_action_directives(
                 &program.action_directives,
             ),
@@ -1992,6 +2400,10 @@ impl World {
 
         world.resolve_initial_action_candidates(
             &program.action_candidates,
+            &program.action_directives,
+        )?;
+        world.resolve_initial_fact_candidates(
+            &program.fact_candidates,
             &program.action_directives,
         )?;
         world.validated()
@@ -2162,6 +2574,51 @@ impl World {
         Ok(())
     }
 
+    fn resolve_initial_fact_candidates(
+        &mut self,
+        fact_candidates: &[FactCandidateDecl],
+        action_directives: &[ActionDirectiveDecl],
+    ) -> Result<(), SimulationError> {
+        if fact_candidates.is_empty() {
+            return Ok(());
+        }
+
+        let deferred_fact_keys = action_directives
+            .iter()
+            .filter(|directive| directive.kind == "defer_fact_on_ambiguous_top")
+            .filter_map(|directive| {
+                directive
+                    .slot_argument
+                    .as_ref()
+                    .map(|slot| fact_key(&directive.entity, slot))
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+
+        let mut grouped = BTreeMap::<String, Vec<FactCandidateDecl>>::new();
+        for candidate in fact_candidates {
+            grouped
+                .entry(fact_key(&candidate.entity, &candidate.slot))
+                .or_default()
+                .push(candidate.clone());
+        }
+
+        for (key, candidates) in grouped {
+            let (entity, slot) = split_fact_key(&key);
+            let resolution = self.resolve_facts_for_slot(
+                entity,
+                slot,
+                &candidates,
+                deferred_fact_keys.contains(&key),
+                false,
+                None,
+                None,
+            )?;
+            self.fact_resolutions.push(resolution);
+        }
+
+        Ok(())
+    }
+
     fn resolve_deferred_candidates_at(
         &mut self,
         observation_time: f64,
@@ -2225,6 +2682,62 @@ impl World {
                 .iter_mut()
                 .find(|existing| existing.entity == entity)
             {
+                *existing = resolution;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn resolve_deferred_facts_at(&mut self, observation_time: f64) -> Result<(), SimulationError> {
+        let mut keys = self
+            .fact_resolutions
+            .iter()
+            .filter(|resolution| {
+                resolution.convergence_mode == "deferred"
+                    && resolution.selected_value.is_none()
+                    && self
+                        .deferred_fact_preference_triggers
+                        .get(&fact_key(&resolution.entity, &resolution.slot))
+                        .is_some_and(|trigger| observation_time + EPSILON >= trigger.time)
+            })
+            .map(|resolution| fact_key(&resolution.entity, &resolution.slot))
+            .collect::<Vec<_>>();
+        keys.sort();
+
+        for key in keys {
+            let candidates = self
+                .fact_candidates_by_key
+                .get(&key)
+                .cloned()
+                .ok_or_else(|| {
+                    SimulationError::InvalidActionCandidate(format!(
+                        "missing deferred fact inventory for `{}`",
+                        key
+                    ))
+                })?;
+            let trigger = self
+                .deferred_fact_preference_triggers
+                .get(&key)
+                .filter(|trigger| observation_time + EPSILON >= trigger.time)
+                .cloned();
+            let (entity, slot) = split_fact_key(&key);
+            let resolution = self.resolve_facts_for_slot(
+                entity,
+                slot,
+                &candidates,
+                false,
+                true,
+                Some(observation_time),
+                trigger.as_ref().map(|trigger| trigger.value.as_str()),
+            )?;
+            if let Some(existing) = self
+                .fact_resolutions
+                .iter_mut()
+                .find(|existing| existing.entity == entity && existing.slot == slot)
+            {
+                let mut resolution = resolution;
+                resolution.initial_frontier = existing.initial_frontier.clone();
                 *existing = resolution;
             }
         }
@@ -2562,6 +3075,134 @@ impl World {
             preferred_label,
             active_score_adjustments,
             active_law_updates: active_law_updates.to_vec(),
+            convergence_steps: Vec::new(),
+        })
+    }
+
+    fn resolve_facts_for_slot(
+        &mut self,
+        entity: &str,
+        slot: &str,
+        candidates: &[FactCandidateDecl],
+        allow_defer: bool,
+        resolved_from_deferred: bool,
+        resolved_at_observation_time: Option<f64>,
+        preferred_value: Option<&str>,
+    ) -> Result<FactResolution, SimulationError> {
+        let mut candidates = candidates.to_vec();
+        candidates.sort_by(|left, right| {
+            right
+                .score
+                .total_cmp(&left.score)
+                .then_with(|| {
+                    match (
+                        preferred_value.is_some_and(|value| left.value == value),
+                        preferred_value.is_some_and(|value| right.value == value),
+                    ) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => std::cmp::Ordering::Equal,
+                    }
+                })
+                .then_with(|| left.value.cmp(&right.value))
+        });
+
+        let total_candidates = candidates.len();
+        let top_score = candidates
+            .first()
+            .map(|candidate| candidate.score)
+            .unwrap_or(0.0);
+        let top_values = candidates
+            .iter()
+            .filter(|candidate| (candidate.score - top_score).abs() <= EPSILON)
+            .map(|candidate| candidate.value.clone())
+            .collect::<Vec<_>>();
+        let tie_broken = top_values.len() > 1;
+        let deferred = allow_defer && tie_broken;
+        let selected = candidates.first().cloned();
+
+        if deferred {
+            self.activity_log.push(fact_activity_entry(
+                self.current_time(),
+                entity,
+                slot,
+                top_values.first().map(String::as_str).unwrap_or(""),
+                top_score,
+                "deferred_due_to_fact_tie",
+            ));
+        } else if let Some(selected) = &selected {
+            self.activity_log.push(fact_activity_entry(
+                self.current_time(),
+                entity,
+                slot,
+                &selected.value,
+                selected.score,
+                if resolved_from_deferred && preferred_value.is_some() {
+                    "selected_after_fact_preference"
+                } else if resolved_from_deferred {
+                    "selected_after_fact_defer"
+                } else {
+                    "selected_fact"
+                },
+            ));
+        }
+
+        let convergence_mode = if deferred {
+            "deferred"
+        } else if resolved_from_deferred && preferred_value.is_some() {
+            "resolved_after_preference"
+        } else if resolved_from_deferred {
+            "resolved_after_defer"
+        } else if tie_broken {
+            "tie_broken"
+        } else {
+            "direct"
+        };
+        let observation_mode = if deferred || tie_broken && !resolved_from_deferred {
+            "ambiguous"
+        } else {
+            "determinate"
+        };
+        let observation_values = if deferred || tie_broken && !resolved_from_deferred {
+            top_values.clone()
+        } else {
+            selected
+                .as_ref()
+                .map(|selected| vec![selected.value.clone()])
+                .unwrap_or_default()
+        };
+
+        Ok(FactResolution {
+            entity: entity.to_string(),
+            slot: slot.to_string(),
+            initial_frontier: format!("{:.3}", self.current_time()),
+            total_candidates,
+            convergence_mode: convergence_mode.to_string(),
+            observation_mode: observation_mode.to_string(),
+            observation_values,
+            selected_value: if deferred {
+                None
+            } else {
+                selected.as_ref().map(|selected| selected.value.clone())
+            },
+            selected_score: if deferred {
+                None
+            } else {
+                selected
+                    .as_ref()
+                    .map(|selected| format!("score={:.3}", selected.score))
+            },
+            top_score: format!("{top_score:.3}"),
+            top_values,
+            tie_broken,
+            symbolically_underdetermined: tie_broken && !resolved_from_deferred,
+            observationally_underdetermined: tie_broken && !resolved_from_deferred,
+            observed_while_deferred: 0,
+            deferred_past_initial_frontier: false,
+            resolved_from_deferred,
+            resolved_at_observation_time: resolved_at_observation_time
+                .map(|time| format!("{time:.3}")),
+            preferred_value: preferred_value.map(ToString::to_string),
             convergence_steps: Vec::new(),
         })
     }
@@ -3137,7 +3778,10 @@ impl ConvergenceAnalytics {
 }
 
 impl ObservationSummary {
-    pub fn from_candidate_resolutions(candidate_resolutions: &[CandidateResolution]) -> Self {
+    pub fn from_resolutions(
+        candidate_resolutions: &[CandidateResolution],
+        fact_resolutions: &[FactResolution],
+    ) -> Self {
         let representative_entities = candidate_resolutions
             .iter()
             .filter(|resolution| resolution.observation_mode == "representative")
@@ -3146,10 +3790,18 @@ impl ObservationSummary {
             .iter()
             .filter(|resolution| resolution.observation_mode == "ambiguous")
             .count();
+        let representative_facts = fact_resolutions
+            .iter()
+            .filter(|resolution| resolution.observation_mode == "representative")
+            .count();
+        let ambiguous_facts = fact_resolutions
+            .iter()
+            .filter(|resolution| resolution.observation_mode == "ambiguous")
+            .count();
 
-        let status = if ambiguous_entities > 0 {
+        let status = if ambiguous_entities > 0 || ambiguous_facts > 0 {
             "unresolved"
-        } else if representative_entities > 0 {
+        } else if representative_entities > 0 || representative_facts > 0 {
             "representative"
         } else {
             "determinate"
@@ -3159,6 +3811,8 @@ impl ObservationSummary {
             status: status.to_string(),
             representative_entities,
             ambiguous_entities,
+            representative_facts,
+            ambiguous_facts,
         }
     }
 }
@@ -3243,6 +3897,23 @@ fn candidate_activity_entry(
         time,
         kind: "candidate_velocity".to_string(),
         targets: vec![sphere_name.to_string(), label.to_string()],
+        policy: format!("score={score:.3}"),
+        action: action.to_string(),
+    }
+}
+
+fn fact_activity_entry(
+    time: f64,
+    entity: &str,
+    slot: &str,
+    value: &str,
+    score: f64,
+    action: &str,
+) -> ActivityEntry {
+    ActivityEntry {
+        time,
+        kind: "candidate_fact".to_string(),
+        targets: vec![entity.to_string(), slot.to_string(), value.to_string()],
         policy: format!("score={score:.3}"),
         action: action.to_string(),
     }
@@ -3397,6 +4068,27 @@ fn candidate_resolutions_for_report(
         .collect()
 }
 
+fn fact_resolutions_for_report(
+    fact_resolutions: &[FactResolution],
+    observation_count: usize,
+) -> Vec<FactResolution> {
+    fact_resolutions
+        .iter()
+        .cloned()
+        .map(|mut resolution| {
+            if resolution.convergence_mode == "deferred" {
+                resolution.observed_while_deferred = observation_count;
+                resolution.deferred_past_initial_frontier = observation_count > 1;
+            } else if resolution.resolved_from_deferred {
+                resolution.observed_while_deferred = observation_count.saturating_sub(1);
+                resolution.deferred_past_initial_frontier = false;
+            }
+            resolution.convergence_steps = convergence_steps_for_fact_resolution(&resolution);
+            resolution
+        })
+        .collect()
+}
+
 fn convergence_steps_for_resolution(resolution: &CandidateResolution) -> Vec<ConvergenceStep> {
     let mut steps = Vec::new();
     steps.push(ConvergenceStep {
@@ -3474,13 +4166,71 @@ fn convergence_steps_for_resolution(resolution: &CandidateResolution) -> Vec<Con
     steps
 }
 
+fn convergence_steps_for_fact_resolution(resolution: &FactResolution) -> Vec<ConvergenceStep> {
+    let mut steps = Vec::new();
+    steps.push(ConvergenceStep {
+        time: resolution.initial_frontier.clone(),
+        phase: "fact_frontier".to_string(),
+        mode: resolution.convergence_mode.clone(),
+        labels: resolution.top_values.clone(),
+        reason: format!("top_score={}", resolution.top_score),
+    });
+
+    if resolution.convergence_mode == "deferred" {
+        steps.push(ConvergenceStep {
+            time: resolution.initial_frontier.clone(),
+            phase: "deferred".to_string(),
+            mode: resolution.convergence_mode.clone(),
+            labels: resolution.observation_values.clone(),
+            reason: "ambiguous fact frontier preserved".to_string(),
+        });
+        return steps;
+    }
+
+    if resolution.resolved_from_deferred {
+        steps.push(ConvergenceStep {
+            time: resolution.initial_frontier.clone(),
+            phase: "deferred".to_string(),
+            mode: "deferred".to_string(),
+            labels: resolution.top_values.clone(),
+            reason: "ambiguous fact frontier preserved before later resolution".to_string(),
+        });
+    }
+
+    steps.push(ConvergenceStep {
+        time: resolution
+            .resolved_at_observation_time
+            .clone()
+            .unwrap_or_else(|| resolution.initial_frontier.clone()),
+        phase: "resolved".to_string(),
+        mode: resolution.convergence_mode.clone(),
+        labels: resolution.observation_values.clone(),
+        reason: resolution
+            .preferred_value
+            .as_ref()
+            .map(|value| format!("preferred_value={value}"))
+            .unwrap_or_else(|| "selected_highest_score_fact".to_string()),
+    });
+    steps
+}
+
 fn observation_checkpoint(time: f64, summary: &ObservationSummary) -> ObservationCheckpoint {
     ObservationCheckpoint {
         time,
         status: summary.status.clone(),
         representative_entities: summary.representative_entities,
         ambiguous_entities: summary.ambiguous_entities,
+        representative_facts: summary.representative_facts,
+        ambiguous_facts: summary.ambiguous_facts,
     }
+}
+
+fn fact_key(entity: &str, slot: &str) -> String {
+    format!("{entity}::{slot}")
+}
+
+fn split_fact_key(key: &str) -> (&str, &str) {
+    key.split_once("::").unwrap_or((key, "fact"))
 }
 
 fn action_candidates_by_entity(program: &Program) -> BTreeMap<String, Vec<ActionCandidateDecl>> {
@@ -3488,6 +4238,17 @@ fn action_candidates_by_entity(program: &Program) -> BTreeMap<String, Vec<Action
     for candidate in &program.action_candidates {
         grouped
             .entry(candidate.entity.clone())
+            .or_default()
+            .push(candidate.clone());
+    }
+    grouped
+}
+
+fn fact_candidates_by_key(program: &Program) -> BTreeMap<String, Vec<FactCandidateDecl>> {
+    let mut grouped = BTreeMap::<String, Vec<FactCandidateDecl>>::new();
+    for candidate in &program.fact_candidates {
+        grouped
+            .entry(fact_key(&candidate.entity, &candidate.slot))
             .or_default()
             .push(candidate.clone());
     }
@@ -3520,6 +4281,30 @@ fn deferred_preference_triggers_from_action_directives(
                     directive.entity.clone(),
                     DeferredPreferenceTrigger {
                         label: label.clone(),
+                        time,
+                    },
+                );
+            }
+        }
+    }
+    result
+}
+
+fn deferred_fact_preference_triggers_from_action_directives(
+    action_directives: &[ActionDirectiveDecl],
+) -> BTreeMap<String, DeferredFactPreferenceTrigger> {
+    let mut result = BTreeMap::new();
+    for directive in action_directives {
+        if directive.kind == "prefer_fact_at" {
+            if let (Some(slot), Some(value), Some(time)) = (
+                &directive.slot_argument,
+                &directive.label_argument,
+                directive.time_argument,
+            ) {
+                result.insert(
+                    fact_key(&directive.entity, slot),
+                    DeferredFactPreferenceTrigger {
+                        value: value.clone(),
                         time,
                     },
                 );
@@ -5832,5 +6617,41 @@ observe:
         assert!(message.contains("cannot see"), "{message}");
         assert!(message.contains("wall_bottom"), "{message}");
         assert!(message.contains("t=1.000"), "{message}");
+    }
+
+    #[test]
+    fn uncertain_world_fact_is_first_class_across_observation_frontiers() {
+        let source = include_str!("../../examples/uncertain_world_fact.sk");
+        let program = parse_program(source).expect("uncertain world fact program should parse");
+        let report =
+            simulate_program(&program).expect("uncertain world fact simulation should succeed");
+        let fact = report
+            .fact_resolutions
+            .iter()
+            .find(|resolution| resolution.entity == "guide" && resolution.slot == "route_hint")
+            .expect("fact resolution should be present");
+
+        assert_eq!(report.observation_timeline.len(), 2);
+        assert_eq!(report.observation_timeline[0].status, "unresolved");
+        assert_eq!(report.observation_timeline[0].ambiguous_facts, 1);
+        assert_eq!(report.observation_timeline[1].status, "determinate");
+        assert_eq!(report.observation_timeline[1].ambiguous_facts, 0);
+        assert_eq!(fact.initial_frontier, "0.000");
+        assert_eq!(fact.selected_value.as_deref(), Some("left_door"));
+        assert_eq!(fact.preferred_value.as_deref(), Some("left_door"));
+        assert_eq!(fact.resolved_at_observation_time.as_deref(), Some("1.000"));
+        assert_eq!(fact.convergence_steps.len(), 3);
+    }
+
+    #[test]
+    fn envelope_json_includes_fact_resolution_metadata() {
+        let source = include_str!("../../examples/uncertain_world_fact.sk");
+        let program = parse_program(source).expect("uncertain world fact program should parse");
+        let envelope = simulate_program_envelope(&program, "uncertain_world_fact.sk");
+        let json = envelope.to_json();
+
+        assert!(json.contains("\"fact_resolutions\""));
+        assert!(json.contains("\"slot\": \"route_hint\""));
+        assert!(json.contains("\"ambiguous_facts\": 1"));
     }
 }
