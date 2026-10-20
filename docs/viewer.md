@@ -209,4 +209,4 @@ and returns the structured simulation report back to the viewer.
 
 ## Screenshot Workflow
 
-Use [screenshots.md](/Users/hw24a094/world-oriented-programming/docs/screenshots.md) for the current paper capture checklist.
+Use [screenshots.md](screenshots.md) for the current paper capture checklist.

@@ -108,7 +108,7 @@ They are the right pressure points for development and paper discipline.
 
 ## Connection To Existing Project Documents
 
-- [Positioning Matrix](/Users/nagaseibuki/Documents/github-repos/naki0227/world-oriented-programming/docs/positioning-matrix.md) compares `sekai` to nearby traditions
-- [Research Strategy And Task Plan](/Users/nagaseibuki/Documents/github-repos/naki0227/world-oriented-programming/docs/research-strategy-and-task-plan.md) turns the critique into executable research tasks
-- [Semantics Core](/Users/nagaseibuki/Documents/github-repos/naki0227/world-oriented-programming/docs/semantics-core.md) defines the current semantic account
-- [Roadmap](/Users/nagaseibuki/Documents/github-repos/naki0227/world-oriented-programming/docs/roadmap.md) explains where this comparison fits into the broader development plan
+- [Positioning Matrix](positioning-matrix.md) compares `sekai` to nearby traditions
+- [Research Strategy And Task Plan](research-strategy-and-task-plan.md) turns the critique into executable research tasks
+- [Semantics Core](semantics-core.md) defines the current semantic account
+- [Roadmap](roadmap.md) explains where this comparison fits into the broader development plan
